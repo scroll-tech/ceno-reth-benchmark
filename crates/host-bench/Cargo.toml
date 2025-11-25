@@ -24,6 +24,15 @@ serde_json.workspace = true
 openvm-host-executor.workspace = true
 openvm-client-executor.workspace = true
 
+# ceno workspace
+ceno_zkvm.workspace = true
+cargo_metadata.workspace = true
+ceno_emul.workspace = true
+ceno_host.workspace = true
+gkr_iop.workspace = true
+mpcs.workspace = true
+ff_ext.workspace = true
+
 # alloy
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
@@ -57,6 +66,7 @@ halo2-axiom = { version = "0.5.0", default-features = false, optional = true }
 
 [features]
 default = ["mimalloc", "metrics"]
+gpu = []
 metrics = ["openvm-benchmarks-prove/metrics"]
 tco = ["openvm-sdk/tco"]
 aot = ["openvm-sdk/aot"]

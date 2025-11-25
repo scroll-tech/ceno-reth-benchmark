@@ -1,0 +1,44 @@
+[package]
+name = "ceno-client-eth"
+description = "Ceno Reth Guest Program"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+# workspace
+openvm-client-executor = { path = "../../crates/executor/client" }
+ceno_rt.workspace = true
+ceno_crypto.workspace = true
+ceno_syscall.workspace = true
+bincode.workspace = true
+ceno_sha2.workspace = true
+revm-precompile.workspace = true
+alloy-consensus = { workspace = true, features = ["crypto-backend"] }
+alloy-primitives.workspace = true
+
+[target.'cfg(target_os = "zkvm")'.dependencies]
+revm-primitives = { workspace = true, features = ["hashbrown"] }
+alloy-primitives = { workspace = true, features = ["native-keccak"] }
+
+rkyv = "0.8"
+
+# Statically turns off logging
+log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
+tracing = { version = "0.1", features = [
+    "max_level_off",
+    "release_max_level_off",
+] }
+
+[features]
+default = []
+profiling = ["ceno_crypto/profiling"]
+
+[profile.release]
+panic = "abort"
+lto = "fat"
+strip = true
+
+[profile.profiling]
+inherits = "release"
+debug = 2
+strip = false

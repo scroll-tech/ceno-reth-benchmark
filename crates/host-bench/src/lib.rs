@@ -31,7 +31,21 @@ use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
 use serde_json::json;
 use std::{fs, path::PathBuf};
-use tracing::{info, info_span};
+use std::path::Path;
+use std::sync::LazyLock;
+use tracing::{debug, info, info_span};
+
+use cargo_metadata::MetadataCommand;
+use ceno_emul::{Platform, Program};
+use ceno_host::CenoStdin;
+use ceno_zkvm::e2e::{MultiProver, Preset, run_e2e_proof, run_e2e_verify, setup_platform, setup_program, DEFAULT_MAX_CELLS_PER_SHARDS};
+use ceno_zkvm::scheme::hal::ProverDevice;
+use ceno_zkvm::scheme::verifier::ZKVMVerifier;
+use ceno_zkvm::scheme::{create_backend, create_prover};
+use ceno_zkvm::scheme::prover::ZKVMProver;
+use ff_ext::BabyBearExt4;
+use gkr_iop::cpu::default_backend_config;
+use mpcs::BasefoldDefault;
 
 mod cli;
 use cli::ProviderArgs;
@@ -142,6 +156,313 @@ pub fn reth_vm_config(app_log_blowup: usize) -> SdkVmConfig {
 
 pub const RETH_DEFAULT_APP_LOG_BLOWUP: usize = 1;
 pub const RETH_DEFAULT_LEAF_LOG_BLOWUP: usize = 1;
+
+
+
+static WORKSPACE_ROOT: LazyLock<&Path> = LazyLock::new(|| {
+    let path = MetadataCommand::new()
+        .no_deps()
+        .exec()
+        .expect("failed to execute cargo-metadata")
+        .workspace_root
+        .into_std_path_buf();
+    eprintln!("PROJECT_ROOT_DIR = {}", path.display());
+    Box::leak(path.into_boxed_path())
+});
+
+fn setup() -> (Vec<u8>, Program, Platform) {
+    let stack_size = 128 * 1024 * 1024;
+    let heap_size = 128 * 1024 * 1024;
+    let pub_io_size = 32;
+    println!(
+        "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size:#x}"
+    );
+
+    let elf_path = WORKSPACE_ROOT
+        .join("target")
+        .join("riscv32im-ceno-zkvm-elf")
+        .join("release")
+        .join("ceno-client-eth");
+    let elf = std::fs::read(elf_path).unwrap();
+    let program = Program::load_elf(&elf, u32::MAX).unwrap();
+    let platform = setup_platform(Preset::Ceno, &program, stack_size, heap_size, pub_io_size);
+    (elf, program, platform)
+}
+
+pub const MAX_CYCLE_PER_SHARD: u64 = 1 << 29;
+pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
+
+    type Pcs = BasefoldDefault<E>;
+    type E = BabyBearExt4;
+
+    // Initialize the environment variables.
+    dotenv::dotenv().ok();
+
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "info");
+    }
+
+    // Parse the command line arguments.
+    let mut args = args;
+
+    let client_input_from_path =
+        args.input_path.as_ref().map(|path| try_load_input_from_path(path).unwrap());
+
+    let client_input = if let Some(client_input_from_path) = client_input_from_path {
+        client_input_from_path
+    } else {
+        let provider_config = args.provider.into_provider().await?;
+        match provider_config.chain_id {
+            #[allow(non_snake_case)]
+            CHAIN_ID_ETH_MAINNET => (),
+            _ => {
+                eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
+            }
+        };
+        let client_input_from_cache = try_load_input_from_cache(
+            args.cache_dir.as_ref(),
+            provider_config.chain_id,
+            args.block_number,
+        )?;
+
+        match (client_input_from_cache, provider_config.rpc_url) {
+            (Some(client_input_from_cache), _) => client_input_from_cache,
+            (None, Some(rpc_url)) => {
+                info!("calling rpc");
+                // Cache not found but we have RPC
+                // Setup the provider.
+                let client =
+                    RpcClient::builder().layer(RetryBackoffLayer::new(5, 1000, 100)).http(rpc_url);
+                let provider = RootProvider::new(client);
+
+                // Setup the host executor.
+                let host_executor = HostExecutor::new(provider);
+
+                info!("start host_executor");
+                // Execute the host.
+                let client_input =
+                    host_executor.execute(args.block_number).await.expect("failed to execute host");
+                info!("finish host_executor");
+
+                if let Some(cache_dir) = args.cache_dir {
+                    let input_folder =
+                        cache_dir.join(format!("input/{}", provider_config.chain_id));
+                    if !input_folder.exists() {
+                        std::fs::create_dir_all(&input_folder)?;
+                    }
+
+                    let input_path = input_folder.join(format!("{}.bin", args.block_number));
+                    let mut cache_file = std::fs::File::create(input_path)?;
+
+                    bincode::serde::encode_into_std_write(
+                        &client_input,
+                        &mut cache_file,
+                        bincode::config::standard(),
+                    )?;
+                }
+
+                client_input
+            }
+            (None, None) => {
+                eyre::bail!("cache not found and RPC URL not provided")
+            }
+        }
+    };
+
+    let (_, security_level) = default_backend_config();
+    let max_num_variables = 26;
+    let backend = create_backend::<E, Pcs>(max_num_variables, security_level);
+    let (_, program, platform) = setup();
+
+    let mut hints = CenoStdin::default();
+
+    let bytes = bincode::serde::encode_to_vec(&client_input, bincode::config::standard())?;
+    // TODO research and probably switch to openvm deserialer (they are derived from risc0)
+    // let words = openvm::serde::to_vec(&client_input).unwrap();
+    // let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
+    hints.write(&bytes)?;
+    info!("input loaded");
+
+    if matches!(args.mode, BenchMode::MakeInput) {
+        let words: Vec<u32> = openvm::serde::to_vec(&client_input).unwrap();
+        let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
+        let hex_bytes = String::from("0x01") + &hex::encode(&bytes);
+        let input = json!({
+            "input": [hex_bytes]
+        });
+        let input = serde_json::to_string(&input).unwrap();
+        fs::write(args.generated_input_path.unwrap(), input)?;
+        return Ok(());
+    }
+
+    #[cfg(feature = "gpu")]
+    println!("CUDA Backend Enabled");
+
+    let max_steps = usize::MAX;
+    let proving_device = create_prover(backend.clone());
+
+    let start = std::time::Instant::now();
+    let ctx = setup_program::<E>(
+        program,
+        platform,
+        MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
+    );
+    info!("setup_program done in {:?}", start.elapsed());
+
+    if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
+        eyre::bail!("app_pk_path and agg_pk_path must be provided together");
+    }
+    if let Some(app_pk_path) = args.app_pk_path {
+        todo!("let make pk serializable and read from path");
+        let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
+        let agg_pk_path = args.agg_pk_path.unwrap();
+        let agg_pk: AggProvingKey = read_object_from_file(agg_pk_path)?;
+        let vm_config_loaded = app_pk.app_vm_pk.vm_config.clone();
+        // let vm_config_json =
+        //     serde_json::to_value(&vm_config).expect("failed to serialize vm_config to json value");
+        // let vm_config_loaded_json = serde_json::to_value(&vm_config_loaded)
+        //     .expect("failed to serialize vm_config_loaded to json value");
+        // assert_eq!(
+        //     vm_config_json, vm_config_loaded_json,
+        //     "vm_config mismatch between runtime config and proving key"
+        // );
+        // sdk.set_app_pk(app_pk).map_err(|_| eyre::eyre!("failed to set app pk"))?;
+        // sdk.set_agg_pk(agg_pk).map_err(|_| eyre::eyre!("failed to set agg pk"))?;
+    }
+
+    let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
+
+    run_with_metric_collection("OUTPUT_PATH", || {
+        info_span!("reth-block", block_number = args.block_number).in_scope(
+            || -> eyre::Result<()> {
+                // Run host execution for comparison
+                if !args.skip_comparison {
+                    let block_hash = info_span!("host.execute", group = program_name).in_scope(
+                        || -> eyre::Result<_> {
+                            let executor = ClientExecutor;
+                            // Create a child span to get the group label propagated
+                            let header = info_span!("client.execute").in_scope(|| {
+                                executor.execute(ChainVariant::Mainnet, client_input.clone())
+                            })?;
+                            let block_hash =
+                                info_span!("header.hash_slow").in_scope(|| header.hash_slow());
+                            Ok(block_hash)
+                        },
+                    )?;
+                    println!("block_hash (execute-host): {}", ToHexExt::encode_hex(&block_hash));
+                }
+
+                // For ExecuteHost mode, only do host execution
+                if matches!(args.mode, BenchMode::ExecuteHost) {
+                    return Ok(());
+                }
+
+                // Execute for benchmarking:
+                if !args.skip_comparison {
+                    // let pvs = info_span!("sdk.execute", group = program_name)
+                    //     .in_scope(|| sdk.execute(elf.clone(), stdin.clone()))?;
+                    // let block_hash = pvs;
+                    // println!("block_hash (execute): {}", ToHexExt::encode_hex(&block_hash));
+                }
+
+                match args.mode {
+                    BenchMode::Execute => {}
+                    BenchMode::ExecuteMetered => {
+                        unimplemented!()
+                        // let engine = DefaultStarkEngine::new(app_config.app_fri_params.fri_params);
+                        // let (vm, _) = VirtualMachine::new_with_keygen(
+                        //     engine,
+                        //     SdkVmBuilder,
+                        //     app_config.app_vm_config,
+                        // )?;
+                        // let executor_idx_to_air_idx = vm.executor_idx_to_air_idx();
+                        // let interpreter =
+                        //     vm.executor().metered_instance(&exe, &executor_idx_to_air_idx)?;
+                        // let metered_ctx = vm.build_metered_ctx(&exe);
+                        // let (segments, _) =
+                        //     info_span!("interpreter.execute_metered", group = program_name)
+                        //         .in_scope(|| interpreter.execute_metered(stdin, metered_ctx))?;
+                        // println!("Number of segments: {}", segments.len());
+                    }
+                    BenchMode::ProveApp => {
+                        let start = std::time::Instant::now();
+                        let (pk, vk) = ctx.keygen_with_pb(proving_device.get_pb());
+                        info!("keygen done in {:?}", start.elapsed());
+
+                        let start = std::time::Instant::now();
+                        let init_full_mem = ctx.setup_init_mem(&Vec::from(&hints), &[]);
+                        debug!("setup_init_mem done in {:?}", start.elapsed());
+
+                        let prover = ZKVMProver::new(pk, proving_device);
+                        let proofs =
+                            run_e2e_proof::<E, Pcs, _, _>(&ctx, &prover, &init_full_mem, max_steps, false);
+                        let duration = start.elapsed();
+                        info!("run_e2e_proof took: {:?}", duration);
+
+                        let verifier = ZKVMVerifier::new(vk.clone());
+                        let start = std::time::Instant::now();
+                        run_e2e_verify(&verifier, proofs, Some(0), max_steps);
+                        debug!("verified in {:?}", start.elapsed());
+
+                    }
+                    BenchMode::ProveStark => {
+                        unimplemented!()
+                        // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
+                        // let proof = prover.prove(stdin)?;
+                        // let block_hash = proof
+                        //     .user_public_values
+                        //     .iter()
+                        //     .map(|pv| pv.as_canonical_u32() as u8)
+                        //     .collect::<Vec<u8>>();
+                        // println!("block_hash (prove_stark): {}", ToHexExt::encode_hex(&block_hash));
+                        //
+                        // if let Some(output_dir) = args.output_dir.as_ref() {
+                        //     let versioned_proof = VersionedVmStarkProof::new(proof)?;
+                        //     let json = serde_json::to_vec_pretty(&versioned_proof)?;
+                        //     fs::write(output_dir.join("proof.json"), json)?;
+                        //     println!("wrote proof json to {}", output_dir.display());
+                        // }
+                    }
+                    #[cfg(feature = "evm-verify")]
+                    BenchMode::ProveEvm => {
+                        let mut prover = sdk.evm_prover(elf)?.with_program_name(program_name);
+                        let halo2_pk = sdk.halo2_pk();
+                        tracing::info!(
+                            "halo2_outer_k: {}",
+                            halo2_pk.verifier.pinning.metadata.config_params.k
+                        );
+                        tracing::info!(
+                            "halo2_wrapper_k: {}",
+                            halo2_pk.wrapper.pinning.metadata.config_params.k
+                        );
+                        let proof = prover.prove_evm(stdin)?;
+                        let block_hash = &proof.user_public_values;
+                        println!("block_hash (prove_evm): {}", ToHexExt::encode_hex(block_hash));
+                    }
+                    BenchMode::GenerateFixtures => {
+                        todo!("serialized pk");
+                        let fixture_path = args.fixtures_path.unwrap();
+
+                        let mut app_pk_path = fixture_path.clone();
+                        app_pk_path.push("app_pk.bitcode");
+                        // fs::write(app_pk_path, bitcode::serialize(sdk.app_pk())?)?;
+
+                        let mut agg_pk_path = fixture_path.clone();
+                        agg_pk_path.push("agg_pk.bitcode");
+                        // fs::write(agg_pk_path, bitcode::serialize(sdk.agg_pk())?)?;
+                    }
+                    _ => {
+                        // This case is handled earlier and should not reach here
+                        unreachable!();
+                    }
+                }
+
+                Ok(())
+            },
+        )
+    })?;
+    Ok(())
+}
 
 pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) -> eyre::Result<()> {
     // Initialize the environment variables.
