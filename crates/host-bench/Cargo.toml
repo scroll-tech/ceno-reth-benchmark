@@ -66,7 +66,7 @@ halo2-axiom = { version = "0.5.0", default-features = false, optional = true }
 
 [features]
 default = ["mimalloc", "metrics"]
-gpu = []
+gpu = ["ceno_zkvm/gpu"]
 metrics = ["openvm-benchmarks-prove/metrics"]
 tco = ["openvm-sdk/tco"]
 aot = ["openvm-sdk/aot"]
