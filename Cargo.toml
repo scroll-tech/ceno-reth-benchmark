@@ -64,15 +64,15 @@ openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false
 openvm-mpt = { path = "./crates/mpt" }
 openvm-revm-crypto = { path = "./crates/revm-crypto" }
 # ceno
-ceno_rt = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
-ceno_crypto = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
+ceno_rt = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_crypto = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 # ceno host lib
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
-ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "dev/ceno-alpha-gpu" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.15" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.15" }
 
@@ -171,6 +171,9 @@ openvm-kzg = { git = "https://github.com/axiom-crypto/openvm-kzg.git", branch = 
 
 openvm-k256 = { git = "https://github.com/openvm-org/openvm.git", package = "k256", branch = "main" }
 openvm-p256 = { git = "https://github.com/openvm-org/openvm.git", package = "p256", branch = "main" }
+
+[patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "main", default-features = false, features = ["bb31"] }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
