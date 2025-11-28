@@ -39,8 +39,8 @@ pub fn main() {
     // Execute the block (crypto is installed inside executor).
     let executor = ClientExecutor;
     let header = executor.execute(ChainVariant::Mainnet, input).expect("failed to execute client");
-    let _block_hash = header.hash_slow();
+    let block_hash = header.hash_slow();
 
-    // Reveal the block hash.
-    // reveal_bytes32(*_block_hash);
+    // commit block hash.
+    ceno_rt::commit(&block_hash.0);
 }

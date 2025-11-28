@@ -173,7 +173,7 @@ static WORKSPACE_ROOT: LazyLock<&Path> = LazyLock::new(|| {
 fn setup() -> (Vec<u8>, Program, Platform) {
     let stack_size = 128 * 1024 * 1024;
     let heap_size = 128 * 1024 * 1024;
-    let pub_io_size = 32;
+    let pub_io_size = 64;
     println!(
         "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size:#x}"
     );
@@ -274,15 +274,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let backend = create_backend::<E, Pcs>(max_num_variables, security_level);
     let (_, program, platform) = setup();
 
-    let mut hints = CenoStdin::default();
-
-    let bytes = bincode::serde::encode_to_vec(&client_input, bincode::config::standard())?;
-    // TODO research and probably switch to openvm deserialer (they are derived from risc0)
-    // let words = openvm::serde::to_vec(&client_input).unwrap();
-    // let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
-    hints.write(&bytes)?;
-    info!("input loaded");
-
     if matches!(args.mode, BenchMode::MakeInput) {
         let words: Vec<u32> = openvm::serde::to_vec(&client_input).unwrap();
         let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
@@ -336,21 +327,21 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         info_span!("reth-block", block_number = args.block_number).in_scope(
             || -> eyre::Result<()> {
                 // Run host execution for comparison
-                if !args.skip_comparison {
-                    let block_hash = info_span!("host.execute", group = program_name).in_scope(
-                        || -> eyre::Result<_> {
-                            let executor = ClientExecutor;
-                            // Create a child span to get the group label propagated
-                            let header = info_span!("client.execute").in_scope(|| {
-                                executor.execute(ChainVariant::Mainnet, client_input.clone())
-                            })?;
-                            let block_hash =
-                                info_span!("header.hash_slow").in_scope(|| header.hash_slow());
-                            Ok(block_hash)
-                        },
-                    )?;
-                    println!("block_hash (execute-host): {}", ToHexExt::encode_hex(&block_hash));
-                }
+                // if !args.skip_comparison {
+                let block_hash = info_span!("host.execute", group = program_name).in_scope(
+                    || -> eyre::Result<_> {
+                        let executor = ClientExecutor;
+                        // Create a child span to get the group label propagated
+                        let header = info_span!("client.execute").in_scope(|| {
+                            executor.execute(ChainVariant::Mainnet, client_input.clone())
+                        })?;
+                        let block_hash =
+                            info_span!("header.hash_slow").in_scope(|| header.hash_slow());
+                        Ok(block_hash)
+                    },
+                )?;
+                println!("block_hash (execute-host): {}", ToHexExt::encode_hex(&block_hash));
+                // }
 
                 // For ExecuteHost mode, only do host execution
                 if matches!(args.mode, BenchMode::ExecuteHost) {
@@ -385,12 +376,24 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
+
+                        let mut hints = CenoStdin::default();
+                        let bytes = bincode::serde::encode_to_vec(&client_input, bincode::config::standard())?;
+                        // TODO research and probably switch to openvm deserialer (they are derived from risc0)
+                        // let words = openvm::serde::to_vec(&client_input).unwrap();
+                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
+                        hints.write(&bytes)?;
+                        info!("input loaded");
+
+                        let mut pub_io = CenoStdin::default();
+                        pub_io.write(&block_hash.0)?;
+
                         let start = std::time::Instant::now();
                         let (pk, vk) = ctx.keygen_with_pb(proving_device.get_pb());
                         info!("keygen done in {:?}", start.elapsed());
 
                         let start = std::time::Instant::now();
-                        let init_full_mem = ctx.setup_init_mem(&Vec::from(&hints), &[]);
+                        let init_full_mem = ctx.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
                         debug!("setup_init_mem done in {:?}", start.elapsed());
 
                         let prover = ZKVMProver::new(pk, proving_device);
