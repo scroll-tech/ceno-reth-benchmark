@@ -1858,7 +1858,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "glob",
 ]
@@ -1878,7 +1878,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1900,7 +1900,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1931,7 +1931,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1943,7 +1943,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
  "tiny-keccak",
@@ -1952,7 +1952,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.3",
@@ -1962,7 +1962,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
  "digest 0.10.7",
@@ -1981,7 +1981,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch#e6ef2986f4e5522ead8d8509
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -2688,7 +2688,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3629,7 +3629,7 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#1558256f7c8331f378fefc916869e5429090dc6c"
+source = "git+https://github.com/scroll-tech/ceno?rev=3e1932fc3514e899f563c0c39267e990fe743f69#3e1932fc3514e899f563c0c39267e990fe743f69"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
