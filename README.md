@@ -29,5 +29,14 @@ RUSTFLAGS="-C target-feature=+avx2" JEMALLOC_SYS_WITH_MALLOC_CONF=retain:true,me
 
 To prove with GPU, add `--features gpu --config net.git-fetch-with-cli=true` as [ceno-gpu](https://github.com/scroll-tech/ceno-gpu) is non-public repo
 
+### update Ceno dependency
+just run
+
+```
+bash cargo_update_ceno.sh
+```
+
+which will update cargo dependency related to ceno accordingly
+
 ### More details
 Check [openvm-reth-benchmark README](https://github.com/axiom-crypto/openvm-reth-benchmark/blob/main/README.md) for more details
