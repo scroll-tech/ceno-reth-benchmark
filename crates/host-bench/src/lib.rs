@@ -33,7 +33,7 @@ use serde_json::json;
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::LazyLock,
 };
 use tracing::{debug, info, info_span};
 
@@ -44,7 +44,7 @@ use ceno_host::CenoStdin;
 use ceno_recursion::aggregation::{compress_to_root_proof, verify_e2e_stark_proof};
 use ceno_zkvm::{
     e2e::{
-        run_e2e_proof, run_e2e_verify, setup_platform, setup_program, MultiProver, Preset,
+        run_e2e_proof, run_e2e_verify, setup_platform, MultiProver, Preset,
         DEFAULT_MAX_CELLS_PER_SHARDS,
     },
     scheme::{
@@ -55,12 +55,7 @@ use ceno_zkvm::{
 use ff_ext::BabyBearExt4;
 use gkr_iop::cpu::default_backend_config;
 use mpcs::BasefoldDefault;
-use openvm_circuit::system::program::trace::VmCommittedExe;
-use openvm_sdk::prover::vm::types::VmProvingKey;
-use openvm_stark_sdk::{
-    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_bn254_fr::Bn254Fr,
-};
-use openvm_stark_sdk::openvm_stark_backend::p3_field::FieldAlgebra;
+use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
 
 mod cli;
 use cli::ProviderArgs;
@@ -454,6 +449,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let start = std::time::Instant::now();
                         let vm_stark_proof =
                             compress_to_root_proof(&leaf_prover, &internal_prover, proofs);
+                        let duration = start.elapsed();
                         info!("compress_to_root_proof took: {:?}", duration);
 
                         let ceno_recursion_vk = ceno_sdk.create_agg_verifier();
@@ -465,7 +461,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             &vm_stark_proof,
                             &Bn254Fr::ZERO,
                             &Bn254Fr::ZERO,
-                        ); let duration = start.elapsed();
+                        );
+                        let duration = start.elapsed();
                         info!("verify_e2e_stark_proof took: {:?}", duration);
 
                         // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
