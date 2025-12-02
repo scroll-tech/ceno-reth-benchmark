@@ -19,7 +19,7 @@ To show some profiling log of guest program, just build binary with `profiling` 
 cargo build --release --feature profiling
 ```
 
-### Example command to prove block
+### Example command to prove block without recursion
 
 below command fetch L1 block `23817600` (without recursion)
 
@@ -28,6 +28,21 @@ RUSTFLAGS="-C target-feature=+avx2" JEMALLOC_SYS_WITH_MALLOC_CONF=retain:true,me
 ```
 
 To prove with GPU, add `--features gpu --config net.git-fetch-with-cli=true` as [ceno-gpu](https://github.com/scroll-tech/ceno-gpu) is non-public repo
+
+### Prove with Recursion
+
+to prove with recursion, set mode to `--mode prove-stark`
+
+### (Optional) key-gen pk for next use
+
+let say fixture dir in `./pk`
+
+> need to assure pk exist
+
+then run with `--mode generate-fixtures --fixtures-path ./pk`
+
+Then for next run, set agg pk path with `--agg-pk-path pk/agg_pk.bitcode`
+
 
 ### update Ceno dependency
 just run
