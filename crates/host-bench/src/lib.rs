@@ -41,7 +41,7 @@ use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
 use ceno_host::CenoStdin;
-use ceno_recursion::aggregation::compress_to_root_proof;
+use ceno_recursion::aggregation::{compress_to_root_proof, verify_e2e_stark_proof};
 use ceno_zkvm::{
     e2e::{
         run_e2e_proof, run_e2e_verify, setup_platform, setup_program, MultiProver, Preset,
@@ -57,7 +57,10 @@ use gkr_iop::cpu::default_backend_config;
 use mpcs::BasefoldDefault;
 use openvm_circuit::system::program::trace::VmCommittedExe;
 use openvm_sdk::prover::vm::types::VmProvingKey;
-use openvm_stark_sdk::config::baby_bear_poseidon2::BabyBearPoseidon2Config;
+use openvm_stark_sdk::{
+    config::baby_bear_poseidon2::BabyBearPoseidon2Config, p3_bn254_fr::Bn254Fr,
+};
+use openvm_stark_sdk::openvm_stark_backend::p3_field::FieldAlgebra;
 
 mod cli;
 use cli::ProviderArgs;
@@ -317,6 +320,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
         let agg_pk = read_object_from_file(agg_pk_path)?;
         ceno_sdk.set_agg_pk(agg_pk);
+        println!("deserialized agg_pk");
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
@@ -397,6 +401,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
                         debug!("setup_init_mem done in {:?}", start.elapsed());
 
+                        let start = std::time::Instant::now();
                         let proofs = run_e2e_proof::<E, Pcs, _, _>(
                             &prover,
                             &init_full_mem,
@@ -434,6 +439,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
                         debug!("setup_init_mem done in {:?}", start.elapsed());
 
+                        let start = std::time::Instant::now();
                         let proofs = run_e2e_proof::<E, Pcs, _, _>(
                             &prover,
                             &init_full_mem,
@@ -445,9 +451,22 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let (leaf_prover, internal_prover) = ceno_sdk.create_agg_prover();
 
+                        let start = std::time::Instant::now();
                         let vm_stark_proof =
                             compress_to_root_proof(&leaf_prover, &internal_prover, proofs);
-                        // TODO verify vm_stark_proof
+                        info!("compress_to_root_proof took: {:?}", duration);
+
+                        let ceno_recursion_vk = ceno_sdk.create_agg_verifier();
+
+                        // TODO check verify result
+                        let start = std::time::Instant::now();
+                        let _ = verify_e2e_stark_proof(
+                            &ceno_recursion_vk,
+                            &vm_stark_proof,
+                            &Bn254Fr::ZERO,
+                            &Bn254Fr::ZERO,
+                        ); let duration = start.elapsed();
+                        info!("verify_e2e_stark_proof took: {:?}", duration);
 
                         // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
                         // let proof = prover.prove(stdin)?;
