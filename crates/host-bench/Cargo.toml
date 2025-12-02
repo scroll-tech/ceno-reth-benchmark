@@ -32,6 +32,8 @@ ceno_host.workspace = true
 gkr_iop.workspace = true
 mpcs.workspace = true
 ff_ext.workspace = true
+ceno_cli.workspace = true
+ceno_recursion.workspace = true
 
 # alloy
 alloy-primitives.workspace = true

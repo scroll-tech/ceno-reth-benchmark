@@ -64,15 +64,17 @@ openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false
 openvm-mpt = { path = "./crates/mpt" }
 openvm-revm-crypto = { path = "./crates/revm-crypto" }
 # ceno
-ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
-ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
+ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
 # ceno host lib
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
-ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "3e1932fc3514e899f563c0c39267e990fe743f69" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "62060c293c2587c36f85de86356be8c53035fc48" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.17" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.17" }
 
