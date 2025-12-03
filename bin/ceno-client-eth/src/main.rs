@@ -1,9 +1,9 @@
 // use openvm::io::{println, read, reveal_bytes32};
 extern crate ceno_rt;
-use ceno_crypto::ceno_crypto;
-use openvm_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
 use alloy_consensus;
 use alloy_primitives::Address;
+use ceno_crypto::ceno_crypto;
+use openvm_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
 use rkyv::Archived;
 // openvm::init!();
 
@@ -31,8 +31,9 @@ pub fn main() {
     let config = bincode::config::standard();
     #[cfg(feature = "profiling")]
     syscall_phantom_log_pc_cycle("decode_from_slice start");
-    let (input, _): (ClientExecutorInput, _) = bincode::serde::decode_from_slice(witness_bytes, config)
-        .expect("ChunkCircuit: deserialisation of witness bytes failed");
+    let (input, _): (ClientExecutorInput, _) =
+        bincode::serde::decode_from_slice(witness_bytes, config)
+            .expect("ChunkCircuit: deserialisation of witness bytes failed");
     #[cfg(feature = "profiling")]
     syscall_phantom_log_pc_cycle("decode_from_slice end");
 

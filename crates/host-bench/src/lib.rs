@@ -30,22 +30,26 @@ use openvm_stark_sdk::engine::StarkFriEngine;
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
 use serde_json::json;
-use std::{fs, path::PathBuf};
-use std::path::Path;
-use std::sync::LazyLock;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 use tracing::{debug, info, info_span};
 
 use cargo_metadata::MetadataCommand;
+use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
 use ceno_host::CenoStdin;
-use ceno_zkvm::e2e::{MultiProver, Preset, run_e2e_proof, run_e2e_verify, setup_platform, setup_program, DEFAULT_MAX_CELLS_PER_SHARDS};
-use ceno_zkvm::scheme::hal::ProverDevice;
-use ceno_zkvm::scheme::verifier::ZKVMVerifier;
-use ceno_zkvm::scheme::{create_backend, create_prover};
-use ceno_zkvm::scheme::prover::ZKVMProver;
+use ceno_recursion::aggregation::{compress_to_root_proof, verify_e2e_stark_proof};
+use ceno_zkvm::{
+    e2e::{run_e2e_proof, run_e2e_verify, setup_platform, MultiProver, Preset},
+    scheme::{create_backend, create_prover},
+};
 use ff_ext::BabyBearExt4;
 use gkr_iop::cpu::default_backend_config;
 use mpcs::BasefoldDefault;
+use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
 
 mod cli;
 use cli::ProviderArgs;
@@ -157,8 +161,6 @@ pub fn reth_vm_config(app_log_blowup: usize) -> SdkVmConfig {
 pub const RETH_DEFAULT_APP_LOG_BLOWUP: usize = 1;
 pub const RETH_DEFAULT_LEAF_LOG_BLOWUP: usize = 1;
 
-
-
 static WORKSPACE_ROOT: LazyLock<&Path> = LazyLock::new(|| {
     let path = MetadataCommand::new()
         .no_deps()
@@ -191,7 +193,6 @@ fn setup() -> (Vec<u8>, Program, Platform) {
 
 pub const MAX_CYCLE_PER_SHARD: u64 = 1 << 29;
 pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
-
     type Pcs = BasefoldDefault<E>;
     type E = BabyBearExt4;
 
@@ -203,7 +204,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     }
 
     // Parse the command line arguments.
-    let mut args = args;
+    let args = args;
 
     let client_input_from_path =
         args.input_path.as_ref().map(|path| try_load_input_from_path(path).unwrap());
@@ -293,32 +294,22 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let proving_device = create_prover(backend.clone());
 
     let start = std::time::Instant::now();
-    let ctx = setup_program::<E>(
+    let mut ceno_sdk = ceno_sdk::Sdk::new_with_app_config(
         program,
         platform,
         MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
     );
-    info!("setup_program done in {:?}", start.elapsed());
+    info!("setup ceno sdk done in {:?}", start.elapsed());
 
-    if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
-        eyre::bail!("app_pk_path and agg_pk_path must be provided together");
-    }
-    if let Some(app_pk_path) = args.app_pk_path {
-        todo!("let make pk serializable and read from path");
-        let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
-        let agg_pk_path = args.agg_pk_path.unwrap();
-        let agg_pk: AggProvingKey = read_object_from_file(agg_pk_path)?;
-        let vm_config_loaded = app_pk.app_vm_pk.vm_config.clone();
-        // let vm_config_json =
-        //     serde_json::to_value(&vm_config).expect("failed to serialize vm_config to json value");
-        // let vm_config_loaded_json = serde_json::to_value(&vm_config_loaded)
-        //     .expect("failed to serialize vm_config_loaded to json value");
-        // assert_eq!(
-        //     vm_config_json, vm_config_loaded_json,
-        //     "vm_config mismatch between runtime config and proving key"
-        // );
-        // sdk.set_app_pk(app_pk).map_err(|_| eyre::eyre!("failed to set app pk"))?;
-        // sdk.set_agg_pk(agg_pk).map_err(|_| eyre::eyre!("failed to set agg pk"))?;
+    // if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
+    //     eyre::bail!("app_pk_path and agg_pk_path must be provided together");
+    // }
+    if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
+        // todo!("let make pk serializable and read from path");
+        // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
+        let agg_pk = read_object_from_file(agg_pk_path)?;
+        ceno_sdk.set_agg_pk(agg_pk);
+        println!("deserialized agg_pk");
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
@@ -360,7 +351,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     BenchMode::Execute => {}
                     BenchMode::ExecuteMetered => {
                         unimplemented!()
-                        // let engine = DefaultStarkEngine::new(app_config.app_fri_params.fri_params);
+                        // let engine =
+                        // DefaultStarkEngine::new(app_config.app_fri_params.fri_params);
                         // let (vm, _) = VirtualMachine::new_with_keygen(
                         //     engine,
                         //     SdkVmBuilder,
@@ -376,40 +368,97 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
-
                         let mut hints = CenoStdin::default();
-                        let bytes = bincode::serde::encode_to_vec(&client_input, bincode::config::standard())?;
-                        // TODO research and probably switch to openvm deserialer (they are derived from risc0)
-                        // let words = openvm::serde::to_vec(&client_input).unwrap();
-                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
+                        let bytes = bincode::serde::encode_to_vec(
+                            &client_input,
+                            bincode::config::standard(),
+                        )?;
+                        // TODO research and probably switch to openvm deserialer (they are derived
+                        // from risc0) let words =
+                        // openvm::serde::to_vec(&client_input).unwrap();
+                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
+                        // w.to_le_bytes()).collect();
                         hints.write(&bytes)?;
                         info!("input loaded");
 
                         let mut pub_io = CenoStdin::default();
                         pub_io.write(&block_hash.0)?;
 
+                        let prover = ceno_sdk.create_zkvm_prover(proving_device);
                         let start = std::time::Instant::now();
-                        let (pk, vk) = ctx.keygen_with_pb(proving_device.get_pb());
-                        info!("keygen done in {:?}", start.elapsed());
-
-                        let start = std::time::Instant::now();
-                        let init_full_mem = ctx.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
+                        let init_full_mem =
+                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
                         debug!("setup_init_mem done in {:?}", start.elapsed());
 
-                        let prover = ZKVMProver::new(pk, proving_device);
-                        let proofs =
-                            run_e2e_proof::<E, Pcs, _, _>(&ctx, &prover, &init_full_mem, max_steps, false);
+                        let start = std::time::Instant::now();
+                        let proofs = run_e2e_proof::<E, Pcs, _, _>(
+                            &prover,
+                            &init_full_mem,
+                            max_steps,
+                            false,
+                        );
                         let duration = start.elapsed();
                         info!("run_e2e_proof took: {:?}", duration);
 
-                        let verifier = ZKVMVerifier::new(vk.clone());
+                        let verifier = ceno_sdk.create_zkvm_verifier();
                         let start = std::time::Instant::now();
                         run_e2e_verify(&verifier, proofs, Some(0), max_steps);
                         debug!("verified in {:?}", start.elapsed());
-
                     }
                     BenchMode::ProveStark => {
-                        unimplemented!()
+                        let mut hints = CenoStdin::default();
+                        let bytes = bincode::serde::encode_to_vec(
+                            &client_input,
+                            bincode::config::standard(),
+                        )?;
+                        // TODO research and probably switch to openvm deserialer (they are derived
+                        // from risc0) let words =
+                        // openvm::serde::to_vec(&client_input).unwrap();
+                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
+                        // w.to_le_bytes()).collect();
+                        hints.write(&bytes)?;
+                        info!("input loaded");
+
+                        let mut pub_io = CenoStdin::default();
+                        pub_io.write(&block_hash.0)?;
+
+                        let prover = ceno_sdk.create_zkvm_prover(proving_device);
+                        let start = std::time::Instant::now();
+                        let init_full_mem =
+                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
+                        debug!("setup_init_mem done in {:?}", start.elapsed());
+
+                        let start = std::time::Instant::now();
+                        let proofs = run_e2e_proof::<E, Pcs, _, _>(
+                            &prover,
+                            &init_full_mem,
+                            max_steps,
+                            false,
+                        );
+                        let duration = start.elapsed();
+                        info!("run_e2e_proof took: {:?}", duration);
+
+                        let (leaf_prover, internal_prover) = ceno_sdk.create_agg_prover();
+
+                        let start = std::time::Instant::now();
+                        let vm_stark_proof =
+                            compress_to_root_proof(&leaf_prover, &internal_prover, proofs);
+                        let duration = start.elapsed();
+                        info!("compress_to_root_proof took: {:?}", duration);
+
+                        let ceno_recursion_vk = ceno_sdk.create_agg_verifier();
+
+                        // TODO check verify result
+                        let start = std::time::Instant::now();
+                        let _ = verify_e2e_stark_proof(
+                            &ceno_recursion_vk,
+                            &vm_stark_proof,
+                            &Bn254Fr::ZERO,
+                            &Bn254Fr::ZERO,
+                        );
+                        let duration = start.elapsed();
+                        info!("verify_e2e_stark_proof took: {:?}", duration);
+
                         // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
                         // let proof = prover.prove(stdin)?;
                         // let block_hash = proof
@@ -417,7 +466,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         //     .iter()
                         //     .map(|pv| pv.as_canonical_u32() as u8)
                         //     .collect::<Vec<u8>>();
-                        // println!("block_hash (prove_stark): {}", ToHexExt::encode_hex(&block_hash));
+                        // println!("block_hash (prove_stark): {}",
+                        // ToHexExt::encode_hex(&block_hash));
                         //
                         // if let Some(output_dir) = args.output_dir.as_ref() {
                         //     let versioned_proof = VersionedVmStarkProof::new(proof)?;
@@ -443,16 +493,23 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         println!("block_hash (prove_evm): {}", ToHexExt::encode_hex(block_hash));
                     }
                     BenchMode::GenerateFixtures => {
-                        todo!("serialized pk");
+                        // generate pk,vk if needed
+                        let _ = ceno_sdk.create_zkvm_prover(proving_device);
+                        let _ = ceno_sdk.create_agg_prover();
+
                         let fixture_path = args.fixtures_path.unwrap();
 
-                        let mut app_pk_path = fixture_path.clone();
-                        app_pk_path.push("app_pk.bitcode");
+                        // TODO serialize ceno app pk
+                        // let mut app_pk_path = fixture_path.clone();
+                        // app_pk_path.push("app_pk.bitcode");
                         // fs::write(app_pk_path, bitcode::serialize(sdk.app_pk())?)?;
 
                         let mut agg_pk_path = fixture_path.clone();
                         agg_pk_path.push("agg_pk.bitcode");
-                        // fs::write(agg_pk_path, bitcode::serialize(sdk.agg_pk())?)?;
+                        fs::write(
+                            agg_pk_path,
+                            bitcode::serialize(ceno_sdk.agg_pk.as_ref().unwrap())?,
+                        )?;
                     }
                     _ => {
                         // This case is handled earlier and should not reach here
