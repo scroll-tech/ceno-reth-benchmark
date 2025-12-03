@@ -43,14 +43,8 @@ use ceno_emul::{Platform, Program};
 use ceno_host::CenoStdin;
 use ceno_recursion::aggregation::{compress_to_root_proof, verify_e2e_stark_proof};
 use ceno_zkvm::{
-    e2e::{
-        run_e2e_proof, run_e2e_verify, setup_platform, MultiProver, Preset,
-        DEFAULT_MAX_CELLS_PER_SHARDS,
-    },
-    scheme::{
-        create_backend, create_prover, hal::ProverDevice, prover::ZKVMProver,
-        verifier::ZKVMVerifier,
-    },
+    e2e::{run_e2e_proof, run_e2e_verify, setup_platform, MultiProver, Preset},
+    scheme::{create_backend, create_prover},
 };
 use ff_ext::BabyBearExt4;
 use gkr_iop::cpu::default_backend_config;
@@ -210,7 +204,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     }
 
     // Parse the command line arguments.
-    let mut args = args;
+    let args = args;
 
     let client_input_from_path =
         args.input_path.as_ref().map(|path| try_load_input_from_path(path).unwrap());
