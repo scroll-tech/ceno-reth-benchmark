@@ -75,8 +75,8 @@ ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno"
 ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
 gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.17" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.17" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.8.3", default-features = false }
