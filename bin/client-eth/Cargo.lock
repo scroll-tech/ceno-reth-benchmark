@@ -1865,18 +1865,18 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.4"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
  "ff",
  "hex-literal 0.4.1",
  "num-bigint",
- "openvm",
- "openvm-algebra-guest",
- "openvm-algebra-moduli-macros",
- "openvm-ecc-guest",
- "openvm-ecc-sw-macros",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "serde",
 ]
 
@@ -2185,16 +2185,39 @@ dependencies = [
 [[package]]
 name = "openvm"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "bytemuck",
  "getrandom 0.2.16",
  "getrandom 0.3.3",
  "num-bigint",
- "openvm-custom-insn",
- "openvm-platform",
- "openvm-rv32im-guest",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-platform 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "serde",
+]
+
+[[package]]
+name = "openvm"
+version = "1.4.1"
+source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+dependencies = [
+ "bytemuck",
+ "num-bigint",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-platform 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "serde",
+]
+
+[[package]]
+name = "openvm-algebra-complex-macros"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "openvm-macros-common 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "quote",
+ "syn 2.0.103",
 ]
 
 [[package]]
@@ -2202,9 +2225,25 @@ name = "openvm-algebra-complex-macros"
 version = "1.4.1"
 source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
 dependencies = [
- "openvm-macros-common",
+ "openvm-macros-common 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "quote",
  "syn 2.0.103",
+]
+
+[[package]]
+name = "openvm-algebra-guest"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "halo2curves-axiom",
+ "num-bigint",
+ "once_cell",
+ "openvm-algebra-complex-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "serde-big-array",
+ "strum_macros 0.26.4",
 ]
 
 [[package]]
@@ -2215,12 +2254,24 @@ dependencies = [
  "halo2curves-axiom",
  "num-bigint",
  "once_cell",
- "openvm-algebra-complex-macros",
- "openvm-algebra-moduli-macros",
- "openvm-custom-insn",
- "openvm-rv32im-guest",
+ "openvm-algebra-complex-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "serde-big-array",
  "strum_macros 0.26.4",
+]
+
+[[package]]
+name = "openvm-algebra-moduli-macros"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "num-bigint",
+ "num-prime",
+ "openvm-macros-common 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "quote",
+ "syn 2.0.103",
 ]
 
 [[package]]
@@ -2230,7 +2281,7 @@ source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8
 dependencies = [
  "num-bigint",
  "num-prime",
- "openvm-macros-common",
+ "openvm-macros-common 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "quote",
  "syn 2.0.103",
 ]
@@ -2240,10 +2291,10 @@ name = "openvm-client-eth"
 version = "0.3.0"
 dependencies = [
  "log",
- "openvm",
- "openvm-algebra-guest",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "openvm-client-executor",
- "openvm-ecc-guest",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "tracing",
 ]
 
@@ -2278,11 +2329,40 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.103",
+]
+
+[[package]]
+name = "openvm-custom-insn"
+version = "0.1.0"
 source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.103",
+]
+
+[[package]]
+name = "openvm-ecc-guest"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "ecdsa",
+ "elliptic-curve",
+ "group",
+ "halo2curves-axiom",
+ "once_cell",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "serde",
+ "strum_macros 0.26.4",
 ]
 
 [[package]]
@@ -2295,11 +2375,11 @@ dependencies = [
  "group",
  "halo2curves-axiom",
  "once_cell",
- "openvm",
- "openvm-algebra-guest",
- "openvm-custom-insn",
- "openvm-ecc-sw-macros",
- "openvm-rv32im-guest",
+ "openvm 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "serde",
  "strum_macros 0.26.4",
 ]
@@ -2307,9 +2387,19 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-sw-macros"
 version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "openvm-macros-common 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "quote",
+ "syn 2.0.103",
+]
+
+[[package]]
+name = "openvm-ecc-sw-macros"
+version = "1.4.1"
 source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
 dependencies = [
- "openvm-macros-common",
+ "openvm-macros-common 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "quote",
  "syn 2.0.103",
 ]
@@ -2317,7 +2407,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "openvm-keccak256-guest",
  "tiny-keccak",
@@ -2326,9 +2416,9 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-guest"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
- "openvm-platform",
+ "openvm-platform 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
 ]
 
 [[package]]
@@ -2339,12 +2429,20 @@ dependencies = [
  "bls12_381",
  "hex",
  "hex-literal 1.0.0",
- "openvm-algebra-guest",
- "openvm-ecc-guest",
- "openvm-pairing",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-pairing 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "serde",
  "serde-big-array",
  "spin 0.10.0",
+]
+
+[[package]]
+name = "openvm-macros-common"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "syn 2.0.103",
 ]
 
 [[package]]
@@ -2373,6 +2471,30 @@ dependencies = [
 [[package]]
 name = "openvm-pairing"
 version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "group",
+ "hex-literal 0.4.1",
+ "itertools 0.14.0",
+ "num-bigint",
+ "num-traits",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-complex-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-pairing-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-platform 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "rand 0.8.5",
+ "serde",
+]
+
+[[package]]
+name = "openvm-pairing"
+version = "1.4.1"
 source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
 dependencies = [
  "group",
@@ -2380,18 +2502,38 @@ dependencies = [
  "itertools 0.14.0",
  "num-bigint",
  "num-traits",
- "openvm",
- "openvm-algebra-complex-macros",
- "openvm-algebra-guest",
- "openvm-algebra-moduli-macros",
- "openvm-custom-insn",
- "openvm-ecc-guest",
- "openvm-ecc-sw-macros",
- "openvm-pairing-guest",
- "openvm-platform",
- "openvm-rv32im-guest",
+ "openvm 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-complex-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-pairing-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-platform 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "rand 0.8.5",
  "serde",
+]
+
+[[package]]
+name = "openvm-pairing-guest"
+version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "hex-literal 0.4.1",
+ "itertools 0.14.0",
+ "lazy_static",
+ "num-bigint",
+ "num-traits",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "rand 0.8.5",
+ "serde",
+ "strum_macros 0.26.4",
 ]
 
 [[package]]
@@ -2404,11 +2546,11 @@ dependencies = [
  "lazy_static",
  "num-bigint",
  "num-traits",
- "openvm",
- "openvm-algebra-guest",
- "openvm-algebra-moduli-macros",
- "openvm-custom-insn",
- "openvm-ecc-guest",
+ "openvm 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "rand 0.8.5",
  "serde",
  "strum_macros 0.26.4",
@@ -2417,13 +2559,23 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "critical-section",
  "embedded-alloc",
  "libm",
- "openvm-custom-insn",
- "openvm-rv32im-guest",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+]
+
+[[package]]
+name = "openvm-platform"
+version = "1.4.1"
+source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+dependencies = [
+ "libm",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "openvm-rv32im-guest 1.4.1 (git+https://github.com/openvm-org/openvm.git?branch=main)",
 ]
 
 [[package]]
@@ -2451,15 +2603,15 @@ version = "0.3.0"
 dependencies = [
  "alloy-consensus",
  "alloy-primitives",
- "k256 0.13.4 (git+https://github.com/openvm-org/openvm.git?branch=main)",
- "openvm",
- "openvm-algebra-guest",
- "openvm-ecc-guest",
+ "k256 0.13.4 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "openvm-keccak256",
  "openvm-kzg",
- "openvm-pairing",
+ "openvm-pairing 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "openvm-sha2",
- "p256 0.13.2 (git+https://github.com/openvm-org/openvm.git?branch=main)",
+ "p256 0.13.2 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "revm",
  "revm-precompile",
  "revm-primitives",
@@ -2468,9 +2620,19 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.4.1"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
+dependencies = [
+ "openvm-custom-insn 0.1.0 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "p3-field",
+ "strum_macros 0.26.4",
+]
+
+[[package]]
+name = "openvm-rv32im-guest"
+version = "1.4.1"
 source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
 dependencies = [
- "openvm-custom-insn",
+ "openvm-custom-insn 0.1.0 (git+https://github.com/openvm-org/openvm.git?branch=main)",
  "p3-field",
  "strum_macros 0.26.4",
 ]
@@ -2478,7 +2640,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha2"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "openvm-sha256-guest",
  "sha2",
@@ -2487,9 +2649,9 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-guest"
 version = "1.4.1"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
- "openvm-platform",
+ "openvm-platform 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
 ]
 
 [[package]]
@@ -2507,18 +2669,18 @@ dependencies = [
 [[package]]
 name = "p256"
 version = "0.13.2"
-source = "git+https://github.com/openvm-org/openvm.git?branch=main#c2e376e6059c8bbf206736cf01d04cda43dfc42d"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#097e353b718628c7256cc1cac4b7a07101e7c887"
 dependencies = [
  "ecdsa",
  "elliptic-curve",
  "ff",
  "hex-literal 0.4.1",
  "num-bigint",
- "openvm",
- "openvm-algebra-guest",
- "openvm-algebra-moduli-macros",
- "openvm-ecc-guest",
- "openvm-ecc-sw-macros",
+ "openvm 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-algebra-moduli-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-guest 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
+ "openvm-ecc-sw-macros 1.4.1 (git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext)",
  "serde",
 ]
 

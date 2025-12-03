@@ -35,7 +35,7 @@ use std::{
     path::{Path, PathBuf},
     sync::LazyLock,
 };
-use tracing::{debug, info, info_span};
+use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
@@ -369,95 +369,87 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     }
                     BenchMode::ProveApp => {
                         let mut hints = CenoStdin::default();
-                        let bytes = bincode::serde::encode_to_vec(
-                            &client_input,
-                            bincode::config::standard(),
-                        )?;
-                        // TODO research and probably switch to openvm deserialer (they are derived
-                        // from risc0) let words =
-                        // openvm::serde::to_vec(&client_input).unwrap();
-                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                        // w.to_le_bytes()).collect();
-                        hints.write(&bytes)?;
-                        info!("input loaded");
-
                         let mut pub_io = CenoStdin::default();
-                        pub_io.write(&block_hash.0)?;
 
-                        let prover = ceno_sdk.create_zkvm_prover(proving_device);
-                        let start = std::time::Instant::now();
-                        let init_full_mem =
-                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
-                        debug!("setup_init_mem done in {:?}", start.elapsed());
+                        info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
+                            let bytes = bincode::serde::encode_to_vec(
+                                &client_input,
+                                bincode::config::standard(),
+                            )?;
+                            // TODO research and probably switch to openvm deserialer (they are
+                            // derived from risc0) let words =
+                            // openvm::serde::to_vec(&client_input).unwrap();
+                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
+                            // w.to_le_bytes()).collect();
+                            hints.write(&bytes)?;
+                            pub_io.write(&block_hash.0)?;
+                            Ok(())
+                        })?;
 
-                        let start = std::time::Instant::now();
-                        let proofs = run_e2e_proof::<E, Pcs, _, _>(
-                            &prover,
-                            &init_full_mem,
-                            max_steps,
-                            false,
-                        );
-                        let duration = start.elapsed();
-                        info!("run_e2e_proof took: {:?}", duration);
+                        let prover = info_span!("app.create_app_prover")
+                            .in_scope(|| ceno_sdk.create_zkvm_prover(proving_device));
+
+                        let init_full_mem = info_span!("app.setup_init_mem").in_scope(|| {
+                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io))
+                        });
+
+                        let proofs = info_span!("app.prove").in_scope(|| {
+                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false)
+                        });
 
                         let verifier = ceno_sdk.create_zkvm_verifier();
-                        let start = std::time::Instant::now();
-                        run_e2e_verify(&verifier, proofs, Some(0), max_steps);
-                        debug!("verified in {:?}", start.elapsed());
+                        let _ = info_span!("app.verify")
+                            .in_scope(|| run_e2e_verify(&verifier, proofs, Some(0), max_steps));
                     }
                     BenchMode::ProveStark => {
                         let mut hints = CenoStdin::default();
-                        let bytes = bincode::serde::encode_to_vec(
-                            &client_input,
-                            bincode::config::standard(),
-                        )?;
-                        // TODO research and probably switch to openvm deserialer (they are derived
-                        // from risc0) let words =
-                        // openvm::serde::to_vec(&client_input).unwrap();
-                        // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                        // w.to_le_bytes()).collect();
-                        hints.write(&bytes)?;
-                        info!("input loaded");
-
                         let mut pub_io = CenoStdin::default();
-                        pub_io.write(&block_hash.0)?;
 
-                        let prover = ceno_sdk.create_zkvm_prover(proving_device);
-                        let start = std::time::Instant::now();
-                        let init_full_mem =
-                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io));
-                        debug!("setup_init_mem done in {:?}", start.elapsed());
+                        info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
+                            let bytes = bincode::serde::encode_to_vec(
+                                &client_input,
+                                bincode::config::standard(),
+                            )?;
+                            // TODO research and probably switch to openvm deserialer (they are
+                            // derived from risc0) let words =
+                            // openvm::serde::to_vec(&client_input).unwrap();
+                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
+                            // w.to_le_bytes()).collect();
+                            hints.write(&bytes)?;
+                            pub_io.write(&block_hash.0)?;
+                            Ok(())
+                        })?;
 
-                        let start = std::time::Instant::now();
-                        let proofs = run_e2e_proof::<E, Pcs, _, _>(
-                            &prover,
-                            &init_full_mem,
-                            max_steps,
-                            false,
-                        );
-                        let duration = start.elapsed();
-                        info!("run_e2e_proof took: {:?}", duration);
+                        let prover = info_span!("app.create_app_prover")
+                            .in_scope(|| ceno_sdk.create_zkvm_prover(proving_device));
 
-                        let (leaf_prover, internal_prover) = ceno_sdk.create_agg_prover();
+                        let init_full_mem = info_span!("app.setup_init_mem").in_scope(|| {
+                            prover.setup_init_mem(&Vec::from(&hints), &Vec::from(&pub_io))
+                        });
 
-                        let start = std::time::Instant::now();
-                        let vm_stark_proof =
-                            compress_to_root_proof(&leaf_prover, &internal_prover, proofs);
-                        let duration = start.elapsed();
-                        info!("compress_to_root_proof took: {:?}", duration);
+                        let proofs = info_span!("app.prove").in_scope(|| {
+                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false)
+                        });
+
+                        let (leaf_prover, internal_prover) =
+                            info_span!("recursion.create_agg_prover")
+                                .in_scope(|| ceno_sdk.create_agg_prover());
+
+                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
+                            .in_scope(|| {
+                                compress_to_root_proof(&leaf_prover, &internal_prover, proofs)
+                            });
 
                         let ceno_recursion_vk = ceno_sdk.create_agg_verifier();
-
                         // TODO check verify result
-                        let start = std::time::Instant::now();
-                        let _ = verify_e2e_stark_proof(
-                            &ceno_recursion_vk,
-                            &vm_stark_proof,
-                            &Bn254Fr::ZERO,
-                            &Bn254Fr::ZERO,
-                        );
-                        let duration = start.elapsed();
-                        info!("verify_e2e_stark_proof took: {:?}", duration);
+                        let _ = info_span!("recursion.verify").in_scope(|| {
+                            verify_e2e_stark_proof(
+                                &ceno_recursion_vk,
+                                &vm_stark_proof,
+                                &Bn254Fr::ZERO,
+                                &Bn254Fr::ZERO,
+                            )
+                        });
 
                         // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
                         // let proof = prover.prove(stdin)?;

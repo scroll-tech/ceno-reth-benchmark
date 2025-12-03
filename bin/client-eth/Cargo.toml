@@ -10,11 +10,11 @@ edition = "2021"
 openvm-client-executor = { path = "../../crates/executor/client", features = ["openvm"] }
 
 # openvm
-openvm = { git = "https://github.com/openvm-org/openvm.git", branch = "main", features = [
+openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", features = [
     "std",
 ] }
-openvm-algebra-guest = { git = "https://github.com/openvm-org/openvm.git", branch = "main" }
-openvm-ecc-guest = { git = "https://github.com/openvm-org/openvm.git", branch = "main" }
+openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
 
 # Statically turns off logging
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
