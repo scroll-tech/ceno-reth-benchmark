@@ -204,3 +204,13 @@ opt-level = 3
 [profile.bench-with-debug]
 inherits = "release"
 debug = 1
+
+# [patch."https://github.com/scroll-tech/ceno.git"]
+# ceno_rt = { path = "../ceno/ceno_rt" }
+# ceno_crypto = { path = "../ceno/guest_libs/crypto" }
+# ceno_emul = { path = "../ceno/ceno_emul" }
+# ceno_host = { path = "../ceno/ceno_host" }
+# ceno_zkvm = { path = "../ceno/ceno_zkvm" }
+# ceno_sha2 = { path = "../ceno/guest_libs/sha2" }
+# ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
+# ceno_recursion = { path = "../ceno/ceno_recursion" }

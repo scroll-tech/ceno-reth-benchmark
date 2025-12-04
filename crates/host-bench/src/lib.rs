@@ -305,11 +305,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     //     eyre::bail!("app_pk_path and agg_pk_path must be provided together");
     // }
     if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
-        // todo!("let make pk serializable and read from path");
+        todo!("let make pk serializable and read from path");
         // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
-        let agg_pk = read_object_from_file(agg_pk_path)?;
-        ceno_sdk.set_agg_pk(agg_pk);
-        println!("deserialized agg_pk");
+        // let agg_pk = read_object_from_file(agg_pk_path)?;
+        // ceno_sdk.set_agg_pk(agg_pk);
+        // println!("deserialized agg_pk");
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
@@ -431,24 +431,19 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false)
                         });
 
-                        let (leaf_prover, internal_prover) =
-                            info_span!("recursion.create_agg_prover")
-                                .in_scope(|| ceno_sdk.create_agg_prover());
-
-                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
+                        let (root_vk, vm_stark_proof) = info_span!("recursion.compress_to_root_proof")
                             .in_scope(|| {
-                                compress_to_root_proof(&leaf_prover, &internal_prover, proofs)
+                                compress_to_root_proof(proofs, ceno_sdk.zkvm_vk.unwrap())
                             });
 
-                        let ceno_recursion_vk = ceno_sdk.create_agg_verifier();
                         // TODO check verify result
                         let _ = info_span!("recursion.verify").in_scope(|| {
                             verify_e2e_stark_proof(
-                                &ceno_recursion_vk,
+                                &root_vk,
                                 &vm_stark_proof,
                                 &Bn254Fr::ZERO,
                                 &Bn254Fr::ZERO,
-                            )
+                            ).expect("root proof verification failed");
                         });
 
                         // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
@@ -498,10 +493,10 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let mut agg_pk_path = fixture_path.clone();
                         agg_pk_path.push("agg_pk.bitcode");
-                        fs::write(
-                            agg_pk_path,
-                            bitcode::serialize(ceno_sdk.agg_pk.as_ref().unwrap())?,
-                        )?;
+                        // fs::write(
+                        //     agg_pk_path,
+                        //     bitcode::serialize(ceno_sdk.agg_pk.as_ref().unwrap())?,
+                        // )?;
                     }
                     _ => {
                         // This case is handled earlier and should not reach here
