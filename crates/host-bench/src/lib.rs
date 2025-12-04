@@ -402,6 +402,10 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
 
                         let verifier = ceno_sdk.create_zkvm_verifier();
+                        if args.shard_id.is_some() {
+                            // skip verify when shard_id was supplied
+                            return Ok(())
+                        }
                         let _ = info_span!("app.verify")
                             .in_scope(|| run_e2e_verify(&verifier, proofs, Some(0), max_steps));
                     }
