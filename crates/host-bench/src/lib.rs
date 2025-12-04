@@ -29,9 +29,8 @@ use openvm_sdk::{
 use openvm_stark_sdk::engine::StarkFriEngine;
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
-use serde_json::json;
 use std::{
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     sync::LazyLock,
 };
@@ -50,6 +49,7 @@ use ff_ext::BabyBearExt4;
 use gkr_iop::cpu::default_backend_config;
 use mpcs::BasefoldDefault;
 use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
+use serde_json::json;
 
 mod cli;
 use cli::ProviderArgs;
@@ -161,16 +161,39 @@ pub fn reth_vm_config(app_log_blowup: usize) -> SdkVmConfig {
 pub const RETH_DEFAULT_APP_LOG_BLOWUP: usize = 1;
 pub const RETH_DEFAULT_LEAF_LOG_BLOWUP: usize = 1;
 
-static WORKSPACE_ROOT: LazyLock<&Path> = LazyLock::new(|| {
-    let path = MetadataCommand::new()
-        .no_deps()
-        .exec()
-        .expect("failed to execute cargo-metadata")
-        .workspace_root
-        .into_std_path_buf();
-    eprintln!("PROJECT_ROOT_DIR = {}", path.display());
-    Box::leak(path.into_boxed_path())
-});
+fn discover_workspace_root() -> PathBuf {
+    if let Ok(path) = env::var("WORKSPACE_ROOT") {
+        let pb = PathBuf::from(path);
+        eprintln!("WORKSPACE_ROOT (env) = {}", pb.display());
+        return pb;
+    }
+
+    if let Ok(metadata) = MetadataCommand::new().no_deps().exec() {
+        let root = metadata.workspace_root.into_std_path_buf();
+        eprintln!("WORKSPACE_ROOT (cargo-metadata) = {}", root.display());
+        return root;
+    }
+
+    if let Ok(exe_path) = env::current_exe() {
+        let mut dir =
+            exe_path.parent().map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("."));
+        loop {
+            if dir.join("Cargo.lock").exists() {
+                eprintln!("WORKSPACE_ROOT (inferred from exe) = {}", dir.display());
+                return dir;
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
+    }
+
+    let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    eprintln!("WORKSPACE_ROOT fallback to cwd = {}", cwd.display());
+    cwd
+}
+
+static WORKSPACE_ROOT: LazyLock<PathBuf> = LazyLock::new(discover_workspace_root);
 
 fn setup() -> (Vec<u8>, Program, Platform) {
     let stack_size = 128 * 1024 * 1024;
@@ -212,7 +235,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let client_input = if let Some(client_input_from_path) = client_input_from_path {
         client_input_from_path
     } else {
-        let provider_config = args.provider.into_provider().await?;
+        let provider_config = args.provider.clone().into_provider().await?;
         match provider_config.chain_id {
             #[allow(non_snake_case)]
             CHAIN_ID_ETH_MAINNET => (),
@@ -245,7 +268,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     host_executor.execute(args.block_number).await.expect("failed to execute host");
                 info!("finish host_executor");
 
-                if let Some(cache_dir) = args.cache_dir {
+                if let Some(cache_dir) = args.cache_dir.as_ref() {
                     let input_folder =
                         cache_dir.join(format!("input/{}", provider_config.chain_id));
                     if !input_folder.exists() {
@@ -276,14 +299,26 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let (_, program, platform) = setup();
 
     if matches!(args.mode, BenchMode::MakeInput) {
-        let words: Vec<u32> = openvm::serde::to_vec(&client_input).unwrap();
-        let bytes: Vec<u8> = words.into_iter().flat_map(|w| w.to_le_bytes()).collect();
-        let hex_bytes = String::from("0x01") + &hex::encode(&bytes);
-        let input = json!({
-            "input": [hex_bytes]
-        });
-        let input = serde_json::to_string(&input).unwrap();
-        fs::write(args.generated_input_path.unwrap(), input)?;
+        let output_root = args
+            .generated_input_path
+            .clone()
+            .unwrap_or_else(|| args.cache_dir.clone().unwrap_or_default());
+        if output_root.as_os_str().is_empty() {
+            eyre::bail!("generated_input_path or cache_dir must be provided in make_input mode");
+        }
+        let provider_config = args.provider.clone().into_provider().await?;
+        let chain_id = provider_config.chain_id;
+        let cache_dir = output_root.join(format!("input/{chain_id}"));
+        if !cache_dir.exists() {
+            std::fs::create_dir_all(&cache_dir)?;
+        }
+        let cache_path = cache_dir.join(format!("{}.bin", args.block_number));
+        let mut cache_file = std::fs::File::create(cache_path)?;
+        bincode::serde::encode_into_std_write(
+            &client_input,
+            &mut cache_file,
+            bincode::config::standard(),
+        )?;
         return Ok(());
     }
 

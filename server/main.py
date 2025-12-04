@@ -19,23 +19,24 @@ def _run_s5cmd_copy(source_uri: str, destination_path: Path) -> None:
 
 @app.on_event("startup")
 def download_proving_keys_on_startup() -> None:
-    app_pk_uri = os.environ.get("APP_PK_URI")
-    agg_pk_uri = os.environ.get("AGG_PK_URI")
-    if not app_pk_uri or not agg_pk_uri:
-        raise ValueError("APP_PK_URI and AGG_PK_URI must be set")
-
-    app_pk_path = Path(os.environ.get("APP_PK_PATH", "/app/app_pk"))
-    agg_pk_path = Path(os.environ.get("AGG_PK_PATH", "/app/agg_pk"))
-
-    # Download only if missing to keep startup idempotent
-    try:
-        if not app_pk_path.exists():
-            _run_s5cmd_copy(app_pk_uri, app_pk_path)
-        if not agg_pk_path.exists():
-            _run_s5cmd_copy(agg_pk_uri, agg_pk_path)
-    except Exception as e:  # Keep server up but surface the error in logs
-        # Printing rather than logging to avoid adding a logger dependency
-        print(f"[startup] failed to download proving keys: {e}", flush=True)
+    pass
+#     app_pk_uri = os.environ.get("APP_PK_URI")
+#     agg_pk_uri = os.environ.get("AGG_PK_URI")
+#     if not app_pk_uri or not agg_pk_uri:
+#         raise ValueError("APP_PK_URI and AGG_PK_URI must be set")
+#
+#     app_pk_path = Path(os.environ.get("APP_PK_PATH", "/app/app_pk"))
+#     agg_pk_path = Path(os.environ.get("AGG_PK_PATH", "/app/agg_pk"))
+#
+#     # Download only if missing to keep startup idempotent
+#     try:
+#         if not app_pk_path.exists():
+#             _run_s5cmd_copy(app_pk_uri, app_pk_path)
+#         if not agg_pk_path.exists():
+#             _run_s5cmd_copy(agg_pk_uri, agg_pk_path)
+#     except Exception as e:  # Keep server up but surface the error in logs
+#         # Printing rather than logging to avoid adding a logger dependency
+#         print(f"[startup] failed to download proving keys: {e}", flush=True)
 
 
 class Job:
