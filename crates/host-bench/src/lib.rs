@@ -142,6 +142,10 @@ pub struct HostArgs {
 
     #[arg(long, default_value_t = false)]
     pub skip_comparison: bool,
+
+    /// only run specific shard id, which is for debug purpose
+    #[arg(long)]
+    pub shard_id: Option<u64>,
 }
 
 pub fn reth_vm_config(app_log_blowup: usize) -> SdkVmConfig {
@@ -394,7 +398,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
 
                         let proofs = info_span!("app.prove").in_scope(|| {
-                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false)
+                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false, args.shard_id.map(|v| v as usize))
                         });
 
                         let verifier = ceno_sdk.create_zkvm_verifier();
@@ -428,7 +432,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
 
                         let proofs = info_span!("app.prove").in_scope(|| {
-                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false)
+                            run_e2e_proof::<E, Pcs, _, _>(&prover, &init_full_mem, max_steps, false, args.shard_id.map(|v| v as usize))
                         });
 
                         let (root_vk, vm_stark_proof) = info_span!("recursion.compress_to_root_proof")
