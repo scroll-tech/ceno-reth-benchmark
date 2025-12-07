@@ -2566,7 +2566,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#d6aa2b94facae728d5282b7a34afd821628e5263"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fall_grid_stride#75bbabcf010a12b448502803e3a56394a6682dfc"
 dependencies = [
  "anyhow",
  "cudarc",
@@ -10738,7 +10738,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#d6aa2b94facae728d5282b7a34afd821628e5263"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fall_grid_stride#75bbabcf010a12b448502803e3a56394a6682dfc"
 dependencies = [
  "cc",
  "which",
@@ -10747,7 +10747,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#d6aa2b94facae728d5282b7a34afd821628e5263"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fall_grid_stride#75bbabcf010a12b448502803e3a56394a6682dfc"
 dependencies = [
  "cc",
  "ff_ext",
