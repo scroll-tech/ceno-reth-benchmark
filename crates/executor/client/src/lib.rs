@@ -43,14 +43,6 @@ impl ClientExecutor {
     ) -> Result<Header, ClientExecutionError> {
         let mut input = ClientExecutorInputWithState::build(pre_input)?;
 
-        // Install OpenVM crypto optimizations
-        #[cfg(feature = "openvm")]
-        {
-            println!("Installing OpenVM crypto optimizations");
-            openvm_revm_crypto::install_openvm_crypto()
-                .expect("failed to install OpenVM crypto provider");
-        }
-
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = input.witness_db()?;
         let cache_db = CacheDB::new(&witness_db);
