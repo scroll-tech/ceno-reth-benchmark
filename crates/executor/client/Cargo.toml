@@ -19,7 +19,6 @@ itertools.workspace = true
 # workspace
 openvm-primitives.workspace = true
 openvm-mpt.workspace = true
-openvm-revm-crypto = { workspace = true, optional = true }
 
 # reth
 reth-consensus.workspace = true
@@ -45,4 +44,3 @@ alloy-consensus = { workspace = true, features = ["crypto-backend"] }
 
 [features]
 default = []
-openvm = ["dep:openvm-revm-crypto"]
