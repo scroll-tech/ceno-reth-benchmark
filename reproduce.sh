@@ -14,7 +14,7 @@ else
         --cache-dir block_data --output-dir output --mode prove-app 2>&1 | tee app.log
 fi
 
-# 2. compress app proofs into 1 stark proof in trial mode
+# 2. compress app proofs into one root stark proof in release mode
 cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
  --bin ceno-reth-benchmark-bin --release -- --block-number 23587691 \
  --rpc-url https://eth-mainnet.g.alchemy.com/v2/dpJmxzwalHmaOsZwAB-Djvz2N651QahS \
