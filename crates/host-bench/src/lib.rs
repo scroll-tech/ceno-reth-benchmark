@@ -66,6 +66,8 @@ pub enum BenchMode {
     ProveApp,
     /// Generate a full end-to-end STARK proof with aggregation.
     ProveStark,
+    /// deserialized app proofs and run STARK proof with aggregation.
+    ProveStarkOnly,
     /// Generate a full end-to-end halo2 proof for EVM verifier.
     #[cfg(feature = "evm-verify")]
     ProveEvm,
@@ -87,6 +89,7 @@ impl std::fmt::Display for BenchMode {
             Self::ProveEvm => write!(f, "prove_evm"),
             Self::MakeInput => write!(f, "make_input"),
             Self::GenerateFixtures => write!(f, "generate_fixtures"),
+            Self::ProveStarkOnly => write!(f, "prove_stark_only"),
         }
     }
 }
@@ -145,6 +148,10 @@ pub struct HostArgs {
     /// only run specific shard id, which is for debug purpose
     #[arg(long)]
     pub shard_id: Option<u64>,
+
+    /// app_proofs path when used in prove-stark-only mode
+    #[arg(long)]
+    pub app_proofs: Option<PathBuf>,
 }
 
 pub fn reth_vm_config(app_log_blowup: usize) -> SdkVmConfig {
@@ -308,7 +315,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     // if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
     //     eyre::bail!("app_pk_path and agg_pk_path must be provided together");
     // }
-    if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
+    if let Some(_agg_pk_path) = args.agg_pk_path.as_ref() {
         todo!("let make pk serializable and read from path");
         // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
         // let agg_pk = read_object_from_file(agg_pk_path)?;
@@ -400,6 +407,10 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
 
                         let verifier = ceno_sdk.create_zkvm_verifier();
+                        if args.shard_id.is_some() {
+                            // skip verify when shard_id was supplied
+                            return Ok(())
+                        }
                         let _ = info_span!("app.verify")
                             .in_scope(|| run_e2e_verify(&verifier, proofs, Some(0), max_steps));
                     }
@@ -436,12 +447,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             path.push("app_proof.bitcode");
                             path
                         });
-                        
+
                         if let Some(app_proof_path) = app_proof_path {
-                            fs::write(
-                                app_proof_path,
-                                bitcode::serialize(&proofs)?,
-                            )?;
+                            fs::write(app_proof_path, bitcode::serialize(&proofs)?)?;
                         }
 
                         let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
@@ -475,6 +483,24 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         //     println!("wrote proof json to {}", output_dir.display());
                         // }
                     }
+                    BenchMode::ProveStarkOnly => {
+                        let Some(app_proofs_path) = args.app_proofs.as_ref() else {
+                            panic!("empty app_proofs_path")
+                        };
+                        let proofs = read_object_from_file(app_proofs_path)?;
+                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
+                            .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
+                        // TODO check verify result
+                        let _ = info_span!("recursion.verify").in_scope(|| {
+                            verify_e2e_stark_proof(
+                                &ceno_sdk.get_agg_verifier(),
+                                &vm_stark_proof,
+                                &Bn254Fr::ZERO,
+                                &Bn254Fr::ZERO,
+                            )
+                            .expect("root proof verification failed");
+                        });
+                    }
                     #[cfg(feature = "evm-verify")]
                     BenchMode::ProveEvm => {
                         let mut prover = sdk.evm_prover(elf)?.with_program_name(program_name);
@@ -505,10 +531,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let mut agg_pk_path = fixture_path.clone();
                         agg_pk_path.push("agg_pk.bitcode");
-                        fs::write(
-                            agg_pk_path,
-                            bitcode::serialize(&agg_pk)?,
-                        )?;
+                        fs::write(agg_pk_path, bitcode::serialize(&agg_pk)?)?;
                     }
                     _ => {
                         // This case is handled earlier and should not reach here
