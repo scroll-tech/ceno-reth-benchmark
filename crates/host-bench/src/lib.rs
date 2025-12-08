@@ -399,6 +399,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             )
                         });
 
+                        if let Some(output_dir) = args.output_dir.as_ref() {
+                            let mut path = output_dir.clone();
+                            path.push("app_proof.bitcode");
+
+                            fs::write(path, bitcode::serialize(&proofs)?)?;
+                        };
+
                         let verifier = ceno_sdk.create_zkvm_verifier();
                         if args.shard_id.is_some() {
                             // skip verify when shard_id was supplied
@@ -435,15 +442,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             )
                         });
 
-                        let app_proof_path = args.output_dir.as_ref().map(|output_dir| {
+                        if let Some(output_dir) = args.output_dir.as_ref() {
                             let mut path = output_dir.clone();
                             path.push("app_proof.bitcode");
-                            path
-                        });
-
-                        if let Some(app_proof_path) = app_proof_path {
-                            fs::write(app_proof_path, bitcode::serialize(&proofs)?)?;
-                        }
+                            fs::write(path, bitcode::serialize(&proofs)?)?;
+                        };
 
                         let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
                             .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
