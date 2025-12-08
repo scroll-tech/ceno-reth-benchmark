@@ -4,7 +4,7 @@ export RUSTFLAGS="-C target-feature=+avx2"
 export RUST_LOG=info,ceno_zkvm=debug
 
 # 1. generate app proof in release mode
-if [ ! -z "output/app_proof.bitcode" ]; then
+if [ -z "output/app_proof.bitcode" ]; then
     echo "App proof already exists, skipping generation."
 else
     # generate app proof using cpu prover for now
