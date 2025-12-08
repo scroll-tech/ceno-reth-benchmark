@@ -192,16 +192,12 @@ rust.rust_2018_idioms = { level = "deny", priority = -1 }
 rustdoc.all = "warn"
 
 [profile.release]
-lto = "thin"
+lto = "off"
 
 [profile.profiling]
 inherits = "maxperf"
 debug = "full"
 strip = "none"
-
-[profile.trial]
-inherits = "dev"
-debug = "limited"
 
 [profile.maxperf]
 inherits = "release"
