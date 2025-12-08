@@ -9,6 +9,7 @@ CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL:-}"
 CENO_STATUS_API_KEY="${CENO_STATUS_API_KEY:-}"
 CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
+CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-none}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -130,6 +131,31 @@ fi
 INPUT_PATH="$GENERATED_INPUT_PATH"
 echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
 
+AGG_PK_PATH="$job_dir/agg_pk.bitcode"
+
+# Generate aggregation proving key if missing.
+if [[ ! -f "$AGG_PK_PATH" ]]; then
+  echo "[prove_block.sh] Generating aggregation proving key under $job_dir" >&2
+  "$BIN_PATH" \
+    --mode generate-fixtures \
+    --block-number "$BLOCK_NUMBER" \
+    --input-path "$INPUT_PATH" \
+    --cache-dir "$cache_root" \
+    --rpc-url "$ETH_RPC_URL" \
+    --fixtures-path "$job_dir" \
+    --app-log-blowup "$APP_LOG_BLOWUP" \
+    --leaf-log-blowup "$LEAF_LOG_BLOWUP" \
+    --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
+    --root-log-blowup "$ROOT_LOG_BLOWUP" \
+    --max-segment-length "$MAX_SEGMENT_LENGTH" \
+    --segment-max-cells "$SEGMENT_MAX_CELLS"
+fi
+
+if [[ ! -f "$AGG_PK_PATH" ]]; then
+  echo "[prove_block.sh] Error: agg_pk.bitcode not found after generation" >&2
+  exit 1
+fi
+
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":\"${CENO_CLUSTER_ID}\"}"
@@ -139,6 +165,8 @@ start_ts_ms=$(date +%s%3N)
 PROOF_JSON="$job_dir/proof.json"
 
 OUTPUT_PATH="$job_dir/metrics.json"
+
+export CENO_GPU_CACHE_LEVEL
 
 "$BIN_PATH" \
   --mode "$MODE" \
@@ -152,6 +180,7 @@ OUTPUT_PATH="$job_dir/metrics.json"
   --root-log-blowup "$ROOT_LOG_BLOWUP" \
   --max-segment-length "$MAX_SEGMENT_LENGTH" \
   --segment-max-cells "$SEGMENT_MAX_CELLS" \
+  --agg-pk-path "$AGG_PK_PATH" \
   --output-dir "$job_dir" \
   --skip-comparison
   # --app-pk-path /app/app_pk \

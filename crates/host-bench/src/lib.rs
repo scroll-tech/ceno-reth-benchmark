@@ -505,12 +505,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("block_hash (prove_stark): {}",
                         // ToHexExt::encode_hex(&block_hash));
                         //
-                        // if let Some(output_dir) = args.output_dir.as_ref() {
-                        //     let versioned_proof = VersionedVmStarkProof::new(proof)?;
-                        //     let json = serde_json::to_vec_pretty(&versioned_proof)?;
-                        //     fs::write(output_dir.join("proof.json"), json)?;
-                        //     println!("wrote proof json to {}", output_dir.display());
-                        // }
+                        if let Some(output_dir) = args.output_dir.as_ref() {
+                            let versioned_proof = VersionedVmStarkProof::new(vm_stark_proof)?;
+                            let json = serde_json::to_vec_pretty(&versioned_proof)?;
+                            fs::write(output_dir.join("proof.json"), json)?;
+                            println!("wrote proof json to {}", output_dir.display());
+                        }
                     }
                     BenchMode::ProveStarkOnly => {
                         let Some(app_proofs_path) = args.app_proofs.as_ref() else {
