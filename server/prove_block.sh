@@ -108,7 +108,7 @@ if [[ -n "$GENERATED_INPUT_PATH" ]]; then
   echo "[prove_block.sh] Reusing existing generated input $GENERATED_INPUT_PATH" >&2
 else
   if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
-    post_status "proofs/queue" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":\"${CENO_CLUSTER_ID}\"}"
+    post_status "proofs/queue" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
   fi
   echo "[prove_block.sh] Generating input locally via --mode make-input" >&2
   "$BIN_PATH" \
@@ -167,7 +167,7 @@ fi
 
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
-  post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":\"${CENO_CLUSTER_ID}\"}"
+  post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
 fi
 
 start_ts_ms=$(date +%s%3N)
@@ -232,7 +232,7 @@ fi
 
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":"${CENO_CLUSTER_ID}","proving_time":${duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
   post_status "proofs/proved" "$proved_payload"
 fi
