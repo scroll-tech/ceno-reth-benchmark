@@ -38,6 +38,8 @@ if [[ ! -f "$BIN_PATH" ]]; then
   exit 127
 fi
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
 
@@ -141,6 +143,7 @@ INPUT_PATH="$GENERATED_INPUT_PATH"
 echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
 
 AGG_PK_PATH="$job_dir/agg_pk.bitcode"
+METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
 
 # Generate aggregation proving key if missing.
 if [[ ! -f "$AGG_PK_PATH" ]]; then
@@ -230,6 +233,12 @@ PY
 )" || proving_cycles=""
 fi
 
+if [[ -f "$OUTPUT_PATH" ]]; then
+  if ! python3 "$SCRIPT_DIR/metrics_to_markdown.py" "$OUTPUT_PATH" "$METRICS_MD" --block-number "$BLOCK_NUMBER"; then
+    echo "[prove_block.sh] Warning: failed to convert metrics.json to markdown" >&2
+  fi
+fi
+
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   read -r -d '' proved_payload <<EOF || true
 {"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
@@ -243,7 +252,7 @@ echo "[prove_block.sh] Proof finished with status=$status in ${duration_ms}ms at
 # Upload proof.json to S3 (best-effort)
 if [[ -f "$PROOF_JSON" ]]; then
   set +e
-  s5cmd cp "$PROOF_JSON" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/proof.json"
+  s5cmd cp "$PROOF_JSON" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_proof.json"
   upload_rc=$?
   if [[ $upload_rc -ne 0 ]]; then
     echo "[prove_block.sh] Warning: failed to upload proof.json to S3 (rc=$upload_rc)" >&2
@@ -254,7 +263,7 @@ else
 fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then
-  s5cmd cp "$OUTPUT_PATH" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/metrics.json"
+  s5cmd cp "$OUTPUT_PATH" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_metrics.json"
   upload_rc=$?
   if [[ $upload_rc -ne 0 ]]; then
     echo "[prove_block.sh] Warning: failed to upload metrics.json to S3 (rc=$upload_rc)" >&2
@@ -262,5 +271,26 @@ if [[ -f "$OUTPUT_PATH" ]]; then
 else
   echo "[prove_block.sh] Warning: metrics.json not found at $OUTPUT_PATH" >&2
 fi
+
+if [[ -f "$METRICS_MD" ]]; then
+  s5cmd cp "$METRICS_MD" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_metrics.md"
+  upload_rc=$?
+  if [[ $upload_rc -ne 0 ]]; then
+    echo "[prove_block.sh] Warning: failed to upload metrics markdown to S3 (rc=$upload_rc)" >&2
+  fi
+else
+  echo "[prove_block.sh] Warning: metrics markdown not found at $METRICS_MD" >&2
+fi
+
+PROCESSED_BLOCKS_URI="s3://${S3_BUCKET}/${S3_PREFIX}/processed_block.txt"
+tmp_processed="$(mktemp)"
+set +e
+s5cmd cp "$PROCESSED_BLOCKS_URI" "$tmp_processed" >/dev/null 2>&1
+set -e
+printf '%s\n' "$BLOCK_NUMBER" >> "$tmp_processed"
+if ! s5cmd cp "$tmp_processed" "$PROCESSED_BLOCKS_URI"; then
+  echo "[prove_block.sh] Warning: failed to update processed_block.txt on S3" >&2
+fi
+rm -f "$tmp_processed"
 
 exit $status
