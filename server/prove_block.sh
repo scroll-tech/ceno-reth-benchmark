@@ -49,11 +49,20 @@ post_status() {
   if [[ -z "$CENO_STATUS_API_BASE_URL" ]]; then
     return
   fi
-  curl -sS -X POST \
+  echo "[post_status] POST ${endpoint} payload=${payload}" >&2
+  local response status
+  response=$(curl -sS -w "%{http_code}" -o /tmp/post_status_resp.$$ \
+    -X POST \
     -H "Content-Type: application/json" \
     ${CENO_STATUS_API_KEY:+-H "Authorization: Bearer ${CENO_STATUS_API_KEY}"} \
     -d "$payload" \
-    "${CENO_STATUS_API_BASE_URL}/${endpoint}"
+    "${CENO_STATUS_API_BASE_URL}/${endpoint}")
+  status="$response"
+  echo "[post_status] status=${status}" >&2
+  if [[ -s /tmp/post_status_resp.$$ ]]; then
+    echo "[post_status] response=$(cat /tmp/post_status_resp.$$)" >&2
+  fi
+  rm -f /tmp/post_status_resp.$$
 }
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
@@ -223,7 +232,7 @@ fi
 
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":"${CENO_CLUSTER_ID}","proving_time":${duration_ms},"proving_cycles":${proving_cycles:-10000},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+{"block_number":${BLOCK_NUMBER},"cluster_id":"${CENO_CLUSTER_ID}","proving_time":${duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
   post_status "proofs/proved" "$proved_payload"
 fi
