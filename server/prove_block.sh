@@ -184,7 +184,6 @@ export CENO_GPU_CACHE_LEVEL
   --output-dir "$job_dir" \
   --skip-comparison
   # --app-pk-path /app/app_pk \
-  # --agg-pk-path /app/agg_pk \
 
 status=$?
 
@@ -208,9 +207,23 @@ PY
 )" || proof_b64=""
 fi
 
+proving_cycles=""
+if [[ -f "$OUTPUT_PATH" ]]; then
+  proving_cycles="$(python3 - "$OUTPUT_PATH" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for entry in data.get("gauge", []):
+    if entry.get("metric") == "cycles":
+        print(entry.get("value", ""), end="")
+        break
+PY
+)" || proving_cycles=""
+fi
+
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":"${CENO_CLUSTER_ID}","proving_time":${duration_ms},"proving_cycles":10000,"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+{"block_number":${BLOCK_NUMBER},"cluster_id":"${CENO_CLUSTER_ID}","proving_time":${duration_ms},"proving_cycles":${proving_cycles:-10000},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
   post_status "proofs/proved" "$proved_payload"
 fi
