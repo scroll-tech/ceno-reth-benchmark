@@ -110,7 +110,7 @@ if [[ -n "$GENERATED_INPUT_PATH" ]]; then
   echo "[prove_block.sh] Reusing existing generated input $GENERATED_INPUT_PATH" >&2
 else
   if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
-    post_status "proofs/queue" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
+    post_status "proofs/queued" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
   fi
   echo "[prove_block.sh] Generating input locally via --mode make-input" >&2
   "$BIN_PATH" \
