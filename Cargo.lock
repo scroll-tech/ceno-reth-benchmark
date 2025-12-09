@@ -2455,9 +2455,10 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#a6ba173d193e5cdaac9b180875d3c9a9f3d7e0de"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
 dependencies = [
  "anyhow",
+ "cuda-runtime-sys",
  "cudarc",
  "downcast-rs",
  "ff_ext",
@@ -9571,7 +9572,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#a6ba173d193e5cdaac9b180875d3c9a9f3d7e0de"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
 dependencies = [
  "cc",
  "which",
@@ -9580,7 +9581,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#a6ba173d193e5cdaac9b180875d3c9a9f3d7e0de"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
 dependencies = [
  "cc",
  "ff_ext",
@@ -10847,7 +10848,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
