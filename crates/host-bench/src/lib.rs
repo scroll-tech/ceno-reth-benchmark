@@ -132,6 +132,9 @@ pub struct HostArgs {
     #[arg(long)]
     pub output_dir: Option<PathBuf>,
 
+    #[arg(long)]
+    pub app_vk_path: Option<PathBuf>,
+
     /// If specified, loads the app proving key from this path.
     #[arg(long)]
     pub app_pk_path: Option<PathBuf>,
@@ -302,6 +305,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
             MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
         );
 
+    // init app prover and app pk/vk
     ceno_sdk.init_base_prover(max_num_variables, security_level);
     info!("setup ceno sdk done in {:?}", start.elapsed());
 
@@ -312,6 +316,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
         let agg_pk = read_object_from_file(agg_pk_path)?;
         ceno_sdk.set_agg_pk(agg_pk);
+    }
+
+    if let Some(app_vk_path) = args.app_vk_path.as_ref() {
+        let app_vk = read_object_from_file(app_vk_path)?;
+        // reset app vk
+        ceno_sdk.set_app_vk(app_vk);
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
@@ -514,14 +524,17 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     BenchMode::GenerateFixtures => {
                         // generate pk,vk if needed
                         let _app_pk = ceno_sdk.get_app_pk();
+                        let app_vk = ceno_sdk.get_app_vk();
                         let agg_pk = ceno_sdk.init_agg_pk();
 
                         let fixture_path = args.fixtures_path.unwrap();
 
                         // TODO serialize ceno app pk
-                        // let mut app_pk_path = fixture_path.clone();
-                        // app_pk_path.push("app_pk.bitcode");
-                        // fs::write(app_pk_path, bitcode::serialize(&app_pk)?)?;
+
+                        // serialize ceno app vk
+                        let mut app_pk_path = fixture_path.clone();
+                        app_pk_path.push("app_vk.bitcode");
+                        fs::write(app_pk_path, bitcode::serialize(&app_vk)?)?;
 
                         let mut agg_pk_path = fixture_path.clone();
                         agg_pk_path.push("agg_pk.bitcode");
