@@ -282,7 +282,7 @@ else
   echo "[prove_block.sh] Warning: metrics markdown not found at $METRICS_MD" >&2
 fi
 
-PROCESSED_BLOCKS_URI="s3://${S3_BUCKET}/${S3_PREFIX}/processed_block.txt"
+PROCESSED_BLOCKS_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/processed_block.txt"
 tmp_processed="$(mktemp)"
 set +e
 s5cmd cp "$PROCESSED_BLOCKS_URI" "$tmp_processed" >/dev/null 2>&1
