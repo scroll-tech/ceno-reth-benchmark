@@ -1699,7 +1699,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1848,7 +1848,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "glob",
 ]
@@ -1868,7 +1868,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1881,7 +1881,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto_primitives"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#e6ef2986f4e5522ead8d8509e1a379e31f5a35ea"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
 dependencies = [
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
  "elliptic-curve",
@@ -1890,7 +1890,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1921,7 +1921,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1933,7 +1933,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
  "tiny-keccak",
@@ -1942,7 +1942,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1985,7 +1985,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.3",
@@ -1995,7 +1995,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
  "digest 0.10.7",
@@ -2004,17 +2004,17 @@ dependencies = [
 [[package]]
 name = "ceno_syscall"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#e6ef2986f4e5522ead8d8509e1a379e31f5a35ea"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
 
 [[package]]
 name = "ceno_syscall"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch#e6ef2986f4e5522ead8d8509e1a379e31f5a35ea"
+source = "git+https://github.com/scroll-tech/ceno-patch#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
 
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -2713,7 +2713,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3690,7 +3690,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=a6d5812e7b27306596ea9f7a145a93664b24f7d6#a6d5812e7b27306596ea9f7a145a93664b24f7d6"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#a0b4f04bda269197ca9f795edb1f8fea5a25491e"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -4582,7 +4582,7 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.4"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#fdd6c563c1fee5028465eae665082acb1589f5e2"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#05a8a81ef6300ff8bbf1d810b018bbeb71ab947c"
 dependencies = [
  "ceno_crypto_primitives",
  "ceno_syscall 0.1.0 (git+https://github.com/scroll-tech/ceno-patch?branch=main)",
