@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.6
 FROM nvidia/cuda:12.8.1-devel-ubuntu24.04 AS builder
 
 # System build deps
@@ -8,9 +9,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     clang \
     libclang-dev \
     curl \
+    openssh-client \
     git \
+    m4 \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+ARG GIT_HOST=github.com
+# Pre-populate known_hosts so BuildKit's SSH mount only needs host key.
+RUN mkdir -p /root/.ssh \
+  && chmod 700 /root/.ssh \
+  && ssh-keyscan -t rsa,ecdsa,ed25519 -H "${GIT_HOST}" >> /root/.ssh/known_hosts \
+  && chmod 600 /root/.ssh/known_hosts
+
+# Force cargo to use the CLI git implementation so forwarded SSH agent sockets
+# are honored for private repositories.
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 # Toolchains: stable for cargo-openvm, nightly for tco build
@@ -21,7 +35,7 @@ RUN rustup toolchain install nightly-2025-08-19 \
   && rustup component add rust-src --toolchain nightly-2025-08-19
 
 # Install cargo-openvm (builds the guest ELF)
-RUN cargo +1.86 install --git https://github.com/openvm-org/openvm.git --locked --force cargo-openvm
+# RUN cargo +1.86 install --git https://github.com/openvm-org/openvm.git --locked --force cargo-openvm
 
 WORKDIR /app
 # Copy only Rust workspace files to keep build cache stable when server/ changes
@@ -31,18 +45,27 @@ COPY bin/ ./bin/
 COPY rustfmt.toml ./
 
 # Build guest ELF and place where host expects it
-WORKDIR /app/bin/client-eth
-RUN cargo openvm build --no-transpile --profile=release \
-  && mkdir -p ../host/elf \
-  && cp target/riscv32im-risc0-zkvm-elf/release/openvm-client-eth ../host/elf/
+# --config net.git-fetch-with-cli=true for fetching private-repo
+WORKDIR /app/bin/ceno-client-eth
+RUN --mount=type=secret,id=sshkey \
+    set -e; \
+    KEY=/run/secrets/sshkey; \
+    export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
+    cargo build --config net.git-fetch-with-cli=true --release \
+  && mkdir -p ../ceno-host/elf \
+  && cp /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
 
 # Build host binary
 WORKDIR /app
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
-ARG FEATURES="metrics,jemalloc,tco,unprotected,cuda"
+ARG FEATURES="metrics,jemalloc,gpu"
 ARG PROFILE="release"
 ENV CUDA_ARCH="89"
-RUN cargo +nightly-2025-08-19 build --bin openvm-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
+RUN --mount=type=secret,id=sshkey \
+    set -e; \
+    KEY=/run/secrets/sshkey; \
+    export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
+    cargo +nightly-2025-08-19 build --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
@@ -56,8 +79,9 @@ RUN S5CMD_VER=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest 
     rm /tmp/s5cmd.tar.gz
 
 WORKDIR /app
-COPY --from=builder /app/target/release/openvm-reth-benchmark-bin /usr/local/bin/openvm-reth-benchmark-bin
-COPY --from=builder /app/bin/host/elf/openvm-client-eth /app/bin/host/elf/openvm-client-eth
+COPY --from=builder /app/target/release/ceno-reth-benchmark-bin /usr/local/bin/ceno-reth-benchmark-bin
+COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/elf/ceno-client-eth
+COPY --from=builder /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY server /app/server
 
 RUN python3 -m venv /opt/venv \
@@ -67,15 +91,15 @@ RUN python3 -m venv /opt/venv \
 ENV RUST_LOG="info,p3_=warn" \
     OUTPUT_PATH="metrics.json" \
     JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true" \
-    KZG_PARAMS_DIR="/root/.openvm/params"
+    KZG_PARAMS_DIR="/root/.openvm/params" \
+    CENO_GPU_CACHE_LEVEL="none"
 
 # Useful mounts for cache/params
 VOLUME ["/app/rpc-cache", "/root/.openvm/params"]
 
 ENV PATH="/opt/venv/bin:${PATH}" \
-    OVM_BIN="/usr/local/bin/openvm-reth-benchmark-bin"
+    OVM_BIN="/usr/local/bin/ceno-reth-benchmark-bin" \
+    WORKSPACE_ROOT="/app"
 
 EXPOSE 8000
 ENTRYPOINT ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
-
