@@ -233,6 +233,21 @@ PY
 )" || proving_cycles=""
 fi
 
+reth_block_time_ms=""
+if [[ -f "$OUTPUT_PATH" ]]; then
+  reth_block_time_ms="$(python3 - "$OUTPUT_PATH" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for entry in data.get("gauge", []):
+    if entry.get("metric") == "reth-block_time_ms":
+        print(entry.get("value", ""), end="")
+        break
+PY
+)" || reth_block_time_ms=""
+fi
+reported_duration_ms="${reth_block_time_ms:-$duration_ms}"
+
 if [[ -f "$OUTPUT_PATH" ]]; then
   if ! python3 "$SCRIPT_DIR/metrics_to_markdown.py" "$OUTPUT_PATH" "$METRICS_MD" --block-number "$BLOCK_NUMBER"; then
     echo "[prove_block.sh] Warning: failed to convert metrics.json to markdown" >&2
@@ -241,7 +256,7 @@ fi
 
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${reported_duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
   post_status "proofs/proved" "$proved_payload"
 fi
