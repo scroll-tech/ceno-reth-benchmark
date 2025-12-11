@@ -1,16 +1,16 @@
 [unstable]
 build-std = [
-    "alloc",
-    "core",
-    "compiler_builtins",
-    "std",
-    "panic_abort",
-    "proc_macro",
+  "alloc",
+  "core",
+  "compiler_builtins",
+  "std",
+  "panic_abort",
+  "proc_macro",
 ]
 build-std-features = [
-    "compiler-builtins-mem",
-    "panic_immediate_abort",
-    "default",
+  "compiler-builtins-mem",
+  "panic_immediate_abort",
+  "default",
 ]
 
 [profile.dev]
@@ -18,14 +18,14 @@ panic = "abort"
 
 [build]
 rustflags = [
-    "-C",
-    "link-arg=-Tmemory.x",
-    "-C",
-    "link-arg=-Tceno_link.x",
-    "-Zlocation-detail=none",
-    "-C",
-    "passes=lower-atomic",
-    '--cfg',
-    'getrandom_backend="custom"', # getrandom v3.3+ requires this cfg to use a custom getrandom implementation
+  "-C",
+  "link-arg=-Tmemory.x",
+  "-C",
+  "link-arg=-Tceno_link.x",
+  "-Zlocation-detail=none",
+  "-C",
+  "passes=lower-atomic",
+  '--cfg',
+  'getrandom_backend="custom"', # getrandom v3.3+ requires this cfg to use a custom getrandom implementation
 ]
 target = "./riscv32im-ceno-zkvm-elf.json"

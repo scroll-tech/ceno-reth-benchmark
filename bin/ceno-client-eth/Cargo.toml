@@ -24,8 +24,8 @@ alloy-primitives = { workspace = true, features = ["native-keccak"] }
 # Statically turns off logging
 log = { version = "0.4", features = ["max_level_off", "release_max_level_off"] }
 tracing = { version = "0.1", features = [
-    "max_level_off",
-    "release_max_level_off",
+  "max_level_off",
+  "release_max_level_off",
 ] }
 
 [features]

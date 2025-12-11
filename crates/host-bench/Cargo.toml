@@ -74,14 +74,14 @@ tco = ["openvm-sdk/tco"]
 # aot = ["openvm-sdk/aot"]
 evm-prove = ["openvm-sdk/evm-prove", "halo2-axiom"]
 evm-verify = ["evm-prove", "openvm-sdk/evm-verify", "halo2-axiom"]
-perf-metrics = ["openvm-sdk/perf-metrics", "openvm-benchmarks-prove/perf-metrics"]
+perf-metrics = [
+  "openvm-sdk/perf-metrics",
+  "openvm-benchmarks-prove/perf-metrics",
+]
 mimalloc = ["openvm-benchmarks-prove/mimalloc"]
 jemalloc = ["ceno_zkvm/jemalloc"]
 nightly-features = ["openvm-benchmarks-prove/nightly-features"]
 # x86 only:
 halo2-asm = ["halo2-axiom?/asm"]
-cuda = [
-    "openvm-native-circuit/cuda",
-    "openvm-sdk/cuda",
-]
+cuda = ["openvm-native-circuit/cuda", "openvm-sdk/cuda"]
 unprotected = ["openvm-sdk/unprotected"]
