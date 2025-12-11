@@ -23,7 +23,7 @@ openvm-mpt.workspace = true
 # reth
 reth-consensus.workspace = true
 reth-ethereum-primitives = { workspace = true, features = [
-  "serde-bincode-compat",
+    "serde-bincode-compat",
 ] }
 reth-ethereum-consensus.workspace = true
 reth-execution-types.workspace = true
