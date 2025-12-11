@@ -14,7 +14,6 @@ bincode.workspace = true
 ceno_sha2.workspace = true
 revm-precompile.workspace = true
 alloy-consensus = { workspace = true, features = ["crypto-backend"] }
-alloy-primitives.workspace = true
 rkyv = "0.8"
 
 [target.'cfg(target_os = "zkvm")'.dependencies]
