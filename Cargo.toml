@@ -61,17 +61,17 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
+ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
 # ceno host lib
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_sha2 = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "8b4dc1500b4077c84f1ab12a7f54551319847d6c" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "c3c036b02b9f63e46caaa0cfc153d837659b8237" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
 
