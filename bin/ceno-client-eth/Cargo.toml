@@ -13,6 +13,7 @@ ceno_syscall.workspace = true
 bincode.workspace = true
 ceno_sha2.workspace = true
 revm-precompile.workspace = true
+alloy-primitives.workspace = true
 alloy-consensus = { workspace = true, features = ["crypto-backend"] }
 rkyv = "0.8"
 
@@ -26,6 +27,7 @@ tracing = { version = "0.1", features = [
     "max_level_off",
     "release_max_level_off",
 ] }
+
 
 [features]
 default = []
