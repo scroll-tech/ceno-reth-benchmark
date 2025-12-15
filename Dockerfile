@@ -32,7 +32,8 @@ ENV CARGO_HOME="/root/.cargo" \
     RUSTUP_HOME="/root/.rustup" \
     PATH="/root/.cargo/bin:${PATH}"
 RUN rustup toolchain install nightly-2025-08-19 \
-  && rustup component add rust-src --toolchain nightly-2025-08-19
+  && rustup component add rust-src --toolchain nightly-2025-08-19 \
+  && rustup default nightly-2025-08-19
 
 RUN JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
     cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno

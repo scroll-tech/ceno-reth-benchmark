@@ -41,10 +41,10 @@ profiling = ["ceno_crypto/profiling"]
 
 [profile.release]
 panic = "abort"
-lto = "thin"
-strip = false
+lto = "fat"
+strip = false # FIXME strip = true make `_sheap` symbol lost when compile via cargo-ceno
 
 [profile.profiling]
 inherits = "release"
 debug = 2
-strip = false
+strip = false # FIXME strip = true make `_sheap` symbol lost when compile via cargo-ceno
