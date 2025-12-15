@@ -54,7 +54,7 @@ RUN --mount=type=secret,id=sshkey \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
     cargo --config net.git-fetch-with-cli=true ceno build --release \
   && mkdir -p ../ceno-host/elf \
-  && cp /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
+  && cp /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
 
 # Build host binary
 WORKDIR /app
@@ -82,7 +82,7 @@ RUN S5CMD_VER=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest 
 WORKDIR /app
 COPY --from=builder /app/target/release/ceno-reth-benchmark-bin /usr/local/bin/ceno-reth-benchmark-bin
 COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/elf/ceno-client-eth
-COPY --from=builder /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
+COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY server /app/server
 
 RUN python3 -m venv /opt/venv \
