@@ -6,11 +6,20 @@ and patched with [Ceno](https://github.com/scroll-tech/ceno/)
 
 ### Compiling the Guest Program
 
-before running benchmark, need to compile guest program manually
+before running benchmark, need to compile guest program
+
+first install ceno-cli tools
+
+```
+JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
+    cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
+```
+
+then build guest program
 
 ```
 cd bin/ceno-client-eth
-cargo build --release
+cargo ceno build --release
 ```
 
 To show some profiling log of guest program, just build binary with `profiling` feature

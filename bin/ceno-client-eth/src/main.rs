@@ -4,7 +4,6 @@ use alloy_primitives::Address;
 use ceno_crypto::ceno_crypto;
 use openvm_client_executor::{io::ClientExecutorInput, ChainVariant, ClientExecutor};
 use rkyv::Archived;
-// openvm::init!();
 
 #[cfg(feature = "profiling")]
 use ceno_syscall::syscall_phantom_log_pc_cycle;
