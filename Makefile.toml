@@ -1,0 +1,17 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.clippy]
+dependencies = ["clippy-workspace", "ceno-client-deny"]
+workspace = false
+
+[tasks.clippy-workspace]
+args = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+command = "cargo"
+workspace = false
+
+[tasks.ceno-client-deny]
+cwd = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/bin/ceno-client-eth"
+command = "cargo"
+args = ["deny", "check", "bans"]
+workspace = false

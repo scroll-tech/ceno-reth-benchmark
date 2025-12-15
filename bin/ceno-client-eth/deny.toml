@@ -1,0 +1,9 @@
+[bans]
+multiple-versions = "deny"
+skip = [
+    { name = "hashbrown" },
+    { name = "getrandom" },
+    { name = "rfc6979" },
+    { name = "itertools" },
+    { name = "ecdsa", version = "=0.16.9" },
+]

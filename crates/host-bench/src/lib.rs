@@ -213,6 +213,8 @@ fn setup() -> (Vec<u8>, Program, Platform) {
     );
 
     let elf_path = WORKSPACE_ROOT
+        .join("bin")
+        .join("ceno-client-eth")
         .join("target")
         .join("riscv32im-ceno-zkvm-elf")
         .join("release")

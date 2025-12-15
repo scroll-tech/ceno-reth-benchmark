@@ -1,0 +1,53 @@
+name: Lints
+
+on:
+  merge_group:
+  pull_request:
+    types: [ synchronize, opened, reopened, ready_for_review ]
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  lints:
+    name: Various lints
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          components: rustfmt, clippy
+          targets: riscv32im-unknown-none-elf
+          # TODO: figure out way to keep this in sync with rust-toolchain.toml automatically
+          toolchain: nightly-2025-08-18
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            bin/ceno-client-eth
+          key: lint-${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: lint-${{ runner.os }}-cargo-
+
+      - name: Install m4
+        run: sudo apt-get install -y m4
+
+      - name: Install cargo make
+        run: |
+          cargo make --version || cargo install cargo-make
+
+      - name: Run clippy
+        env:
+          RUSTFLAGS: "-Dwarnings"
+        run: |
+          cargo make clippy

@@ -32,10 +32,11 @@ ENV CARGO_HOME="/root/.cargo" \
     RUSTUP_HOME="/root/.rustup" \
     PATH="/root/.cargo/bin:${PATH}"
 RUN rustup toolchain install nightly-2025-08-19 \
-  && rustup component add rust-src --toolchain nightly-2025-08-19
+  && rustup component add rust-src --toolchain nightly-2025-08-19 \
+  && rustup default nightly-2025-08-19
 
-# Install cargo-openvm (builds the guest ELF)
-# RUN cargo +1.86 install --git https://github.com/openvm-org/openvm.git --locked --force cargo-openvm
+RUN JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
+    cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
 
 WORKDIR /app
 # Copy only Rust workspace files to keep build cache stable when server/ changes
@@ -51,9 +52,9 @@ RUN --mount=type=secret,id=sshkey \
     set -e; \
     KEY=/run/secrets/sshkey; \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
-    cargo build --config net.git-fetch-with-cli=true --release \
+    cargo --config net.git-fetch-with-cli=true ceno build --release \
   && mkdir -p ../ceno-host/elf \
-  && cp /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
+  && cp /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
 
 # Build host binary
 WORKDIR /app
@@ -81,7 +82,7 @@ RUN S5CMD_VER=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest 
 WORKDIR /app
 COPY --from=builder /app/target/release/ceno-reth-benchmark-bin /usr/local/bin/ceno-reth-benchmark-bin
 COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/elf/ceno-client-eth
-COPY --from=builder /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
+COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY server /app/server
 
 RUN python3 -m venv /opt/venv \
