@@ -1,6 +1,5 @@
-# # Copy to config.toml for local patches
-# [net]
-# git-fetch-with-cli = true
+[net]
+git-fetch-with-cli = true
 
 # Patches moved to Cargo.toml
 

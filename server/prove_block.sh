@@ -88,7 +88,18 @@ else
     echo "[prove_block.sh] Failed to fetch latest block number from RPC" >&2
     exit 1
   fi
-  echo "[prove_block.sh] Latest block number: $BLOCK_NUMBER" >&2
+  raw_block_number="$BLOCK_NUMBER"
+  remainder=$(( BLOCK_NUMBER % 100 ))
+  BLOCK_NUMBER=$(( BLOCK_NUMBER - remainder ))
+  echo "[prove_block.sh] Latest block number: $raw_block_number (rounded down to $BLOCK_NUMBER)" >&2
+
+  proof_s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_proof.json"
+  echo "[prove_block.sh] Checking for existing proof at ${proof_s3_uri}" >&2
+  if s5cmd ls "$proof_s3_uri" >/dev/null 2>&1; then
+    echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
 fi
 
 cache_root="$job_dir/block_data"
@@ -247,6 +258,19 @@ PY
 )" || reth_block_time_ms=""
 fi
 reported_duration_ms="${reth_block_time_ms:-$duration_ms}"
+num_shards=""
+if [[ -f "$OUTPUT_PATH" ]]; then
+  num_shards="$(python3 - "$OUTPUT_PATH" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for entry in data.get("gauge", []):
+    if entry.get("metric") == "num_shards":
+        print(entry.get("value", ""), end="")
+        break
+PY
+)" || num_shards=""
+fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then
   if ! python3 "$SCRIPT_DIR/metrics_to_markdown.py" "$OUTPUT_PATH" "$METRICS_MD" --block-number "$BLOCK_NUMBER"; then
@@ -302,7 +326,11 @@ tmp_processed="$(mktemp)"
 set +e
 s5cmd cp "$PROCESSED_BLOCKS_URI" "$tmp_processed" >/dev/null 2>&1
 set -e
-printf '%s\n' "$BLOCK_NUMBER" >> "$tmp_processed"
+if [[ -n "$num_shards" ]]; then
+  printf '%s,%s\n' "$BLOCK_NUMBER" "$num_shards" >> "$tmp_processed"
+else
+  printf '%s\n' "$BLOCK_NUMBER" >> "$tmp_processed"
+fi
 if ! s5cmd cp "$tmp_processed" "$PROCESSED_BLOCKS_URI"; then
   echo "[prove_block.sh] Warning: failed to update processed_block.txt on S3" >&2
 fi
