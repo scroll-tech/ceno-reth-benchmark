@@ -70,9 +70,12 @@ jobs:
           cargo fmt --all -- --check
 
   e2e:
-    name: "Run e2e test on block 23587691"
+    name: "Run e2e test on small block"
     runs-on: [self-hosted, x64, linux, gpu]
     timeout-minutes: 15
+    env:
+      BLOCK_NUM: 23587691
+      RPC_URL_1: ${{ secrets.RPC_URL_1 }}
     steps:
       - name: Load SSH key
         uses: webfactory/ssh-agent@v0.9.0
