@@ -93,7 +93,7 @@ jobs:
         with:
           components: rust-src
           targets: riscv32im-unknown-none-elf
-          toolchain: nightly-2025-08-19
+          toolchain: nightly-2025-08-18
 
       - name: "Build cargo-ceno toolchain"
         run: |
