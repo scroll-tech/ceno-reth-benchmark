@@ -14,7 +14,7 @@ concurrency:
 jobs:
   lock-files:
     name: "Check lock files"
-    runs-on: ["runs-on", "runner=8cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    runs-on: [self-hosted, x64, linux, gpu]
     env:
       CARGO_NET_GIT_FETCH_WITH_CLI: "true"
     steps:
@@ -22,14 +22,21 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: |
-            ${{ secrets.GH_ACTIONS_DEPLOY_PRIVATE_KEY }}
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
+
+      - name: "Setup nightly toolchain"
+        uses: "actions-rs/toolchain@v1"
+        with:
+          toolchain: nightly-2025-08-18
+          components: rustfmt, clippy
+          override: true
 
       - name: "Update lock files"
         run: |
           cargo tree
-          (cd ./bin/client-eth && cargo tree)
+          (cd ./bin/ceno-client-eth && cargo tree)
 
       - name: "Assert no changes"
         run: |
@@ -40,13 +47,13 @@ jobs:
 
   fmt:
     name: "Check code format"
-    runs-on: ["runs-on", "runner=8cpu-linux-x64", "run-id=${{ github.run_id }}"]
+    runs-on: [self-hosted, x64, linux, gpu]
     steps:
       - name: Load SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: |
-            ${{ secrets.GH_ACTIONS_DEPLOY_PRIVATE_KEY }}
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
@@ -61,3 +68,48 @@ jobs:
       - name: "Check Rust format"
         run: |
           cargo fmt --all -- --check
+
+  e2e:
+    name: "Run e2e test on small block"
+    runs-on: [self-hosted, x64, linux, gpu]
+    timeout-minutes: 15
+    env:
+      BLOCK_NUM: 23587691
+      RPC_URL_1: ${{ secrets.RPC_URL_1 }}
+    steps:
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+
+      - name: "Install cmake"
+        run: sudo apt-get install -y cmake
+
+      - name: "Setup Rust"
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src
+          targets: riscv32im-unknown-none-elf
+          # TODO: figure out why cargo-ceno does not work with nightly-2025-08-18
+          toolchain: nightly-2025-08-18
+
+      - name: "Build cargo-ceno toolchain"
+        run: |
+          JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
+          cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
+
+      - name: "Build ELF"
+        run: |
+          cd bin/ceno-client-eth && cargo ceno build --release
+
+      - name: "Run e2e test"
+        run: |
+          mkdir -p output
+          RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
+          cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+            --bin ceno-reth-benchmark-bin --profile release -- --block-number $BLOCK_NUM \
+            --rpc-url $RPC_URL_1 --cache-dir block_data --output-dir output --mode prove-stark
