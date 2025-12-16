@@ -93,6 +93,7 @@ jobs:
         with:
           components: rust-src
           targets: riscv32im-unknown-none-elf
+          # TODO: figure out why cargo-ceno does not work with nightly-2025-08-19
           toolchain: nightly-2025-08-18
 
       - name: "Build cargo-ceno toolchain"
@@ -108,7 +109,7 @@ jobs:
         run: |
           mkdir -p output
           RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_*=warn \
+          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --bin ceno-reth-benchmark-bin --profile release -- --block-number $BLOCK_NUM \
             --rpc-url $RPC_URL_1 --cache-dir block_data --output-dir output --mode prove-stark
