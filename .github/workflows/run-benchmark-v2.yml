@@ -48,48 +48,39 @@ jobs:
         with:
           ssh-private-key: |
             ${{ secrets.SECRET_FOR_CENO_GPU }}
-
+      
       - name: Run benchmark locally
         run: |
           block_number="${{ inputs.block_number }}"
-#          s3_url="https://axiom-public-data-sandbox-us-east-1.s3.us-east-1.amazonaws.com/reth/input/${block_number}.json"
+          # Install Ceno CLI
+          echo "Installing Ceno CLI..."
+          cargo install --git https://github.com/scroll-tech/ceno.git  --locked --force cargo-ceno
 
-#          echo "Checking if input file exists for block $block_number..."
-#          if curl --output /dev/null --silent --head --fail "$s3_url"; then
-#            echo "Input file found in S3, downloading..."
-#            curl -o input.json "$s3_url"
-#          else
-#            echo "Input file not found in S3, generating locally..."
+          RPC_1=${{ secrets.RPC_URL_1 }}
 
-            # Install Ceno CLI
-            echo "Installing Ceno CLI..."
-            cargo install --git https://github.com/scroll-tech/ceno.git  --locked --force cargo-ceno
+          # Build client binary
+          cd bin/ceno-client-eth
+          cargo ceno build --release
 
-            RPC_1=${{ secrets.RPC_URL_1 }}
+          cd ../..
 
-            # Build client binary
-            cd bin/ceno-client-eth
-            cargo ceno build --release
+          # Create necessary directories
+          mkdir -p output
+          mkdir -p rpc-cache
 
-            cd ../..
+          # Build the benchmark binary
+          export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          cargo build --bin ceno-reth-benchmark-bin --profile=release --no-default-features --features="jemalloc,gpu"
 
-            # Create necessary directories
-            mkdir -p output
-            mkdir -p rpc-cache
+          echo "Generating e2e proof for block $block_number..."
+          ./target/release/ceno-reth-benchmark-bin \
+            --mode prove-stark \
+            --block-number $block_number \
+            --rpc-url ${{ secrets.RPC_URL_1 }} \
+            --output-dir output \
+            --cache-dir rpc-cache
 
-            # Build the benchmark binary
-            export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
-            cargo build --bin ceno-reth-benchmark-bin --profile=release --no-default-features --features="jemalloc,gpu"
-
-            echo "Generating e2e proof for block $block_number..."
-            ./target/release/ceno-reth-benchmark-bin \
-              --mode prove-stark \
-              --block-number $block_number \
-              --rpc-url ${{ secrets.RPC_URL_1 }} \
-              --output-dir output \
-              --cache-dir rpc-cache
-
-            echo "e2e proof generated successfully"
+          echo "e2e proof generated successfully"
 #          fi
 #
 #          # Verify input file exists
