@@ -16,7 +16,7 @@ jobs:
   lints:
     name: Various lints
     timeout-minutes: 30
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, x64, linux, gpu]
 
     steps:
       - uses: actions/checkout@v4
