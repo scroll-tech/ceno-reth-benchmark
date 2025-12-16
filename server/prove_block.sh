@@ -88,7 +88,18 @@ else
     echo "[prove_block.sh] Failed to fetch latest block number from RPC" >&2
     exit 1
   fi
-  echo "[prove_block.sh] Latest block number: $BLOCK_NUMBER" >&2
+  raw_block_number="$BLOCK_NUMBER"
+  remainder=$(( BLOCK_NUMBER % 100 ))
+  BLOCK_NUMBER=$(( BLOCK_NUMBER - remainder ))
+  echo "[prove_block.sh] Latest block number: $raw_block_number (rounded down to $BLOCK_NUMBER)" >&2
+
+  proof_s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_proof.json"
+  echo "[prove_block.sh] Checking for existing proof at ${proof_s3_uri}" >&2
+  if s5cmd ls "$proof_s3_uri" >/dev/null 2>&1; then
+    echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
 fi
 
 cache_root="$job_dir/block_data"
