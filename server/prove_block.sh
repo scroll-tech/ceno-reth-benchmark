@@ -247,6 +247,19 @@ PY
 )" || reth_block_time_ms=""
 fi
 reported_duration_ms="${reth_block_time_ms:-$duration_ms}"
+num_shards=""
+if [[ -f "$OUTPUT_PATH" ]]; then
+  num_shards="$(python3 - "$OUTPUT_PATH" <<'PY'
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for entry in data.get("gauge", []):
+    if entry.get("metric") == "num_shards":
+        print(entry.get("value", ""), end="")
+        break
+PY
+)" || num_shards=""
+fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then
   if ! python3 "$SCRIPT_DIR/metrics_to_markdown.py" "$OUTPUT_PATH" "$METRICS_MD" --block-number "$BLOCK_NUMBER"; then
@@ -302,7 +315,11 @@ tmp_processed="$(mktemp)"
 set +e
 s5cmd cp "$PROCESSED_BLOCKS_URI" "$tmp_processed" >/dev/null 2>&1
 set -e
-printf '%s\n' "$BLOCK_NUMBER" >> "$tmp_processed"
+if [[ -n "$num_shards" ]]; then
+  printf '%s,%s\n' "$BLOCK_NUMBER" "$num_shards" >> "$tmp_processed"
+else
+  printf '%s\n' "$BLOCK_NUMBER" >> "$tmp_processed"
+fi
 if ! s5cmd cp "$tmp_processed" "$PROCESSED_BLOCKS_URI"; then
   echo "[prove_block.sh] Warning: failed to update processed_block.txt on S3" >&2
 fi
