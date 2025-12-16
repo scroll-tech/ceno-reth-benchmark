@@ -95,6 +95,15 @@ jobs:
           targets: riscv32im-unknown-none-elf
           toolchain: nightly-2025-08-19
 
+      - name: "Build cargo-ceno toolchain"
+        env: JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true"
+        run: |
+          cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
+
+      - name: "Build ELF"
+        run: |
+          cd bin/ceno-client-eth && cargo ceno build --release
+
       - name: "Run e2e test"
         run: |
           RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
