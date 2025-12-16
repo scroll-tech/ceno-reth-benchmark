@@ -43,6 +43,12 @@ jobs:
         with:
           cache: false
 
+      - name: Give Github Action access to ceno-gpu
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+
       - name: Run benchmark locally
         run: |
           block_number="${{ inputs.block_number }}"
