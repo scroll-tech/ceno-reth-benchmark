@@ -76,7 +76,7 @@ jobs:
             cargo build --bin ceno-reth-benchmark-bin --profile=release --no-default-features --features="jemalloc,gpu"
 
             echo "Generating e2e proof for block $block_number..."
-            ./target/release/openvm-reth-benchmark-bin \
+            ./target/release/ceno-reth-benchmark-bin \
               --mode prove-stark \
               --block-number $block_number \
               --rpc-url ${{ secrets.RPC_URL_1 }} \
