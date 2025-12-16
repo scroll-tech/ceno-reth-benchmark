@@ -1966,7 +1966,7 @@ dependencies = [
  "gkr_iop",
  "glob",
  "itertools 0.13.0",
- "metrics 0.24.3",
+ "metrics",
  "mpcs",
  "multilinear_extensions",
  "ndarray",
@@ -4845,16 +4845,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "metrics"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d5312e9ba3771cfa961b585728215e3d972c950a3eed9252aa093d6301277e8"
-dependencies = [
- "ahash",
- "portable-atomic",
-]
-
-[[package]]
 name = "metrics-tracing-context"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4863,7 +4853,7 @@ dependencies = [
  "indexmap 2.12.1",
  "itoa",
  "lockfree-object-pool",
- "metrics 0.23.1",
+ "metrics",
  "metrics-util",
  "once_cell",
  "tracing",
@@ -4882,7 +4872,7 @@ dependencies = [
  "crossbeam-utils",
  "hashbrown 0.14.5",
  "indexmap 2.12.1",
- "metrics 0.23.1",
+ "metrics",
  "num_cpus",
  "ordered-float 4.6.0",
  "quanta",
@@ -5476,7 +5466,7 @@ dependencies = [
  "derive_more 1.0.0",
  "eyre",
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "metrics 0.23.1",
+ "metrics",
  "openvm-benchmarks-utils",
  "openvm-circuit",
  "openvm-continuations",
@@ -5588,7 +5578,7 @@ dependencies = [
  "itertools 0.14.0",
  "libc",
  "memmap2",
- "metrics 0.23.1",
+ "metrics",
  "openvm-circuit-derive",
  "openvm-circuit-primitives",
  "openvm-circuit-primitives-derive",
@@ -5702,7 +5692,7 @@ dependencies = [
  "derive-new 0.7.0",
  "itertools 0.14.0",
  "lazy_static",
- "metrics 0.23.1",
+ "metrics",
  "openvm-cuda-builder",
  "openvm-cuda-common",
  "openvm-stark-backend",
@@ -5740,7 +5730,7 @@ dependencies = [
  "bytesize",
  "ctor",
  "lazy_static",
- "metrics 0.23.1",
+ "metrics",
  "openvm-cuda-builder",
  "thiserror 1.0.69",
  "tracing",
@@ -6051,7 +6041,7 @@ source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scr
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
- "metrics 0.23.1",
+ "metrics",
  "num-bigint 0.4.6",
  "num-integer",
  "openvm-circuit",
@@ -6085,7 +6075,7 @@ dependencies = [
  "cfg-if",
  "itertools 0.14.0",
  "lazy_static",
- "metrics 0.23.1",
+ "metrics",
  "once_cell",
  "openvm-circuit",
  "openvm-native-circuit",
@@ -6252,7 +6242,7 @@ dependencies = [
  "gkr_iop",
  "halo2-axiom",
  "hex",
- "metrics 0.23.1",
+ "metrics",
  "mpcs",
  "openvm",
  "openvm-algebra-circuit",
@@ -6398,7 +6388,7 @@ dependencies = [
  "getset",
  "hex",
  "itertools 0.14.0",
- "metrics 0.23.1",
+ "metrics",
  "num-bigint 0.4.6",
  "openvm",
  "openvm-algebra-circuit",
@@ -6510,7 +6500,7 @@ dependencies = [
  "derive-new 0.7.0",
  "eyre",
  "itertools 0.14.0",
- "metrics 0.23.1",
+ "metrics",
  "mimalloc",
  "p3-air",
  "p3-challenger",
@@ -6538,7 +6528,7 @@ dependencies = [
  "derive_more 1.0.0",
  "ff 0.13.1",
  "itertools 0.14.0",
- "metrics 0.23.1",
+ "metrics",
  "metrics-tracing-context",
  "metrics-util",
  "openvm-stark-backend",
