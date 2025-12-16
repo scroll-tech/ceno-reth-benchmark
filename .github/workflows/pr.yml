@@ -97,8 +97,6 @@ jobs:
 
       - name: "Build cargo-ceno toolchain"
         run: |
-          cargo --version
-          rustc --version
           JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
           cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
 
@@ -108,6 +106,7 @@ jobs:
 
       - name: "Run e2e test"
         run: |
+          mkdir -p output
           RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_*=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
