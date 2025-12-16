@@ -26,6 +26,13 @@ jobs:
       - name: "Checkout sources"
         uses: "actions/checkout@v4"
 
+      - name: "Setup nightly toolchain"
+        uses: "actions-rs/toolchain@v1"
+        with:
+          toolchain: nightly-2025-08-19
+          components: rustfmt, clippy
+          override: true
+
       - name: "Update lock files"
         run: |
           cargo tree
@@ -61,3 +68,31 @@ jobs:
       - name: "Check Rust format"
         run: |
           cargo fmt --all -- --check
+
+  e2e:
+    name: "Run e2e test on block 23587691"
+    runs-on: [self-hosted, x64, linux, gpu]
+    timeout-minutes: 15
+    steps:
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+      - name: "Checkout sources"
+        uses: "actions/checkout@v4"
+
+      - name: "Setup Rust"
+        uses: dtolnay/rust-toolchain@master
+        with:
+          components: rust-src
+          targets: riscv32im-unknown-none-elf
+          toolchain: nightly-2025-08-19
+
+      - name: "Run e2e test"
+        run: |
+          RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_*=warn \
+          cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+            --bin ceno-reth-benchmark-bin --profile release -- --block-number $BLOCK_NUM \
+            --rpc-url $RPC_URL_1 --cache-dir block_data --output-dir output --mode prove-stark
