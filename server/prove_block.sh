@@ -51,13 +51,17 @@ post_status() {
   if [[ -z "$CENO_STATUS_API_BASE_URL" ]]; then
     return
   fi
-  echo "[post_status] POST ${endpoint} payload=${payload}" >&2
+  local payload_file payload_size
+  payload_file="$(mktemp)"
+  printf '%s' "$payload" > "$payload_file"
+  payload_size="$(wc -c <"$payload_file" | tr -d '[:space:]')"
+  echo "[post_status] POST ${endpoint} payload_size=${payload_size}B" >&2
   local response status
   response=$(curl -sS -w "%{http_code}" -o /tmp/post_status_resp.$$ \
     -X POST \
     -H "Content-Type: application/json" \
     ${CENO_STATUS_API_KEY:+-H "Authorization: Bearer ${CENO_STATUS_API_KEY}"} \
-    -d "$payload" \
+    --data-binary "@${payload_file}" \
     "${CENO_STATUS_API_BASE_URL}/${endpoint}")
   status="$response"
   echo "[post_status] status=${status}" >&2
@@ -65,6 +69,7 @@ post_status() {
     echo "[post_status] response=$(cat /tmp/post_status_resp.$$)" >&2
   fi
   rm -f /tmp/post_status_resp.$$
+  rm -f "$payload_file"
 }
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
