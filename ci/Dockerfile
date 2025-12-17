@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
 
 ARG RUNNER_VERSION="2.320.0"
@@ -20,6 +22,14 @@ RUN chown -R docker ~docker && cd /home/docker/actions-runner/bin/ \
 RUN apt install -y nvidia-utils-535
 RUN apt install -y openssh-client
 RUN apt install -y git
+
+# Validate SSH access for private dependencies (requires --ssh sshkey=... at build time)
+RUN --mount=type=ssh,id=sshkey \
+    set -eux; \
+    mkdir -p /root/.ssh; \
+    chmod 700 /root/.ssh; \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts; \
+    git ls-remote git@github.com:scroll-tech/ceno-reth-benchmark.git >/dev/null
 
 RUN apt install -y --no-install-recommends sudo && \
     echo "docker ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers

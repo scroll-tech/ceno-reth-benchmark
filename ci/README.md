@@ -2,9 +2,12 @@
 
 Before building the docker image, fetch a fresh registration token from the GitHub [runner page](https://github.com/scroll-tech/ceno-reth-benchmark/settings/actions/runners/new?arch=x64&os=linux) and decide on a `SERVER_NAME` label for this runner.
 
-Build the image (no secrets are needed at build time):
+Build the image (enable BuildKit so we can forward an SSH key for private Git clones):
 ```shell
-docker build -t ceno-reth-gpu:v1 .
+DOCKER_BUILDKIT=1 docker build \
+  --ssh sshkey="$HOME/.ssh/id_ed25519" \
+  -t ceno-reth-gpu:v1 \
+  -f ci/Dockerfile .
 ```
 
 Spin up the docker image by supplying the token and runner name at runtime:
