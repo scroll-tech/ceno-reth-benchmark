@@ -152,6 +152,18 @@ pub struct HostArgs {
     pub app_proofs: Option<PathBuf>,
 }
 
+fn write_versioned_proof(
+    output_dir: &Path,
+    block_number: u64,
+    versioned_proof: VersionedVmStarkProof,
+) -> eyre::Result<()> {
+    let proof_path = output_dir.join(format!("{}_proof.json", block_number));
+    let json = serde_json::to_vec_pretty(&versioned_proof)?;
+    fs::write(&proof_path, json)?;
+    println!("wrote proof json to {}", proof_path.display());
+    Ok(())
+}
+
 pub fn reth_vm_config(_app_log_blowup: usize) -> SdkVmConfig {
     unimplemented!("only for openvm logic")
     // let mut config = toml::from_str::<AppConfig<SdkVmConfig>>(include_str!(
@@ -509,9 +521,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         //
                         if let Some(output_dir) = args.output_dir.as_ref() {
                             let versioned_proof = VersionedVmStarkProof::new(vm_stark_proof)?;
-                            let json = serde_json::to_vec_pretty(&versioned_proof)?;
-                            fs::write(output_dir.join("proof.json"), json)?;
-                            println!("wrote proof json to {}", output_dir.display());
+                            write_versioned_proof(output_dir, args.block_number, versioned_proof)?;
                         }
                     }
                     BenchMode::ProveStarkOnly => {
@@ -775,9 +785,7 @@ pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) ->
 
                         if let Some(output_dir) = args.output_dir.as_ref() {
                             let versioned_proof = VersionedVmStarkProof::new(proof)?;
-                            let json = serde_json::to_vec_pretty(&versioned_proof)?;
-                            fs::write(output_dir.join("proof.json"), json)?;
-                            println!("wrote proof json to {}", output_dir.display());
+                            write_versioned_proof(output_dir, args.block_number, versioned_proof)?;
                         }
                     }
                     #[cfg(feature = "evm-verify")]

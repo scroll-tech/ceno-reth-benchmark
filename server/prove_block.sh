@@ -93,9 +93,15 @@ else
   BLOCK_NUMBER=$(( BLOCK_NUMBER - remainder ))
   echo "[prove_block.sh] Latest block number: $raw_block_number (rounded down to $BLOCK_NUMBER)" >&2
 
-  proof_s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_proof.json"
-  echo "[prove_block.sh] Checking for existing proof at ${proof_s3_uri}" >&2
-  if s5cmd ls "$proof_s3_uri" >/dev/null 2>&1; then
+fi
+
+PROOF_FILENAME="${BLOCK_NUMBER}_proof.json"
+CANONICAL_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_FILENAME}"
+JOB_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${PROOF_FILENAME}"
+
+if [[ -z "$BLOCK_NUMBER_OVERRIDE" ]]; then
+  echo "[prove_block.sh] Checking for existing proof at ${CANONICAL_PROOF_S3_URI}" >&2
+  if s5cmd ls "$CANONICAL_PROOF_S3_URI" >/dev/null 2>&1; then
     echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
     sleep 300
     exit 0
@@ -185,7 +191,7 @@ if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
 fi
 
 start_ts_ms=$(date +%s%3N)
-PROOF_JSON="$job_dir/proof.json"
+PROOF_JSON="$job_dir/${PROOF_FILENAME}"
 
 OUTPUT_PATH="$job_dir/metrics.json"
 
@@ -288,17 +294,18 @@ fi
 # Post-processing hook: customize as needed
 echo "[prove_block.sh] Proof finished with status=$status in ${duration_ms}ms at $(date -Is)" >&2
 
-# Upload proof.json to S3 (best-effort)
+# Upload proof file to S3 (best-effort)
 if [[ -f "$PROOF_JSON" ]]; then
   set +e
-  s5cmd cp "$PROOF_JSON" "s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_proof.json"
-  upload_rc=$?
-  if [[ $upload_rc -ne 0 ]]; then
-    echo "[prove_block.sh] Warning: failed to upload proof.json to S3 (rc=$upload_rc)" >&2
+  if ! s5cmd cp "$PROOF_JSON" "$JOB_PROOF_S3_URI"; then
+    echo "[prove_block.sh] Warning: failed to upload proof file to ${JOB_PROOF_S3_URI}" >&2
+  fi
+  if ! s5cmd cp "$PROOF_JSON" "$CANONICAL_PROOF_S3_URI"; then
+    echo "[prove_block.sh] Warning: failed to upload proof file to ${CANONICAL_PROOF_S3_URI}" >&2
   fi
   set -e
 else
-  echo "[prove_block.sh] Warning: proof.json not found at $PROOF_JSON" >&2
+  echo "[prove_block.sh] Warning: proof file not found at $PROOF_JSON" >&2
 fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then
