@@ -1,10 +1,8 @@
+# syntax=docker/dockerfile:1.7
+
 FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
 
 ARG RUNNER_VERSION="2.320.0"
-# replace this with the actual token which you can get from GitHub
-ARG TOKEN=""
-# replace this with the actual server name you want to use
-ARG SERVER_NAME="scroll-SEA2-10"
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update -y && apt upgrade -y && useradd -m docker
@@ -23,8 +21,22 @@ RUN chown -R docker ~docker && cd /home/docker/actions-runner/bin/ \
 
 RUN apt install -y nvidia-utils-535
 RUN apt install -y openssh-client
+RUN apt install -y git
+
+# Validate SSH access for private dependencies (requires --ssh sshkey=... at build time)
+RUN --mount=type=ssh,id=sshkey \
+    set -eux; \
+    mkdir -p /root/.ssh; \
+    chmod 700 /root/.ssh; \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts; \
+    git ls-remote git@github.com:scroll-tech/ceno-reth-benchmark.git >/dev/null
 
 RUN apt install -y --no-install-recommends sudo && \
     echo "docker ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-RUN RUNNER_ALLOW_RUNASROOT=1 /home/docker/actions-runner/config.sh --unattended --url https://github.com/scroll-tech/ceno-reth-benchmark --token $TOKEN --name $SERVER_NAME --labels gpu
+WORKDIR /home/docker/actions-runner
+
+COPY ci/runner-entrypoint.sh /usr/local/bin/runner-entrypoint.sh
+RUN chmod +x /usr/local/bin/runner-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/runner-entrypoint.sh"]
