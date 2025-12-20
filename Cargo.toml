@@ -60,12 +60,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "bc73f7ac2fe292ad7ac0ba23a0d33e70fd787f81" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "c9954d5f86a17357ec19043a62b69cc9c368a73c" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "58bc22f64427d19ef881c1d3c00fadf0ee9d190d" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", rev = "58bc22f64427d19ef881c1d3c00fadf0ee9d190d" }
 
@@ -166,7 +166,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "b82bf7f1ad38f08b30dddd7c139a21fad23da9a3", default-features = false, features = ["bb31"] }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "1abec732334729bda107ca191c6ba0a33e74b639", default-features = false, features = ["bb31"] }
 # ceno_gpu = { path = "../ceno-gpu/cuda_hal", package = "cuda_hal", default-feature = false, features = ["bb31"] }
 
 [patch."https://github.com/axiom-crypto/openvm-kzg.git"]
