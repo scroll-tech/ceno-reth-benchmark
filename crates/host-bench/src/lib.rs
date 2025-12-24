@@ -219,7 +219,7 @@ static WORKSPACE_ROOT: LazyLock<PathBuf> = LazyLock::new(discover_workspace_root
 fn setup() -> (Vec<u8>, Program, Platform) {
     let stack_size = 128 * 1024 * 1024;
     let heap_size = 128 * 1024 * 1024;
-    let pub_io_size = 64;
+    let pub_io_size = 512;
     println!(
         "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size:#x}"
     );
@@ -423,16 +423,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let mut pub_io = CenoStdin::default();
 
                         info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            let bytes = bincode::serde::encode_to_vec(
-                                &client_input,
-                                bincode::config::standard(),
-                            )?;
                             // TODO research and probably switch to openvm deserialer (they are
                             // derived from risc0) let words =
                             // openvm::serde::to_vec(&client_input).unwrap();
                             // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
                             // w.to_le_bytes()).collect();
-                            hints.write(&bytes)?;
+                            hints.write(&client_input)?;
                             pub_io.write(&block_hash.0)?;
                             Ok(())
                         })?;

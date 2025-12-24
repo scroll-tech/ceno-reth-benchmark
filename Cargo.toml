@@ -206,10 +206,10 @@ opt-level = 3
 inherits = "release"
 debug = 1
 
-#[patch."https://github.com/scroll-tech/ceno.git"]
-#ceno_emul = { path = "../ceno/ceno_emul" }
-#ceno_host = { path = "../ceno/ceno_host" }
-#ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-#gkr_iop = { path = "../ceno/gkr_iop" }
-#ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
-#ceno_recursion = { path = "../ceno/ceno_recursion" }
+[patch."https://github.com/scroll-tech/ceno.git"]
+ceno_emul = { path = "../ceno/ceno_emul" }
+ceno_host = { path = "../ceno/ceno_host" }
+ceno_zkvm = { path = "../ceno/ceno_zkvm" }
+gkr_iop = { path = "../ceno/gkr_iop" }
+ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
+ceno_recursion = { path = "../ceno/ceno_recursion" }
