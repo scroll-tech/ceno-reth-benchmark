@@ -423,11 +423,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let mut pub_io = CenoStdin::default();
 
                         info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            // TODO research and probably switch to openvm deserialer (they are
-                            // derived from risc0) let words =
-                            // openvm::serde::to_vec(&client_input).unwrap();
-                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                            // w.to_le_bytes()).collect();
                             hints.write(&client_input)?;
                             pub_io.write(&block_hash.0)?;
                             Ok(())
@@ -462,16 +457,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let mut pub_io = CenoStdin::default();
 
                         info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            let bytes = bincode::serde::encode_to_vec(
-                                &client_input,
-                                bincode::config::standard(),
-                            )?;
-                            // TODO research and probably switch to openvm deserialer (they are
-                            // derived from risc0) let words =
-                            // openvm::serde::to_vec(&client_input).unwrap();
-                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                            // w.to_le_bytes()).collect();
-                            hints.write(&bytes)?;
+                            hints.write(&client_input)?;
                             pub_io.write(&block_hash.0)?;
                             Ok(())
                         })?;
