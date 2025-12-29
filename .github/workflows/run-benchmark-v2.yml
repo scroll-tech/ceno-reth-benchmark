@@ -69,7 +69,7 @@ jobs:
           mkdir -p rpc-cache
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
-          TIMESTAMP=$(TZ='Asia/Shanghai' date +'%Y%m%d-%H%M%S')
+          TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
           LOG_NAME="mainnet${block_number}-${TIMESTAMP}"
           LOG_FILE="${LOG_NAME}.log"
           echo "LOG_NAME=${LOG_NAME}" >> $GITHUB_ENV
