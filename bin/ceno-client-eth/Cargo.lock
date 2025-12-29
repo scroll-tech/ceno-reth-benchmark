@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=d605e59eac13e43c213d40401241b50ff1bc9486#d605e59eac13e43c213d40401241b50ff1bc9486"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -951,7 +951,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=d605e59eac13e43c213d40401241b50ff1bc9486#d605e59eac13e43c213d40401241b50ff1bc9486"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -960,7 +960,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=d605e59eac13e43c213d40401241b50ff1bc9486#d605e59eac13e43c213d40401241b50ff1bc9486"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "ceno_serde",
  "getrandom 0.2.16",
@@ -971,7 +971,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=d605e59eac13e43c213d40401241b50ff1bc9486#d605e59eac13e43c213d40401241b50ff1bc9486"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "bytemuck",
  "serde",
@@ -980,7 +980,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=d605e59eac13e43c213d40401241b50ff1bc9486#d605e59eac13e43c213d40401241b50ff1bc9486"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",

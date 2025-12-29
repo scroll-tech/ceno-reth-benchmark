@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1794,7 +1794,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "glob",
 ]
@@ -1823,7 +1823,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1855,7 +1855,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1868,7 +1868,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1911,7 +1911,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "ceno_serde",
  "getrandom 0.2.16",
@@ -1922,7 +1922,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1936,7 +1936,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -1970,6 +1970,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
  "sp1-curves",
  "strum 0.26.3",
  "strum_macros 0.26.4",
@@ -2402,7 +2403,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=3990e0d589dd13297f8f5822dd18995e4014e837#3990e0d589dd13297f8f5822dd18995e4014e837"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=87fde2e5cecbbeda286c6b5f4015d18103323f68#87fde2e5cecbbeda286c6b5f4015d18103323f68"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2633,7 +2634,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3617,7 +3618,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?rev=1f372bda8d68601946408e4bf63e6cfe4912404c#1f372bda8d68601946408e4bf63e6cfe4912404c"
+source = "git+https://github.com/scroll-tech/ceno?rev=94bbab61b1d2cd546799e70e7f39e618262fde5f#94bbab61b1d2cd546799e70e7f39e618262fde5f"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -9531,7 +9532,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=3990e0d589dd13297f8f5822dd18995e4014e837#3990e0d589dd13297f8f5822dd18995e4014e837"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=87fde2e5cecbbeda286c6b5f4015d18103323f68#87fde2e5cecbbeda286c6b5f4015d18103323f68"
 dependencies = [
  "cc",
  "which",
@@ -9540,7 +9541,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=3990e0d589dd13297f8f5822dd18995e4014e837#3990e0d589dd13297f8f5822dd18995e4014e837"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=87fde2e5cecbbeda286c6b5f4015d18103323f68#87fde2e5cecbbeda286c6b5f4015d18103323f68"
 dependencies = [
  "cc",
  "ff_ext",
