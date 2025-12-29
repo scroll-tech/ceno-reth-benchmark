@@ -58,6 +58,7 @@ jobs:
             --rev ${{ inputs.ceno_version }} \
             --features jemalloc \
             --features nightly-features \
+            --locked \
             --force \
             cargo-ceno
 
