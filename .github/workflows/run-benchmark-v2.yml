@@ -78,15 +78,14 @@ jobs:
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
+          RUST_LOG=info \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache \
-            2>&1 | tee "$LOG_FILE"
+            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
 
           echo "e2e proof generated successfully"
 
