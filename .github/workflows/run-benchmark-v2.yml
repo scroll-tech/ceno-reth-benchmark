@@ -41,6 +41,8 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          toolchain: nightly-2025-08-18 # keep it same with ceno repo
+          components: rust-src
           cache: false
 
       - name: Give Github Action access to ceno-gpu
