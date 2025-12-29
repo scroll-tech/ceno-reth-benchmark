@@ -94,6 +94,7 @@ jobs:
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+          grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
 
           echo "e2e proof generated successfully"
 
