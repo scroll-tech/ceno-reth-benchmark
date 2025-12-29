@@ -953,12 +953,13 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#28c7b89c0f98ed8e05ce5653b3cc67fb0aaded19"
+source = "git+https://github.com/scroll-tech/ceno?rev=86f603817fbce178157e90f3c6d3ca4df74e36af#86f603817fbce178157e90f3c6d3ca4df74e36af"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
  "ceno_syscall",
  "k256",
+ "p256 0.13.2 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "substrate-bn",
  "thiserror",
 ]
@@ -975,7 +976,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#28c7b89c0f98ed8e05ce5653b3cc67fb0aaded19"
+source = "git+https://github.com/scroll-tech/ceno?rev=86f603817fbce178157e90f3c6d3ca4df74e36af#86f603817fbce178157e90f3c6d3ca4df74e36af"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -984,7 +985,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#28c7b89c0f98ed8e05ce5653b3cc67fb0aaded19"
+source = "git+https://github.com/scroll-tech/ceno?rev=86f603817fbce178157e90f3c6d3ca4df74e36af#86f603817fbce178157e90f3c6d3ca4df74e36af"
 dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.4",
@@ -994,7 +995,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#28c7b89c0f98ed8e05ce5653b3cc67fb0aaded19"
+source = "git+https://github.com/scroll-tech/ceno?rev=86f603817fbce178157e90f3c6d3ca4df74e36af#86f603817fbce178157e90f3c6d3ca4df74e36af"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
@@ -1321,6 +1322,7 @@ dependencies = [
  "elliptic-curve",
  "rfc6979 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "signature",
+ "spki",
 ]
 
 [[package]]
@@ -2245,7 +2247,18 @@ checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
 dependencies = [
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
- "primeorder",
+ "primeorder 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2",
+]
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#05a8a81ef6300ff8bbf1d810b018bbeb71ab947c"
+dependencies = [
+ "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elliptic-curve",
+ "primeorder 0.13.6 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "sha2",
 ]
 
@@ -2405,6 +2418,14 @@ name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+dependencies = [
+ "elliptic-curve",
+]
+
+[[package]]
+name = "primeorder"
+version = "0.13.6"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#05a8a81ef6300ff8bbf1d810b018bbeb71ab947c"
 dependencies = [
  "elliptic-curve",
 ]
@@ -3210,7 +3231,7 @@ dependencies = [
  "aurora-engine-modexp",
  "cfg-if",
  "k256",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "revm-primitives",
  "ripemd",
  "sha2",

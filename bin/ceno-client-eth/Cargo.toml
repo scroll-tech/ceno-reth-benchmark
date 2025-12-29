@@ -9,8 +9,8 @@ edition = "2021"
 # workspace
 openvm-client-executor = { path = "../../crates/executor/client" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
-ceno_rt = { git = "https://github.com/scroll-tech/ceno", branch = "master", default-features = false }
-ceno_crypto = { git = "https://github.com/scroll-tech/ceno", branch = "master", default-features = false }
+ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "86f603817fbce178157e90f3c6d3ca4df74e36af", default-features = false }
+ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "86f603817fbce178157e90f3c6d3ca4df74e36af", default-features = false }
 bincode = { version = "2.0.1", default-features = false, features = [
     "derive",
     "alloc",
@@ -35,6 +35,10 @@ alloy-primitives = { version = "1.4.1", features = ["native-keccak"] }
 
 [patch.crates-io]
 k256 = { git = "https://github.com/scroll-tech/elliptic-curves", branch = "ceno/k256-13.4" }
+
+#[patch."https://github.com/scroll-tech/ceno"]
+#ceno_rt = { path = "../../../ceno/ceno_rt" }
+#ceno_crypto = { path = "../../../ceno/guest_libs/crypto" }
 
 [features]
 profiling = ["ceno_crypto/profiling"]
