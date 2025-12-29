@@ -54,7 +54,7 @@ jobs:
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
-          cargo install --git https://github.com/scroll-tech/ceno.git  --locked --force cargo-ceno
+          cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
 
           RPC_1=${{ secrets.RPC_URL_1 }}
 
