@@ -1686,7 +1686,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1817,7 +1817,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "glob",
 ]
@@ -1837,7 +1837,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto_primitives"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#bc61dbd54f5cc58af6f8300997aa0d1ac9de1527"
 dependencies = [
  "ceno_syscall",
  "elliptic-curve",
@@ -1846,7 +1846,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1859,6 +1859,7 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
+ "p256 0.13.2 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "rayon",
  "rrs-succinct",
  "rustc-hash 2.1.1",
@@ -1877,7 +1878,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1889,7 +1890,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1932,7 +1933,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "getrandom 0.2.16",
  "getrandom 0.3.4",
@@ -1942,12 +1943,12 @@ dependencies = [
 [[package]]
 name = "ceno_syscall"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#bc61dbd54f5cc58af6f8300997aa0d1ac9de1527"
 
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -2413,7 +2414,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=015ad06f5944ed6456d26bb6f063d790c2e0e6d7#015ad06f5944ed6456d26bb6f063d790c2e0e6d7"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2644,7 +2645,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3628,7 +3629,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#d6ee8d85675dd7f431761dbee23f3e2509db1bdd"
+source = "git+https://github.com/scroll-tech/ceno?rev=2835d28c66f95c0d075ce41c4e8ae4cd98699d2b#2835d28c66f95c0d075ce41c4e8ae4cd98699d2b"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -4518,7 +4519,7 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.4"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#05a8a81ef6300ff8bbf1d810b018bbeb71ab947c"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#d217ab46378c9450e8935080c01a5ad8b30cccd1"
 dependencies = [
  "ceno_crypto_primitives",
  "ceno_syscall",
@@ -5363,7 +5364,7 @@ dependencies = [
 [[package]]
 name = "openvm"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -5376,7 +5377,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5408,7 +5409,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-complex-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -5418,7 +5419,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "halo2curves-axiom",
  "num-bigint 0.4.6",
@@ -5434,7 +5435,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-moduli-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "num-bigint 0.4.6",
  "num-prime",
@@ -5446,7 +5447,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-algebra-guest",
  "openvm-instructions",
@@ -5502,7 +5503,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5528,7 +5529,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-platform",
  "strum_macros 0.26.4",
@@ -5537,7 +5538,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-bigint-guest",
  "openvm-instructions",
@@ -5552,7 +5553,7 @@ dependencies = [
 [[package]]
 name = "openvm-build"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cargo_metadata 0.18.1",
  "eyre",
@@ -5564,7 +5565,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -5603,7 +5604,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "itertools 0.14.0",
  "proc-macro2",
@@ -5614,7 +5615,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -5632,7 +5633,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -5669,7 +5670,7 @@ dependencies = [
 [[package]]
 name = "openvm-continuations"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "derivative",
  "openvm-circuit",
@@ -5739,7 +5740,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5749,7 +5750,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5781,7 +5782,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
@@ -5800,7 +5801,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-sw-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -5810,7 +5811,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-ecc-guest",
  "openvm-instructions",
@@ -5855,7 +5856,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -5872,7 +5873,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "quote",
  "syn 2.0.111",
@@ -5881,7 +5882,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5909,7 +5910,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-platform",
 ]
@@ -5917,7 +5918,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -5931,7 +5932,7 @@ dependencies = [
 [[package]]
 name = "openvm-macros-common"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "syn 2.0.111",
 ]
@@ -5939,7 +5940,7 @@ dependencies = [
 [[package]]
 name = "openvm-mod-circuit-builder"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cuda-runtime-sys",
  "itertools 0.14.0",
@@ -6006,7 +6007,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6037,7 +6038,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -6061,7 +6062,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "quote",
  "syn 2.0.111",
@@ -6070,7 +6071,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -6098,7 +6099,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-instructions",
  "openvm-transpiler",
@@ -6108,7 +6109,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6139,7 +6140,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "halo2curves-axiom",
  "hex-literal 0.4.1",
@@ -6160,7 +6161,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-instructions",
  "openvm-pairing-guest",
@@ -6173,7 +6174,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "libm",
  "openvm-custom-insn",
@@ -6183,7 +6184,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -6304,7 +6305,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32-adapters"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -6321,7 +6322,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6348,7 +6349,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-custom-insn",
  "p3-field",
@@ -6358,7 +6359,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -6374,7 +6375,7 @@ dependencies = [
 [[package]]
 name = "openvm-sdk"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "alloy-sol-types 0.8.26",
  "bitcode",
@@ -6433,7 +6434,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-air"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-circuit-primitives",
  "openvm-stark-backend",
@@ -6444,7 +6445,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6470,7 +6471,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-platform",
 ]
@@ -6478,7 +6479,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -6558,7 +6559,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#ac5d1b48b46fc37981f56ed943fa4ae6fb580827"
 dependencies = [
  "elf",
  "eyre",
@@ -6602,7 +6603,20 @@ checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
 dependencies = [
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
- "primeorder",
+ "primeorder 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#d217ab46378c9450e8935080c01a5ad8b30cccd1"
+dependencies = [
+ "ceno_crypto_primitives",
+ "ceno_syscall",
+ "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elliptic-curve",
+ "primeorder 0.13.6 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "sha2 0.10.9",
 ]
 
@@ -7431,6 +7445,14 @@ name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+dependencies = [
+ "elliptic-curve",
+]
+
+[[package]]
+name = "primeorder"
+version = "0.13.6"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#d217ab46378c9450e8935080c01a5ad8b30cccd1"
 dependencies = [
  "elliptic-curve",
 ]
@@ -8632,7 +8654,7 @@ dependencies = [
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "libsecp256k1",
  "once_cell",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "revm-primitives 20.2.1",
  "ripemd",
  "rug",
@@ -8655,7 +8677,7 @@ dependencies = [
  "aurora-engine-modexp",
  "cfg-if",
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "revm-primitives 21.0.2",
  "ripemd",
  "sha2 0.10.9",
@@ -9609,7 +9631,7 @@ dependencies = [
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "multilinear_extensions",
  "num",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "p3-field",
  "rug",
  "serde",
@@ -9636,7 +9658,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=015ad06f5944ed6456d26bb6f063d790c2e0e6d7#015ad06f5944ed6456d26bb6f063d790c2e0e6d7"
 dependencies = [
  "cc",
  "which",
@@ -9645,7 +9667,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#b722eb581b7151228877dd0b3d927a240709c914"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?rev=015ad06f5944ed6456d26bb6f063d790c2e0e6d7#015ad06f5944ed6456d26bb6f063d790c2e0e6d7"
 dependencies = [
  "cc",
  "ff_ext",
