@@ -219,9 +219,11 @@ static WORKSPACE_ROOT: LazyLock<PathBuf> = LazyLock::new(discover_workspace_root
 fn setup() -> (Vec<u8>, Program, Platform) {
     let stack_size = 128 * 1024 * 1024;
     let heap_size = 128 * 1024 * 1024;
-    let pub_io_size = 64;
+    // public io is [u8; 32] and will be serialized to [u32; 32] + some meta data
+    // so the overall we need >= 256 bytes
+    let pub_io_size_in_byte = 512;
     println!(
-        "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size:#x}"
+        "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size_in_byte:#x}"
     );
 
     let elf_path = WORKSPACE_ROOT
@@ -233,7 +235,8 @@ fn setup() -> (Vec<u8>, Program, Platform) {
         .join("ceno-client-eth");
     let elf = std::fs::read(elf_path).unwrap();
     let program = Program::load_elf(&elf, u32::MAX).unwrap();
-    let platform = setup_platform(Preset::Ceno, &program, stack_size, heap_size, pub_io_size);
+    let platform =
+        setup_platform(Preset::Ceno, &program, stack_size, heap_size, pub_io_size_in_byte);
     (elf, program, platform)
 }
 
@@ -423,16 +426,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let mut pub_io = CenoStdin::default();
 
                         info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            let bytes = bincode::serde::encode_to_vec(
-                                &client_input,
-                                bincode::config::standard(),
-                            )?;
-                            // TODO research and probably switch to openvm deserialer (they are
-                            // derived from risc0) let words =
-                            // openvm::serde::to_vec(&client_input).unwrap();
-                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                            // w.to_le_bytes()).collect();
-                            hints.write(&bytes)?;
+                            hints.write(&client_input)?;
                             pub_io.write(&block_hash.0)?;
                             Ok(())
                         })?;
@@ -466,16 +460,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let mut pub_io = CenoStdin::default();
 
                         info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            let bytes = bincode::serde::encode_to_vec(
-                                &client_input,
-                                bincode::config::standard(),
-                            )?;
-                            // TODO research and probably switch to openvm deserialer (they are
-                            // derived from risc0) let words =
-                            // openvm::serde::to_vec(&client_input).unwrap();
-                            // let bytes: Vec<u8> = words.into_iter().flat_map(|w|
-                            // w.to_le_bytes()).collect();
-                            hints.write(&bytes)?;
+                            hints.write(&client_input)?;
                             pub_io.write(&block_hash.0)?;
                             Ok(())
                         })?;

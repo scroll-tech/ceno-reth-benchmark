@@ -66,8 +66,8 @@ ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
 ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.18" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.19" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.19" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
@@ -206,12 +206,10 @@ opt-level = 3
 inherits = "release"
 debug = 1
 
-# [patch."https://github.com/scroll-tech/ceno.git"]
-# ceno_rt = { path = "../ceno/ceno_rt" }
-# ceno_crypto = { path = "../ceno/guest_libs/crypto" }
-# ceno_emul = { path = "../ceno/ceno_emul" }
-# ceno_host = { path = "../ceno/ceno_host" }
-# ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-# ceno_sha2 = { path = "../ceno/guest_libs/sha2" }
-# ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
-# ceno_recursion = { path = "../ceno/ceno_recursion" }
+#[patch."https://github.com/scroll-tech/ceno.git"]
+#ceno_emul = { path = "../ceno/ceno_emul" }
+#ceno_host = { path = "../ceno/ceno_host" }
+#ceno_zkvm = { path = "../ceno/ceno_zkvm" }
+#gkr_iop = { path = "../ceno/gkr_iop" }
+#ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
+#ceno_recursion = { path = "../ceno/ceno_recursion" }
