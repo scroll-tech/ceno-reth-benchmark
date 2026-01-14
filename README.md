@@ -42,6 +42,16 @@ To prove with GPU, add `--features gpu --config net.git-fetch-with-cli=true` as 
 
 to prove with recursion, set mode to `--mode prove-stark`
 
+### Configure Chain ID
+
+`server/prove_block.sh` forwards a `--chain-id` flag to every benchmark binary invocation. Set the target chain via the `CHAIN_ID` environment variable (defaults to `1` for Ethereum mainnet):
+
+```
+CHAIN_ID=5 server/prove_block.sh <proof_uuid>
+```
+
+This ensures locally generated inputs, fixtures, and proofs align with the intended network.
+
 ### (Optional) key-gen pk for next use
 
 let say fixture dir in `./pk`

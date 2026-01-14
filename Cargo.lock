@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1794,7 +1794,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "glob",
 ]
@@ -1823,7 +1823,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1837,6 +1837,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "once_cell",
+ "p256 0.13.2 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "rayon",
  "rrs-succinct",
  "rustc-hash 2.1.1",
@@ -1855,7 +1856,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1868,7 +1869,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1911,7 +1912,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "ceno_serde",
  "getrandom 0.2.16",
@@ -1922,7 +1923,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1936,7 +1937,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#bc61dbd54f5c
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "base64 0.22.1",
  "bincode 1.3.3",
@@ -1970,6 +1971,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
  "sp1-curves",
  "strum 0.26.3",
  "strum_macros 0.26.4",
@@ -2633,7 +2635,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3617,7 +3619,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -6571,7 +6573,20 @@ checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
 dependencies = [
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
- "primeorder",
+ "primeorder 0.13.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "p256"
+version = "0.13.2"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#e7c4aaa5f44b20ff948292510ed28c4e0a567211"
+dependencies = [
+ "ceno_crypto_primitives",
+ "ceno_syscall",
+ "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elliptic-curve",
+ "primeorder 0.13.6 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "sha2 0.10.9",
 ]
 
@@ -7400,6 +7415,14 @@ name = "primeorder"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+dependencies = [
+ "elliptic-curve",
+]
+
+[[package]]
+name = "primeorder"
+version = "0.13.6"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#e7c4aaa5f44b20ff948292510ed28c4e0a567211"
 dependencies = [
  "elliptic-curve",
 ]
@@ -8563,7 +8586,7 @@ dependencies = [
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "libsecp256k1",
  "once_cell",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "revm-primitives 20.2.1",
  "ripemd",
  "rug",
@@ -8586,7 +8609,7 @@ dependencies = [
  "aurora-engine-modexp",
  "cfg-if",
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "revm-primitives 21.0.2",
  "ripemd",
  "sha2 0.10.9",
@@ -9504,7 +9527,7 @@ dependencies = [
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "multilinear_extensions",
  "num",
- "p256",
+ "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "p3-field",
  "rug",
  "serde",

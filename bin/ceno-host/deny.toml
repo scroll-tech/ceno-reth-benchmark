@@ -25,6 +25,7 @@ skip = [
     { name = "hashbrown" },
     { name = "itertools" },
     { name = "k256" },
+    { name = "p256" },
     { name = "lru" },
     { name = "num-bigint" },
     { name = "num-modular" },
@@ -56,4 +57,5 @@ skip = [
     { name = "windows_x86_64_gnullvm" },
     { name = "windows_x86_64_msvc" },
     { name = "winnow" },
+    { name = "primeorder" },
 ]

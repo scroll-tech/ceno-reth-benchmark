@@ -929,12 +929,13 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
  "ceno_syscall",
  "k256",
+ "p256",
  "substrate-bn",
  "thiserror",
 ]
@@ -942,7 +943,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto_primitives"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#bc61dbd54f5cc58af6f8300997aa0d1ac9de1527"
 dependencies = [
  "ceno_syscall",
  "elliptic-curve",
@@ -951,7 +952,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -960,7 +961,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "ceno_serde",
  "getrandom 0.2.16",
@@ -971,7 +972,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "bytemuck",
  "serde",
@@ -980,7 +981,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=master#cff9d41d20bb4982f8851a9c597436b55936cd0c"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#6b672b8e5ec0dd93da758d0e6bc1e1c53d640321"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
@@ -989,7 +990,7 @@ dependencies = [
 [[package]]
 name = "ceno_syscall"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#0cb2c93e02e2e859e55d5d889ca8abd0a13b13be"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#bc61dbd54f5cc58af6f8300997aa0d1ac9de1527"
 
 [[package]]
 name = "cfg-if"
@@ -1307,6 +1308,7 @@ dependencies = [
  "elliptic-curve",
  "rfc6979 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "signature",
+ "spki",
 ]
 
 [[package]]
@@ -1879,7 +1881,7 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.4"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#05a8a81ef6300ff8bbf1d810b018bbeb71ab947c"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#e7c4aaa5f44b20ff948292510ed28c4e0a567211"
 dependencies = [
  "ceno_crypto_primitives",
  "ceno_syscall",
@@ -2206,9 +2208,10 @@ dependencies = [
 [[package]]
 name = "p256"
 version = "0.13.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9863ad85fa8f4460f9c48cb909d38a0d689dba1f6f6988a5e3e0d31071bcd4b"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#e7c4aaa5f44b20ff948292510ed28c4e0a567211"
 dependencies = [
+ "ceno_crypto_primitives",
+ "ceno_syscall",
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
  "primeorder",
@@ -2369,8 +2372,7 @@ dependencies = [
 [[package]]
 name = "primeorder"
 version = "0.13.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "353e1ca18966c16d9deb1c69278edbc5f194139612772bd9537af60ac231e1e6"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#e7c4aaa5f44b20ff948292510ed28c4e0a567211"
 dependencies = [
  "elliptic-curve",
 ]
