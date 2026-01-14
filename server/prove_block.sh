@@ -10,6 +10,7 @@ CENO_STATUS_API_KEY="${CENO_STATUS_API_KEY:-}"
 CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
 CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-none}"
+CHAIN_ID="${CHAIN_ID:-1}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -139,7 +140,8 @@ else
     --mode make-input \
     --block-number "$BLOCK_NUMBER" \
     --rpc-url "$ETH_RPC_URL" \
-    --generated-input-path "$cache_root"
+    --generated-input-path "$cache_root" \
+    --chain-id "$CHAIN_ID"
 
   GENERATED_INPUT_PATH="$(find_generated_input)"
   if [[ -z "$GENERATED_INPUT_PATH" ]]; then
@@ -182,7 +184,8 @@ if [[ ! -f "$AGG_PK_PATH" ]]; then
     --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
     --root-log-blowup "$ROOT_LOG_BLOWUP" \
     --max-segment-length "$MAX_SEGMENT_LENGTH" \
-    --segment-max-cells "$SEGMENT_MAX_CELLS"
+    --segment-max-cells "$SEGMENT_MAX_CELLS" \
+    --chain-id "$CHAIN_ID"
 fi
 
 if [[ ! -f "$AGG_PK_PATH" ]]; then
@@ -216,7 +219,8 @@ export CENO_GPU_CACHE_LEVEL
   --segment-max-cells "$SEGMENT_MAX_CELLS" \
   --agg-pk-path "$AGG_PK_PATH" \
   --output-dir "$job_dir" \
-  --skip-comparison
+  --skip-comparison \
+  --chain-id "$CHAIN_ID"
   # --app-pk-path /app/app_pk \
 
 status=$?
