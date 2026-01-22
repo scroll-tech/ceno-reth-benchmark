@@ -102,12 +102,11 @@ else
 fi
 
 PROOF_FILENAME="${BLOCK_NUMBER}_proof.json"
-CANONICAL_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${PROOF_FILENAME}"
 JOB_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${PROOF_FILENAME}"
 
 if [[ -z "$BLOCK_NUMBER_OVERRIDE" ]]; then
-  echo "[prove_block.sh] Checking for existing proof at ${CANONICAL_PROOF_S3_URI}" >&2
-  if s5cmd ls "$CANONICAL_PROOF_S3_URI" >/dev/null 2>&1; then
+  echo "[prove_block.sh] Checking for existing proof at ${JOB_PROOF_S3_URI}" >&2
+  if s5cmd ls "$JOB_PROOF_S3_URI" >/dev/null 2>&1; then
     echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
     sleep 300
     exit 0
@@ -308,9 +307,6 @@ if [[ -f "$PROOF_JSON" ]]; then
   set +e
   if ! s5cmd cp "$PROOF_JSON" "$JOB_PROOF_S3_URI"; then
     echo "[prove_block.sh] Warning: failed to upload proof file to ${JOB_PROOF_S3_URI}" >&2
-  fi
-  if ! s5cmd cp "$PROOF_JSON" "$CANONICAL_PROOF_S3_URI"; then
-    echo "[prove_block.sh] Warning: failed to upload proof file to ${CANONICAL_PROOF_S3_URI}" >&2
   fi
   set -e
 else
