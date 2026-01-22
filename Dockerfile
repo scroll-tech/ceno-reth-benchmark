@@ -31,9 +31,9 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV CARGO_HOME="/root/.cargo" \
     RUSTUP_HOME="/root/.rustup" \
     PATH="/root/.cargo/bin:${PATH}"
-RUN rustup toolchain install nightly-2025-08-18 \
-  && rustup component add rust-src --toolchain nightly-2025-08-18 \
-  && rustup default nightly-2025-08-18
+RUN rustup toolchain install nightly-2025-11-20 \
+  && rustup component add rust-src --toolchain nightly-2025-11-20 \
+  && rustup default nightly-2025-11-20
 
 RUN JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
     cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
@@ -66,7 +66,7 @@ RUN --mount=type=secret,id=sshkey \
     set -e; \
     KEY=/run/secrets/sshkey; \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
-    cargo +nightly-2025-08-18 build --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
+    cargo +nightly-2025-11-20 build --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
