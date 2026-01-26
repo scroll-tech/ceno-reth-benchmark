@@ -324,7 +324,7 @@ jobs:
 
       - name: Install architecture specific tools
         run: |
-          rustup install nightly-2025-08-05
+          rustup install nightly-2025-11-20
           source openvm/ci/scripts/utils.sh
           install_s5cmd
           sudo apt update

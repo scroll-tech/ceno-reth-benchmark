@@ -29,7 +29,7 @@ jobs:
       - name: "Setup nightly toolchain"
         uses: "actions-rs/toolchain@v1"
         with:
-          toolchain: nightly-2025-08-18
+          toolchain: nightly-2025-11-20
           components: rustfmt, clippy
           override: true
 
@@ -93,8 +93,8 @@ jobs:
         with:
           components: rust-src
           targets: riscv32im-unknown-none-elf
-          # TODO: figure out why cargo-ceno does not work with nightly-2025-08-18
-          toolchain: nightly-2025-08-18
+          # TODO: figure out why cargo-ceno does not work with nightly-2025-11-20
+          toolchain: nightly-2025-11-20
 
       - name: "Build cargo-ceno toolchain"
         run: |

@@ -7,7 +7,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt update -y && apt upgrade -y && useradd -m docker
 RUN apt install -y --no-install-recommends \
-    curl jq build-essential libssl-dev libffi-dev python3 python3-venv python3-dev python3-pip \
+    curl jq build-essential cmake libssl-dev libffi-dev python3 python3-venv python3-dev python3-pip \
     libkrb5-3 zlib1g libicu70 m4
 
 RUN cd /home/docker && mkdir actions-runner && cd actions-runner \
