@@ -61,7 +61,6 @@ jobs:
             --features jemalloc \
             --features nightly-features \
             --locked \
-            --force \
             cargo-ceno
 
           RPC_1=${{ secrets.RPC_URL_1 }}
