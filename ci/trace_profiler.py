@@ -116,7 +116,7 @@ def analyze_trace_log(file_path: str):
                     e2e_stats['block_number'] = extra_info.replace('block_', '')
 
         # Find emulator.preflight-execute
-        if 'emulator.preflight-execute' in line or 'emulator_preflight_execute' in line:
+        if 'preflight-execute' in line or 'emulator.preflight_execute' in line:
             match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', line)
             if match:
                 e2e_stats['emulator_time'] = parse_time_to_seconds(match.group(1))
