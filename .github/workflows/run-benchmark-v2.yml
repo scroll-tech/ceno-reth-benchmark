@@ -41,6 +41,8 @@ jobs:
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          toolchain: nightly-2025-08-18 # keep it same with ceno repo
+          components: rust-src
           cache: false
 
       - name: Give Github Action access to ceno-gpu
@@ -54,7 +56,13 @@ jobs:
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
-          cargo install --git https://github.com/scroll-tech/ceno.git  --locked --force cargo-ceno
+          cargo install --git https://github.com/scroll-tech/ceno.git \
+            --rev ${{ inputs.ceno_version }} \
+            --features jemalloc \
+            --features nightly-features \
+            --locked \
+            --force \
+            cargo-ceno
 
           RPC_1=${{ secrets.RPC_URL_1 }}
 
@@ -68,6 +76,13 @@ jobs:
           mkdir -p output
           mkdir -p rpc-cache
 
+          # LOG_NAME with Block number and Timestamp(UTC+8)
+          TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
+          LOG_NAME="mainnet${block_number}-${TIMESTAMP}"
+          LOG_FILE="${LOG_NAME}.log"
+          echo "LOG_NAME=${LOG_NAME}" >> $GITHUB_ENV
+          echo "LOG_FILE=${LOG_FILE}" >> $GITHUB_ENV
+
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
@@ -78,9 +93,95 @@ jobs:
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache
+            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+          grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
 
           echo "e2e proof generated successfully"
+
+      - name: Profile trace from log file
+        run: |
+          echo "Profiling log file: ${{ env.LOG_FILE }}"
+          python3 ci/trace_profiler.py "${{ env.LOG_FILE }}"
+
+      - name: Prepare Result Directory
+        run: |
+          # Create a temp directory outside the workspace to survive checkout
+          TEMP_DIR="/tmp/benchmark_results"
+          rm -rf "$TEMP_DIR"
+          mkdir -p "$TEMP_DIR"
+          
+          # Copy files to temp directory
+          cp "${{ env.LOG_NAME }}_breakdown_chip.md" "$TEMP_DIR/"
+          cp "${{ env.LOG_NAME }}_breakdown_module.md" "$TEMP_DIR/"
+          cp "${{ env.LOG_NAME }}_summary.md" "$TEMP_DIR/"
+          
+          echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
+
+      ### Update gh-pages
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Set up git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Commit to gh-pages branch
+        run: |
+          GH_PAGES_PATH="benchmarks-dispatch/${{ github.head_ref || github.ref }}"
+          echo "GH_PAGES_PATH=${GH_PAGES_PATH}" >> $GITHUB_ENV
+          mkdir -p "${GH_PAGES_PATH}"
+          
+          # Copy files from temp directory back to workspace
+          cp -r ${{ env.TEMP_DIR }}/* "${GH_PAGES_PATH}/"
+          
+          git add "${GH_PAGES_PATH}/"
+          git commit --allow-empty -m "Add benchmark results for ${{ env.LOG_NAME }} at ${GH_PAGES_PATH}"
+          
+          # Push with retry logic
+          MAX_RETRIES=10
+          RETRY_DELAY=5
+          ATTEMPT=0
+          SUCCESS=false
+          while [ $ATTEMPT -lt $MAX_RETRIES ]; do
+              echo "Attempt $((ATTEMPT + 1)) to push of $MAX_RETRIES..."
+              git fetch origin gh-pages
+              git merge origin/gh-pages --no-edit
+              if git push origin gh-pages; then
+                  SUCCESS=true
+                  break
+              else
+                  echo "Push failed. Retrying in $RETRY_DELAY seconds..."
+                  sleep $RETRY_DELAY
+                  ATTEMPT=$((ATTEMPT + 1))
+              fi
+          done
+          
+          if [ "$SUCCESS" = false ]; then
+              echo "Push failed after $MAX_RETRIES attempts"
+              exit 1
+          fi
+
+      - name: Update summary with results
+        run: |
+          RESULT_URL="https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "[${{ env.LOG_NAME }}](${RESULT_URL})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat "${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup Temp Directory
+        if: always()
+        run: |
+          if [ -d "/tmp/benchmark_results" ]; then
+            echo "Cleaning up /tmp/benchmark_results..."
+            rm -rf "/tmp/benchmark_results"
+          fi
+
+      - name: Path to result
+        run: |
+          echo "https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
 #          fi
 #
 #          # Verify input file exists
