@@ -30,6 +30,11 @@ on:
         required: false
         type: boolean
         default: "true"
+      ignore_failed:
+        description: "Continue even if benchmark run fails"
+        required: false
+        type: boolean
+        default: "false"
 
 jobs:
   benchmark:
@@ -52,12 +57,21 @@ jobs:
             ${{ secrets.SECRET_FOR_CENO_GPU }}
       
       - name: Run benchmark locally
+        id: run_benchmark
         run: |
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
+          CENO_VERSION="${{ inputs.ceno_version }}"
+          CENO_REF_FLAG="--rev ${CENO_VERSION}"
+          if git ls-remote --heads https://github.com/scroll-tech/ceno.git "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
+            echo "Detected branch '${CENO_VERSION}', installing via --branch"
+            CENO_REF_FLAG="--branch ${CENO_VERSION}"
+          else
+            echo "Installing via --rev ${CENO_VERSION}"
+          fi
           cargo install --git https://github.com/scroll-tech/ceno.git \
-            --rev ${{ inputs.ceno_version }} \
+            ${CENO_REF_FLAG} \
             --features jemalloc \
             --features nightly-features \
             --locked \
@@ -85,18 +99,28 @@ jobs:
 
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          set +e
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
-            --mode prove-app \
+            --mode prove-stark \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+          benchmark_status=$?
+          set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
-
-          echo "e2e proof generated successfully"
+          if [ $benchmark_status -ne 0 ]; then
+            echo "Benchmark run failed with status $benchmark_status"
+            if [ "${{ inputs.ignore_failed }}" != "true" ]; then
+              exit $benchmark_status
+            fi
+            echo "Continuing despite failure because ignore_failed=true"
+          else
+            echo "e2e proof generated successfully"
+          fi
 
       - name: Profile trace from log file
         run: |
