@@ -60,14 +60,14 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.20" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.20" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/sum_replace" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/sum_replace" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/sum_replace" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/sum_replace" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/sum_replace" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/sum_replace" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.21" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.21" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
