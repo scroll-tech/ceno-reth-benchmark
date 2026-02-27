@@ -100,6 +100,7 @@ jobs:
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           set +e
+          RUST_MIN_STACK=16777216 \
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
@@ -206,6 +207,97 @@ jobs:
       - name: Path to result
         run: |
           echo "https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
+
+  check-gpu-mem-estimation:
+    runs-on: [self-hosted, x64, linux, gpu]
+    needs: benchmark
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: nightly-2025-11-20 # keep it same with ceno repo
+          components: rust-src
+          cache: false
+
+      - name: Give Github Action access to ceno-gpu
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+
+      - name: Run GPU memory tracking benchmark
+        id: run_gpu_mem_verify
+        run: |
+          block_number="${{ inputs.block_number }}"
+          # Install Ceno CLI
+          echo "Installing Ceno CLI..."
+          CENO_VERSION="${{ inputs.ceno_version }}"
+          CENO_REF_FLAG="--rev ${CENO_VERSION}"
+          if git ls-remote --heads https://github.com/scroll-tech/ceno.git "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
+            echo "Detected branch '${CENO_VERSION}', installing via --branch"
+            CENO_REF_FLAG="--branch ${CENO_VERSION}"
+          else
+            echo "Installing via --rev ${CENO_VERSION}"
+          fi
+          cargo install --git https://github.com/scroll-tech/ceno.git \
+            ${CENO_REF_FLAG} \
+            --features jemalloc \
+            --features nightly-features \
+            --locked \
+            --force \
+            cargo-ceno
+
+          RPC_1=${{ secrets.RPC_URL_1 }}
+
+          # Build client binary
+          cd bin/ceno-client-eth
+          cargo ceno build --release
+
+          cd ../..
+
+          # Create necessary directories
+          mkdir -p output
+          mkdir -p rpc-cache
+
+          # LOG_NAME with Block number and Timestamp(UTC+8)
+          TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
+          LOG_NAME="gpu-mem-verify-mainnet${block_number}-${TIMESTAMP}"
+          LOG_FILE="${LOG_NAME}.log"
+          echo "LOG_NAME=${LOG_NAME}" >> $GITHUB_ENV
+          echo "LOG_FILE=${LOG_FILE}" >> $GITHUB_ENV
+
+          echo "Running GPU memory tracking benchmark for block $block_number..."
+          export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          set +e
+
+          # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
+          CENO_GPU_MEM_TRACKING=1 \
+          CENO_CONCURRENT_CHIP_PROVING=0 \
+          RUST_MIN_STACK=16777216 \
+          CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
+          cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+            --release --bin ceno-reth-benchmark-bin -- \
+            --mode prove-stark \
+            --block-number $block_number \
+            --rpc-url ${{ secrets.RPC_URL_1 }} \
+            --output-dir output \
+            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+          benchmark_status=$?
+          set -e
+          grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
+          if [ $benchmark_status -ne 0 ]; then
+            echo "GPU memory tracking benchmark failed with status $benchmark_status"
+            if [ "${{ inputs.ignore_failed }}" != "true" ]; then
+              exit $benchmark_status
+            fi
+            echo "Continuing despite failure because ignore_failed=true"
+          else
+            echo "GPU memory tracking benchmark completed successfully"
+          fi
 #          fi
 #
 #          # Verify input file exists
