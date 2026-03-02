@@ -204,7 +204,7 @@ OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
 
-"$BIN_PATH" \
+RUST_MIN_STACK=16777216 "$BIN_PATH" \
   --mode "$MODE" \
   --block-number "$BLOCK_NUMBER" \
   --input-path "$INPUT_PATH" \
