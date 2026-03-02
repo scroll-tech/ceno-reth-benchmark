@@ -1,15 +1,43 @@
+import json
 import os
 import subprocess
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI()
+
+JOBS_ROOT = Path(os.environ.get("JOBS_DIR", "/app/jobs"))
+
+
+def _now_iso() -> str:
+    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def _manifest_path(job_dir: Path) -> Path:
+    return job_dir / "job.json"
+
+
+def _read_manifest(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        with path.open("r") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+
+def _write_manifest(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
 
 
 def _run_s5cmd_copy(source_uri: str, destination_path: Path) -> None:
@@ -19,7 +47,6 @@ def _run_s5cmd_copy(source_uri: str, destination_path: Path) -> None:
     subprocess.run(args, check=True, text=True)
 
 
-@app.on_event("startup")
 def download_proving_keys_on_startup() -> None:
     pass
 #     app_pk_uri = os.environ.get("APP_PK_URI")
@@ -39,6 +66,44 @@ def download_proving_keys_on_startup() -> None:
 #     except Exception as e:  # Keep server up but surface the error in logs
 #         # Printing rather than logging to avoid adding a logger dependency
 #         print(f"[startup] failed to download proving keys: {e}", flush=True)
+
+
+def recover_jobs_from_disk() -> None:
+    jobs_root = JOBS_ROOT
+    if not jobs_root.exists():
+        return
+    script_path = Path(__file__).parent / "prove_block.sh"
+    if not script_path.exists():
+        print("[startup] skipping job recovery: prove_block.sh missing", flush=True)
+        return
+    for manifest_path in jobs_root.glob("*/job.json"):
+        manifest = _read_manifest(manifest_path)
+        proof_uuid = manifest.get("proof_uuid")
+        status = manifest.get("status")
+        if not proof_uuid or status not in {"pending", "running"}:
+            continue
+        if proof_uuid in JOBS:
+            continue
+        job_dir = manifest_path.parent
+        stdout_path = job_dir / "stdout.log"
+        stderr_path = job_dir / "stderr.log"
+        job = Job(
+            proof_uuid=proof_uuid,
+            script_path=script_path,
+            job_dir=job_dir,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+            mode=manifest.get("mode", "prove-stark"),
+        )
+        JOBS[proof_uuid] = job
+        print(f"[startup] restarting job {proof_uuid}", flush=True)
+        job.start()
+
+
+@app.on_event("startup")
+def run_startup_hooks() -> None:
+    download_proving_keys_on_startup()
+    recover_jobs_from_disk()
 
 
 class Job:
@@ -64,11 +129,19 @@ class Job:
         self.last_exit_code: Optional[int] = None
         self.iteration: int = 0
         self.last_error: Optional[str] = None
+        self.manifest_path = _manifest_path(job_dir)
+        manifest = _read_manifest(self.manifest_path)
+        self.created_at = manifest.get("created_at", _now_iso())
+        self.iteration = manifest.get("iterations", 0)
+        self.last_exit_code = manifest.get("last_exit_code")
+        self.last_error = manifest.get("last_error")
+        self.status = manifest.get("status", "pending")
 
     def start(self) -> None:
         if self.thread and self.thread.is_alive():
             return
         self.stop_event.clear()
+        self._persist_status("pending")
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
         # Wait briefly for the process to spawn so pid is populated
@@ -85,6 +158,7 @@ class Job:
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
+        self._persist_status("stopped")
 
     def _run_once(self) -> int:
         args = [str(self.script_path), self.proof_uuid]
@@ -92,6 +166,7 @@ class Job:
             proc = subprocess.Popen(args, stdout=stdout_f, stderr=stderr_f, text=True)
             self.current_proc = proc
             self.pid = proc.pid
+            self._persist_status("running")
             proc.wait()
             return proc.returncode
 
@@ -101,8 +176,11 @@ class Job:
                 exit_code = self._run_once()
                 self.last_exit_code = exit_code
                 self.iteration += 1
+                status = "waiting" if exit_code == 0 else "error"
+                self._persist_status(status)
             except Exception as exc:  # noqa: BLE001
                 self.last_error = str(exc)
+                self._persist_status("error")
                 # Avoid tight restart loops if spawning fails
                 time.sleep(5)
             finally:
@@ -115,6 +193,23 @@ class Job:
 
     def is_running(self) -> bool:
         return self.current_proc is not None and self.current_proc.poll() is None
+
+    def _persist_status(self, status: str) -> None:
+        self.status = status
+        data = {
+            "created_at": self.created_at,
+            "updated_at": _now_iso(),
+            "proof_uuid": self.proof_uuid,
+            "mode": self.mode,
+            "job_dir": str(self.job_dir),
+            "stdout_path": str(self.stdout_path),
+            "stderr_path": str(self.stderr_path),
+            "status": status,
+            "iterations": self.iteration,
+            "last_exit_code": self.last_exit_code,
+            "last_error": self.last_error,
+        }
+        _write_manifest(self.manifest_path, data)
 
 
 JOBS: Dict[str, Job] = {}
@@ -151,7 +246,7 @@ async def start_proof(req: StartProofRequest):
             },
         )
 
-    jobs_root = Path(os.environ.get("JOBS_DIR", "/app/jobs"))
+    jobs_root = JOBS_ROOT
     jobs_root.mkdir(parents=True, exist_ok=True)
     job_dir = jobs_root / proof_uuid
     job_dir.mkdir(parents=True, exist_ok=True)
@@ -212,6 +307,7 @@ async def get_proof_state(proof_uuid: str):
         status_code=200,
         content={
             "status": status,
+            "job_status": j.status,
             "num_instructions": num_instret,
             "e2e_latency_ms": e2e_latency_ms,
             "iterations": j.iteration,
