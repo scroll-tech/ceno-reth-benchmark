@@ -85,6 +85,8 @@ COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/el
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY server /app/server
+RUN mkdir -p /app/jobs \
+  && chmod +x /app/server/check_gpu.sh /app/server/entrypoint.sh
 
 RUN python3 -m venv /opt/venv \
   && . /opt/venv/bin/activate \
@@ -101,7 +103,8 @@ VOLUME ["/app/rpc-cache", "/root/.openvm/params"]
 
 ENV PATH="/opt/venv/bin:${PATH}" \
     OVM_BIN="/usr/local/bin/ceno-reth-benchmark-bin" \
-    WORKSPACE_ROOT="/app"
+    WORKSPACE_ROOT="/app" \
+    JOBS_DIR="/app/jobs"
 
 EXPOSE 8000
-ENTRYPOINT ["uvicorn", "server.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENTRYPOINT ["/app/server/entrypoint.sh"]
