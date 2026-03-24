@@ -130,53 +130,53 @@ openvm-cuda-backend = { git = "https://github.com/openvm-org/stark-backend.git",
 # the openvm-sdk commit doesn't change any guest libraries, they are compatible
 # This allows us to not update revm and openvm-kzg each time we change openvm-sdk
 # Using main from 10/13/2025 for now
-openvm-build = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-continuations = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-benchmarks-prove = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-keccak256-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-keccak256-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-rv32im-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-rv32im-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-bigint-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-bigint-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-algebra-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-algebra-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-ecc-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-ecc-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-pairing-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-sdk = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-native-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-native-recursion = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-keccak256 = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
-openvm-pairing = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false, features = [
+openvm-build = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-continuations = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-benchmarks-prove = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-keccak256-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-keccak256-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-rv32im-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-rv32im-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-bigint-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-bigint-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-algebra-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-algebra-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-ecc-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-ecc-transpiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-pairing-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-sdk = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-native-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-native-compiler = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-native-recursion = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-keccak256 = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
+openvm-pairing = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false, features = [
     "bn254",
     "bls12_381",
 ] }
-openvm-sha2 = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker", default-features = false }
+openvm-sha2 = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext", default-features = false }
 
 openvm-kzg = { git = "https://github.com/axiom-crypto/openvm-kzg.git", branch = "openvm-main", default-features = false }
 
-openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k256", branch = "fix/range_checker" }
-openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "fix/range_checker" }
+openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k256", branch = "feat/v1.4.1-scroll-ext" }
+openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
 ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "main", default-features = false, features = ["bb31"] }
 # ceno_gpu = { path = "../ceno-gpu/cuda_hal", package = "cuda_hal", default-feature = false, features = ["bb31"] }
 
 [patch."https://github.com/axiom-crypto/openvm-kzg.git"]
-openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-sdk = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-build = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-pairing = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
-openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "fix/range_checker" }
+openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-sdk = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-build = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-circuit = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-pairing = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
+openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
