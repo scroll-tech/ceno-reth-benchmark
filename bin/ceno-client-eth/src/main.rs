@@ -32,5 +32,7 @@ pub fn main() {
     let block_hash = header.hash_slow();
 
     // commit block hash.
-    ceno_rt::commit(&block_hash.0);
+    let digest_words =
+        unsafe { core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0) };
+    ceno_rt::commit_digest(digest_words);
 }
