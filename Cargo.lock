@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1674,10 +1674,10 @@ dependencies = [
  "ceno_zkvm",
  "clap",
  "console",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "get_dir",
  "gkr_iop",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "mpcs",
  "openvm-circuit",
  "openvm-continuations",
  "openvm-cuda-backend",
@@ -1818,7 +1818,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "glob",
 ]
@@ -1838,7 +1838,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto_primitives"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#b79232a6fc80c799f584380273fd6d3055b36808"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#6e90bc85bceefe09003f84ca5cc1afbe2911a2db"
 dependencies = [
  "ceno_syscall",
  "elliptic-curve",
@@ -1847,16 +1847,16 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "anyhow",
  "ceno_rt",
  "ceno_syscall",
  "elf",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
  "k256 0.13.4 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "multilinear_extensions",
  "num",
  "num-derive",
  "num-traits",
@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1901,11 +1901,11 @@ dependencies = [
  "ceno_host",
  "ceno_zkvm",
  "clap",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "gkr_iop",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "mpcs",
+ "multilinear_extensions",
  "openvm",
  "openvm-circuit",
  "openvm-continuations",
@@ -1919,24 +1919,24 @@ dependencies = [
  "openvm-sdk",
  "openvm-stark-backend",
  "openvm-stark-sdk",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "parse-size",
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "transcript",
+ "whir",
+ "witness",
 ]
 
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "ceno_serde",
  "getrandom 0.2.16",
@@ -1947,7 +1947,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1956,12 +1956,12 @@ dependencies = [
 [[package]]
 name = "ceno_syscall"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#b79232a6fc80c799f584380273fd6d3055b36808"
+source = "git+https://github.com/scroll-tech/ceno-patch?branch=main#6e90bc85bceefe09003f84ca5cc1afbe2911a2db"
 
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -1975,20 +1975,20 @@ dependencies = [
  "cuda_hal",
  "derive",
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "generic-array 1.3.5",
  "generic_static",
  "gkr_iop",
  "glob",
  "itertools 0.13.0",
  "metrics",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "mpcs",
+ "multilinear_extensions",
  "ndarray",
  "num",
  "num-bigint 0.4.6",
  "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "parse-size",
  "prettytable-rs",
  "rand 0.8.5",
@@ -2000,7 +2000,7 @@ dependencies = [
  "sp1-curves",
  "strum 0.26.3",
  "strum_macros 0.26.4",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "tempfile",
  "tikv-jemalloc-ctl",
  "tikv-jemallocator",
@@ -2008,10 +2008,10 @@ dependencies = [
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "transcript",
  "typenum",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "whir",
+ "witness",
 ]
 
 [[package]]
@@ -2435,21 +2435,21 @@ dependencies = [
  "cuda-runtime-sys",
  "cudarc",
  "downcast-rs",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "mpcs",
+ "multilinear_extensions",
+ "p3",
  "rand 0.8.5",
  "rayon",
  "sha2 0.10.9",
  "sppark",
  "sppark_plug",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "thiserror 1.0.69",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "transcript",
+ "witness",
 ]
 
 [[package]]
@@ -2660,7 +2660,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3090,7 +3090,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3299,21 +3299,10 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rand_core 0.6.4",
- "serde",
-]
-
-[[package]]
-name = "ff_ext"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "rand_core 0.6.4",
  "serde",
 ]
@@ -3655,32 +3644,32 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fbind_tower_evals#63fb8b105b726008188de573322cfc718e7556d9"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#bc12bcafd174150e92c47e2fa00f9311f8542e6b"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
  "cudarc",
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "mpcs",
+ "multilinear_extensions",
  "once_cell",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "rand 0.8.5",
  "rayon",
  "serde",
  "smallvec",
  "strum 0.26.3",
  "strum_macros 0.26.4",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "thiserror 2.0.17",
  "thread_local",
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "transcript",
+ "witness",
 ]
 
 [[package]]
@@ -4443,7 +4432,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4546,7 +4535,7 @@ dependencies = [
 [[package]]
 name = "k256"
 version = "0.13.4"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#17adc274db2fb10510449026ec785ae4fc234540"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#fbd1bb695a030f3c1b6fd3808295afdbee85db38"
 dependencies = [
  "ceno_crypto_primitives",
  "ceno_syscall",
@@ -4974,64 +4963,25 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "bincode 1.3.3",
- "clap",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "num-integer",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "tracing",
- "tracing-subscriber 0.3.22",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
-]
-
-[[package]]
-name = "mpcs"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "bincode 1.3.3",
  "clap",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "multilinear_extensions",
  "num-integer",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rayon",
  "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "tracing",
  "tracing-subscriber 0.3.22",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
-]
-
-[[package]]
-name = "multilinear_extensions"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rand 0.8.5",
- "rayon",
- "serde",
- "tracing",
+ "transcript",
+ "whir",
+ "witness",
 ]
 
 [[package]]
@@ -5040,9 +4990,9 @@ version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -5085,7 +5035,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5281,7 +5231,7 @@ version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff32365de1b6743cb203b710788263c44a03de03802daf96092f2da4fe6ba4d7"
 dependencies = [
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate 3.4.0",
  "proc-macro2",
  "quote",
  "syn 2.0.111",
@@ -5410,7 +5360,7 @@ dependencies = [
 [[package]]
 name = "openvm"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "bytemuck",
  "num-bigint 0.4.6",
@@ -5423,7 +5373,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5455,7 +5405,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-complex-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -5465,7 +5415,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "halo2curves-axiom",
  "num-bigint 0.4.6",
@@ -5481,7 +5431,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-moduli-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "num-bigint 0.4.6",
  "num-prime",
@@ -5493,7 +5443,7 @@ dependencies = [
 [[package]]
 name = "openvm-algebra-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-algebra-guest",
  "openvm-instructions",
@@ -5507,7 +5457,7 @@ dependencies = [
 [[package]]
 name = "openvm-benchmarks-prove"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
 dependencies = [
  "clap",
  "derive_more 1.0.0",
@@ -5534,7 +5484,7 @@ dependencies = [
 [[package]]
 name = "openvm-benchmarks-utils"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
 dependencies = [
  "cargo_metadata 0.18.1",
  "clap",
@@ -5549,7 +5499,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5575,7 +5525,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-platform",
  "strum_macros 0.26.4",
@@ -5584,7 +5534,7 @@ dependencies = [
 [[package]]
 name = "openvm-bigint-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-bigint-guest",
  "openvm-instructions",
@@ -5599,7 +5549,7 @@ dependencies = [
 [[package]]
 name = "openvm-build"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cargo_metadata 0.18.1",
  "eyre",
@@ -5611,7 +5561,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "backtrace",
  "cfg-if",
@@ -5650,7 +5600,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "itertools 0.14.0",
  "proc-macro2",
@@ -5661,7 +5611,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -5679,7 +5629,7 @@ dependencies = [
 [[package]]
 name = "openvm-circuit-primitives-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "itertools 0.14.0",
  "quote",
@@ -5716,7 +5666,7 @@ dependencies = [
 [[package]]
 name = "openvm-continuations"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "derivative",
  "openvm-circuit",
@@ -5786,7 +5736,7 @@ dependencies = [
 [[package]]
 name = "openvm-custom-insn"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5796,7 +5746,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5828,7 +5778,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "ecdsa 0.16.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "elliptic-curve",
@@ -5847,7 +5797,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-sw-macros"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-macros-common",
  "quote",
@@ -5857,7 +5807,7 @@ dependencies = [
 [[package]]
 name = "openvm-ecc-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-ecc-guest",
  "openvm-instructions",
@@ -5902,7 +5852,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "backtrace",
  "derive-new 0.6.0",
@@ -5919,7 +5869,7 @@ dependencies = [
 [[package]]
 name = "openvm-instructions-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "quote",
  "syn 2.0.111",
@@ -5928,7 +5878,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -5956,7 +5906,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-platform",
 ]
@@ -5964,7 +5914,7 @@ dependencies = [
 [[package]]
 name = "openvm-keccak256-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -5978,7 +5928,7 @@ dependencies = [
 [[package]]
 name = "openvm-macros-common"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "syn 2.0.111",
 ]
@@ -5986,7 +5936,7 @@ dependencies = [
 [[package]]
 name = "openvm-mod-circuit-builder"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cuda-runtime-sys",
  "itertools 0.14.0",
@@ -6053,7 +6003,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6084,7 +6034,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "backtrace",
  "itertools 0.14.0",
@@ -6108,7 +6058,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-compiler-derive"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "quote",
  "syn 2.0.111",
@@ -6117,7 +6067,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-recursion"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "itertools 0.14.0",
@@ -6145,7 +6095,7 @@ dependencies = [
 [[package]]
 name = "openvm-native-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-instructions",
  "openvm-transpiler",
@@ -6155,7 +6105,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6186,7 +6136,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "halo2curves-axiom",
  "hex-literal 0.4.1",
@@ -6207,7 +6157,7 @@ dependencies = [
 [[package]]
 name = "openvm-pairing-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-instructions",
  "openvm-pairing-guest",
@@ -6220,7 +6170,7 @@ dependencies = [
 [[package]]
 name = "openvm-platform"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "libm",
  "openvm-custom-insn",
@@ -6230,7 +6180,7 @@ dependencies = [
 [[package]]
 name = "openvm-poseidon2-air"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "derivative",
  "lazy_static",
@@ -6285,12 +6235,12 @@ dependencies = [
  "derive_more 1.0.0",
  "dotenv",
  "eyre",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
+ "ff_ext",
  "gkr_iop",
  "halo2-axiom",
  "hex",
  "metrics",
- "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
+ "mpcs",
  "openvm",
  "openvm-algebra-circuit",
  "openvm-benchmarks-prove",
@@ -6351,7 +6301,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32-adapters"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "derive-new 0.6.0",
  "itertools 0.14.0",
@@ -6368,7 +6318,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6395,7 +6345,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-custom-insn",
  "p3-field",
@@ -6405,7 +6355,7 @@ dependencies = [
 [[package]]
 name = "openvm-rv32im-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -6421,7 +6371,7 @@ dependencies = [
 [[package]]
 name = "openvm-sdk"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "alloy-sol-types 0.8.26",
  "bitcode",
@@ -6480,7 +6430,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-air"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-circuit-primitives",
  "openvm-stark-backend",
@@ -6491,7 +6441,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-circuit"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "cfg-if",
  "derive-new 0.6.0",
@@ -6517,7 +6467,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-guest"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-platform",
 ]
@@ -6525,7 +6475,7 @@ dependencies = [
 [[package]]
 name = "openvm-sha256-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "openvm-instructions",
  "openvm-instructions-derive",
@@ -6605,7 +6555,7 @@ dependencies = [
 [[package]]
 name = "openvm-transpiler"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#b733e27c217651936e938b4957c6e031a2d9298b"
 dependencies = [
  "elf",
  "eyre",
@@ -6656,7 +6606,7 @@ dependencies = [
 [[package]]
 name = "p256"
 version = "0.13.2"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#17adc274db2fb10510449026ec785ae4fc234540"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#fbd1bb695a030f3c1b6fd3808295afdbee85db38"
 dependencies = [
  "ceno_crypto_primitives",
  "ceno_syscall",
@@ -6664,31 +6614,6 @@ dependencies = [
  "elliptic-curve",
  "primeorder 0.13.6 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "sha2 0.10.9",
-]
-
-[[package]]
-name = "p3"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "p3-air",
- "p3-baby-bear",
- "p3-challenger",
- "p3-commit",
- "p3-dft",
- "p3-field",
- "p3-fri",
- "p3-goldilocks",
- "p3-matrix",
- "p3-maybe-rayon",
- "p3-mds",
- "p3-merkle-tree",
- "p3-monty-31",
- "p3-poseidon",
- "p3-poseidon2",
- "p3-poseidon2-air",
- "p3-symmetric",
- "p3-util",
 ]
 
 [[package]]
@@ -7435,20 +7360,10 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "serde",
-]
-
-[[package]]
-name = "poseidon"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
+ "p3",
  "serde",
 ]
 
@@ -7533,7 +7448,7 @@ dependencies = [
 [[package]]
 name = "primeorder"
 version = "0.13.6"
-source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#17adc274db2fb10510449026ec785ae4fc234540"
+source = "git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4#fbd1bb695a030f3c1b6fd3808295afdbee85db38"
 dependencies = [
  "elliptic-curve",
 ]
@@ -7707,7 +7622,7 @@ dependencies = [
  "once_cell",
  "socket2 0.6.1",
  "tracing",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -8986,7 +8901,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.11.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -9632,11 +9547,11 @@ dependencies = [
  "cfg-if",
  "dashu",
  "elliptic-curve",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "generic-array 1.3.5",
  "itertools 0.13.0",
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "multilinear_extensions",
  "num",
  "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "p3-field",
@@ -9677,9 +9592,9 @@ version = "0.1.0"
 source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=main#76c8be898631011ad114e2508d78a83fbda73378"
 dependencies = [
  "cc",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "sppark",
 ]
 
@@ -9784,50 +9699,19 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rayon",
- "serde",
- "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "thiserror 1.0.69",
- "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
-]
-
-[[package]]
-name = "sumcheck"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "either",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "multilinear_extensions",
+ "p3",
  "rayon",
  "serde",
- "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck_macro",
  "thiserror 1.0.69",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
-]
-
-[[package]]
-name = "sumcheck_macro"
-version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "proc-macro2",
- "quote",
- "rand 0.8.5",
- "syn 2.0.111",
+ "transcript",
 ]
 
 [[package]]
@@ -9836,7 +9720,7 @@ version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
  "proc-macro2",
  "quote",
  "rand 0.8.5",
@@ -9985,7 +9869,7 @@ dependencies = [
  "getrandom 0.3.4",
  "once_cell",
  "rustix 1.1.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -10525,23 +10409,12 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
-]
-
-[[package]]
-name = "transcript"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.13.0",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "p3",
+ "poseidon",
 ]
 
 [[package]]
@@ -10912,47 +10785,24 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "bincode 1.3.3",
- "clap",
- "derive_more 1.0.0",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "itertools 0.14.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
- "rayon",
- "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "transpose",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
-]
-
-[[package]]
-name = "whir"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
  "bincode 1.3.3",
  "clap",
  "derive_more 1.0.0",
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
  "itertools 0.14.0",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "multilinear_extensions",
+ "p3",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rayon",
  "serde",
- "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "sumcheck",
  "tracing",
- "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "transcript",
  "transpose",
- "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "witness",
 ]
 
 [[package]]
@@ -10977,7 +10827,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -11313,24 +11163,11 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20#4f5a2b99af8edc9e8d808a6ab7c73e4088d61e39"
-dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.20)",
- "rand 0.8.5",
- "rayon",
- "tracing",
-]
-
-[[package]]
-name = "witness"
-version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22#a140b93cf80109ef86c2327b9a940d4cace83628"
 dependencies = [
- "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
- "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?tag=v1.0.0-alpha.22)",
+ "ff_ext",
+ "multilinear_extensions",
+ "p3",
  "rand 0.8.5",
  "rayon",
  "tracing",
@@ -11576,4 +11413,4 @@ dependencies = [
 [[patch.unused]]
 name = "openvm-pairing"
 version = "1.4.1"
-source = "git+https://github.com/scroll-tech/openvm.git?rev=ef22e8e#ef22e8ecb9965091783d2c0369b8379e7f683f53"
+source = "git+https://github.com/scroll-tech/openvm.git?branch=feat%2Fv1.4.1-scroll-ext#554df1c0ed93606364d6ebf5a50f720586626acb"
