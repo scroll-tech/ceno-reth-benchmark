@@ -60,12 +60,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/pi_observe" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/pi_observe" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/pi_observe" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/pi_observe" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/pi_observe" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/pi_observe" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.22" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.22" }
 
