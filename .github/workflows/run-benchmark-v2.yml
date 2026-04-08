@@ -192,7 +192,7 @@ jobs:
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           set +e
           RUST_MIN_STACK=16777216 \
-          CENO_GPU_ENABLE_WITGEN=1 \
+          CENO_GPU_ENABLE_WITGEN=0 \
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
