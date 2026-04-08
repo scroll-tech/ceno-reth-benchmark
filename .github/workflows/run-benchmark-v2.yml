@@ -129,7 +129,6 @@ jobs:
 
   benchmark:
     runs-on: [self-hosted, x64, linux, gpu]
-    needs: check-gpu-mem-estimation
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
