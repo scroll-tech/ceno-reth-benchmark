@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#faafc9373930a3f5716a8bafa5629447eff66023"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -9583,7 +9583,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#faafc9373930a3f5716a8bafa5629447eff66023"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
 dependencies = [
  "cc",
  "which",
@@ -9592,7 +9592,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#faafc9373930a3f5716a8bafa5629447eff66023"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
 dependencies = [
  "cc",
  "ff_ext",
