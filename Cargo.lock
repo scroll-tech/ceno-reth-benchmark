@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1674,10 +1674,10 @@ dependencies = [
  "ceno_zkvm",
  "clap",
  "console",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "get_dir",
  "gkr_iop",
- "mpcs",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "openvm-circuit",
  "openvm-continuations",
  "openvm-cuda-backend",
@@ -1818,7 +1818,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "glob",
 ]
@@ -1847,16 +1847,16 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "anyhow",
  "ceno_rt",
  "ceno_syscall",
  "elf",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "itertools 0.13.0",
  "k256 0.13.4 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
- "multilinear_extensions",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "num",
  "num-derive",
  "num-traits",
@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1901,11 +1901,11 @@ dependencies = [
  "ceno_host",
  "ceno_zkvm",
  "clap",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "gkr_iop",
  "itertools 0.13.0",
- "mpcs",
- "multilinear_extensions",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "openvm",
  "openvm-circuit",
  "openvm-continuations",
@@ -1919,24 +1919,24 @@ dependencies = [
  "openvm-sdk",
  "openvm-stark-backend",
  "openvm-stark-sdk",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "parse-size",
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript",
- "whir",
- "witness",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
 ]
 
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1949,7 +1949,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1963,7 +1963,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#6e90bc85
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -1977,20 +1977,20 @@ dependencies = [
  "cuda_hal",
  "derive",
  "either",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "generic-array 1.3.5",
  "generic_static",
  "gkr_iop",
  "glob",
  "itertools 0.13.0",
  "metrics",
- "mpcs",
- "multilinear_extensions",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "ndarray",
  "num",
  "num-bigint 0.4.6",
  "once_cell",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "parse-size",
  "prettytable-rs",
  "rand 0.8.5",
@@ -2002,7 +2002,7 @@ dependencies = [
  "sp1-curves",
  "strum 0.26.3",
  "strum_macros 0.26.4",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "tempfile",
  "tikv-jemalloc-ctl",
  "tikv-jemallocator",
@@ -2010,10 +2010,10 @@ dependencies = [
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "typenum",
- "whir",
- "witness",
+ "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
 ]
 
 [[package]]
@@ -2431,27 +2431,27 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#0b982647717896aab14320e82c5e415c05449be4"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
  "cudarc",
  "downcast-rs",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "itertools 0.13.0",
- "mpcs",
- "multilinear_extensions",
- "p3",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "rand 0.8.5",
  "rayon",
  "sha2 0.10.9",
  "sppark",
  "sppark_plug",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "thiserror 1.0.69",
  "tracing",
- "transcript",
- "witness",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
 ]
 
 [[package]]
@@ -2662,7 +2662,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3301,10 +3301,21 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "once_cell",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "rand_core 0.6.4",
+ "serde",
+]
+
+[[package]]
+name = "ff_ext"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
  "once_cell",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "rand_core 0.6.4",
  "serde",
 ]
@@ -3646,18 +3657,18 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#490993aaddec318ec777a9a26d0d261f981a175c"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witnessgen_flow#0db05c32df14161ac7d68c09d9648da52b4a48d8"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
  "cudarc",
  "either",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "itertools 0.13.0",
- "mpcs",
- "multilinear_extensions",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "once_cell",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "rand 0.8.5",
  "rayon",
  "rustc-hash 2.1.1",
@@ -3665,14 +3676,14 @@ dependencies = [
  "smallvec",
  "strum 0.26.3",
  "strum_macros 0.26.4",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "thiserror 2.0.17",
  "thread_local",
  "tracing",
  "tracing-forest",
  "tracing-subscriber 0.3.22",
- "transcript",
- "witness",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
 ]
 
 [[package]]
@@ -4966,25 +4977,64 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
 dependencies = [
  "bincode 1.3.3",
  "clap",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "itertools 0.13.0",
- "multilinear_extensions",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "num-integer",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rayon",
  "serde",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "tracing",
  "tracing-subscriber 0.3.22",
- "transcript",
- "whir",
- "witness",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+]
+
+[[package]]
+name = "mpcs"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
+dependencies = [
+ "bincode 1.3.3",
+ "clap",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "itertools 0.13.0",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "num-integer",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "serde",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "tracing",
+ "tracing-subscriber 0.3.22",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "whir 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+]
+
+[[package]]
+name = "multilinear_extensions"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "either",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "itertools 0.13.0",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "rand 0.8.5",
+ "rayon",
+ "serde",
+ "tracing",
 ]
 
 [[package]]
@@ -4993,9 +5043,9 @@ version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
  "either",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "itertools 0.13.0",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "rand 0.8.5",
  "rayon",
  "serde",
@@ -6238,12 +6288,12 @@ dependencies = [
  "derive_more 1.0.0",
  "dotenv",
  "eyre",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "gkr_iop",
  "halo2-axiom",
  "hex",
  "metrics",
- "mpcs",
+ "mpcs 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "openvm",
  "openvm-algebra-circuit",
  "openvm-benchmarks-prove",
@@ -6617,6 +6667,31 @@ dependencies = [
  "elliptic-curve",
  "primeorder 0.13.6 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "p3"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "p3-air",
+ "p3-baby-bear",
+ "p3-challenger",
+ "p3-commit",
+ "p3-dft",
+ "p3-field",
+ "p3-fri",
+ "p3-goldilocks",
+ "p3-matrix",
+ "p3-maybe-rayon",
+ "p3-mds",
+ "p3-merkle-tree",
+ "p3-monty-31",
+ "p3-poseidon",
+ "p3-poseidon2",
+ "p3-poseidon2-air",
+ "p3-symmetric",
+ "p3-util",
 ]
 
 [[package]]
@@ -7363,10 +7438,20 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "serde",
+]
+
+[[package]]
+name = "poseidon"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
- "ff_ext",
- "p3",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "serde",
 ]
 
@@ -9545,16 +9630,16 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
 dependencies = [
  "cfg-if",
  "dashu",
  "elliptic-curve",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "generic-array 1.3.5",
  "itertools 0.13.0",
  "k256 0.13.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "multilinear_extensions",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "num",
  "p256 0.13.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "p3-field",
@@ -9583,7 +9668,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#0b982647717896aab14320e82c5e415c05449be4"
 dependencies = [
  "cc",
  "which",
@@ -9592,12 +9677,12 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#97808cf488ce4a61337bb989c56d2cef331e03bf"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitnessgen_flow#0b982647717896aab14320e82c5e415c05449be4"
 dependencies = [
  "cc",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "itertools 0.13.0",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
  "sppark",
 ]
 
@@ -9702,19 +9787,50 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "either",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "itertools 0.13.0",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "rayon",
+ "serde",
+ "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "thiserror 1.0.69",
+ "tracing",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+]
+
+[[package]]
+name = "sumcheck"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
  "either",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "itertools 0.13.0",
- "multilinear_extensions",
- "p3",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "rayon",
  "serde",
- "sumcheck_macro",
+ "sumcheck_macro 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "thiserror 1.0.69",
  "tracing",
- "transcript",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+]
+
+[[package]]
+name = "sumcheck_macro"
+version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "itertools 0.13.0",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "proc-macro2",
+ "quote",
+ "rand 0.8.5",
+ "syn 2.0.111",
 ]
 
 [[package]]
@@ -9723,7 +9839,7 @@ version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
  "itertools 0.13.0",
- "p3",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "proc-macro2",
  "quote",
  "rand 0.8.5",
@@ -10412,12 +10528,23 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "itertools 0.13.0",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+]
+
+[[package]]
+name = "transcript"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "itertools 0.13.0",
- "p3",
- "poseidon",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "poseidon 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
 ]
 
 [[package]]
@@ -10788,24 +10915,47 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "bincode 1.3.3",
+ "clap",
+ "derive_more 1.0.0",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "itertools 0.14.0",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rayon",
+ "serde",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "tracing",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "transpose",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+]
+
+[[package]]
+name = "whir"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
  "bincode 1.3.3",
  "clap",
  "derive_more 1.0.0",
- "ff_ext",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "itertools 0.14.0",
- "multilinear_extensions",
- "p3",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rayon",
  "serde",
- "sumcheck",
+ "sumcheck 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "tracing",
- "transcript",
+ "transcript 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "transpose",
- "witness",
+ "witness 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
 ]
 
 [[package]]
@@ -11166,11 +11316,24 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 [[package]]
 name = "witness"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer#0d96edbc454014214483a1b428e66792a84a713a"
+dependencies = [
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fwitness_gpu_buffer)",
+ "rand 0.8.5",
+ "rayon",
+ "tracing",
+]
+
+[[package]]
+name = "witness"
+version = "0.1.0"
 source = "git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3#e4ae45faa1ef716611ae634b3f879c64e49cc8f3"
 dependencies = [
- "ff_ext",
- "multilinear_extensions",
- "p3",
+ "ff_ext 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "multilinear_extensions 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
+ "p3 0.1.0 (git+https://github.com/scroll-tech/gkr-backend.git?rev=e4ae45faa1ef716611ae634b3f879c64e49cc8f3)",
  "rand 0.8.5",
  "rayon",
  "tracing",
