@@ -348,7 +348,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         ceno_sdk::CenoSDK::new_with_app_config(
             program,
             platform,
-            MultiProver::new(0, 1, (1 << 30) * 7 / 4 / 2, MAX_CYCLE_PER_SHARD),
+            MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
         );
 
     ceno_sdk.init_base_prover(max_num_variables, security_level);
