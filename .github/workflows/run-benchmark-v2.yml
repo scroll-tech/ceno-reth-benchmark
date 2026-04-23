@@ -4,9 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       ceno_version:
-        description: "Ceno version (commit sha) to benchmark"
-        required: true
+        description: "Ceno version (commit sha or branch) to benchmark; leave empty to use pinned Cargo.toml version"
+        required: false
         type: string
+        default: ""
       block_number:
         description: "Block number to generate input for"
         required: true
@@ -58,6 +59,22 @@ on:
         required: false
         type: string
         default: "3048"
+      concurrent_chip_proving:
+        description: "Value for CENO_CONCURRENT_CHIP_PROVING"
+        required: false
+        type: choice
+        default: "1"
+        options:
+          - "0"
+          - "1"
+      gpu_mem_tracking:
+        description: "Value for CENO_GPU_MEM_TRACKING"
+        required: false
+        type: choice
+        default: "0"
+        options:
+          - "0"
+          - "1"
 
 jobs:
   check-gpu-mem-estimation:
@@ -74,6 +91,28 @@ jobs:
           components: rust-src
           cache: false
 
+      - name: Resolve ceno source
+        run: |
+          python3 scripts/resolve_ceno_source.py \
+            --benchmark-root . \
+            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
+
+      - name: Checkout ceno at requested version
+        if: ${{ env.CENO_USE_PINNED == 'false' }}
+        uses: actions/checkout@v4
+        with:
+          repository: scroll-tech/ceno
+          ref: ${{ env.CENO_REQUESTED_VERSION }}
+          path: ceno-src
+
+      - name: Patch local ceno dependencies
+        if: ${{ env.CENO_USE_PINNED == 'false' }}
+        run: |
+          python3 scripts/patch_ceno_pr_deps.py \
+            --benchmark-root . \
+            --ceno-root ./ceno-src \
+            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
+
       - name: Give Github Action access to ceno-gpu
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -86,21 +125,30 @@ jobs:
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
-          CENO_VERSION="${{ inputs.ceno_version }}"
-          CENO_REF_FLAG="--rev ${CENO_VERSION}"
-          if git ls-remote --heads https://github.com/scroll-tech/ceno.git "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
-            echo "Detected branch '${CENO_VERSION}', installing via --branch"
-            CENO_REF_FLAG="--branch ${CENO_VERSION}"
+          if [ "${CENO_USE_PINNED}" = "true" ]; then
+            echo "Using pinned ceno_cli source from Cargo.toml"
+            CENO_GIT_URL="${CENO_PINNED_GIT}"
+            CENO_PACKAGE="${CENO_PINNED_PACKAGE}"
+            CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
           else
-            echo "Installing via --rev ${CENO_VERSION}"
+            CENO_VERSION="${CENO_REQUESTED_VERSION}"
+            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
+            CENO_PACKAGE="cargo-ceno"
+            CENO_REF_FLAG="--rev ${CENO_VERSION}"
+            if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
+              echo "Detected branch '${CENO_VERSION}', installing via --branch"
+              CENO_REF_FLAG="--branch ${CENO_VERSION}"
+            else
+              echo "Installing via --rev ${CENO_VERSION}"
+            fi
           fi
-          cargo install --git https://github.com/scroll-tech/ceno.git \
+          cargo install --git "${CENO_GIT_URL}" \
             ${CENO_REF_FLAG} \
             --features jemalloc \
             --features nightly-features \
             --locked \
             --force \
-            cargo-ceno
+            "${CENO_PACKAGE}"
 
           RPC_1=${{ secrets.RPC_URL_1 }}
 
@@ -126,8 +174,8 @@ jobs:
           set +e
 
           # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
-          CENO_GPU_MEM_TRACKING=1 \
-          CENO_CONCURRENT_CHIP_PROVING=0 \
+          CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
+          CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           RUST_MIN_STACK=16777216 \
@@ -167,6 +215,28 @@ jobs:
           components: rust-src
           cache: false
 
+      - name: Resolve ceno source
+        run: |
+          python3 scripts/resolve_ceno_source.py \
+            --benchmark-root . \
+            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
+
+      - name: Checkout ceno at requested version
+        if: ${{ env.CENO_USE_PINNED == 'false' }}
+        uses: actions/checkout@v4
+        with:
+          repository: scroll-tech/ceno
+          ref: ${{ env.CENO_REQUESTED_VERSION }}
+          path: ceno-src
+
+      - name: Patch local ceno dependencies
+        if: ${{ env.CENO_USE_PINNED == 'false' }}
+        run: |
+          python3 scripts/patch_ceno_pr_deps.py \
+            --benchmark-root . \
+            --ceno-root ./ceno-src \
+            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
+
       - name: Give Github Action access to ceno-gpu
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -179,21 +249,30 @@ jobs:
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
-          CENO_VERSION="${{ inputs.ceno_version }}"
-          CENO_REF_FLAG="--rev ${CENO_VERSION}"
-          if git ls-remote --heads https://github.com/scroll-tech/ceno.git "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
-            echo "Detected branch '${CENO_VERSION}', installing via --branch"
-            CENO_REF_FLAG="--branch ${CENO_VERSION}"
+          if [ "${CENO_USE_PINNED}" = "true" ]; then
+            echo "Using pinned ceno_cli source from Cargo.toml"
+            CENO_GIT_URL="${CENO_PINNED_GIT}"
+            CENO_PACKAGE="${CENO_PINNED_PACKAGE}"
+            CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
           else
-            echo "Installing via --rev ${CENO_VERSION}"
+            CENO_VERSION="${CENO_REQUESTED_VERSION}"
+            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
+            CENO_PACKAGE="cargo-ceno"
+            CENO_REF_FLAG="--rev ${CENO_VERSION}"
+            if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
+              echo "Detected branch '${CENO_VERSION}', installing via --branch"
+              CENO_REF_FLAG="--branch ${CENO_VERSION}"
+            else
+              echo "Installing via --rev ${CENO_VERSION}"
+            fi
           fi
-          cargo install --git https://github.com/scroll-tech/ceno.git \
+          cargo install --git "${CENO_GIT_URL}" \
             ${CENO_REF_FLAG} \
             --features jemalloc \
             --features nightly-features \
             --locked \
             --force \
-            cargo-ceno
+            "${CENO_PACKAGE}"
 
           RPC_1=${{ secrets.RPC_URL_1 }}
 
@@ -217,6 +296,8 @@ jobs:
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           set +e
+          CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
+          CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           RUST_MIN_STACK=16777216 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
