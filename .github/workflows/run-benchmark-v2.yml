@@ -8,6 +8,16 @@ on:
         required: false
         type: string
         default: ""
+      source_repository:
+        description: "Origin repository to comment back to"
+        required: false
+        type: string
+        default: ""
+      source_pr_number:
+        description: "Origin pull request number to comment back to"
+        required: false
+        type: string
+        default: ""
       block_number:
         description: "Block number to generate input for"
         required: true
@@ -204,6 +214,8 @@ jobs:
   benchmark:
     if: ${{ inputs.run_gpu_benchmark }}
     runs-on: [self-hosted, x64, linux, gpu]
+    outputs:
+      result_url: ${{ steps.result_link.outputs.url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -396,6 +408,11 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           cat "${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md" >> $GITHUB_STEP_SUMMARY
 
+      - name: Record result link
+        id: result_link
+        run: |
+          echo "url=https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md" >> "$GITHUB_OUTPUT"
+
       - name: Cleanup Temp Directory
         if: always()
         run: |
@@ -407,6 +424,48 @@ jobs:
       - name: Path to result
         run: |
           echo "https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
+
+  report-to-source-pr:
+    if: ${{ always() && inputs.source_repository != '' && inputs.source_pr_number != '' }}
+    needs:
+      - check-gpu-mem-estimation
+      - benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment benchmark result on source PR
+        uses: actions/github-script@v7
+        env:
+          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
+          SOURCE_PR_NUMBER: ${{ inputs.source_pr_number }}
+          CENO_VERSION: ${{ inputs.ceno_version != '' && inputs.ceno_version || 'pinned Cargo.toml version' }}
+          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
+          BENCHMARK_RESULT_URL: ${{ needs.benchmark.outputs.result_url }}
+          MEM_RESULT: ${{ needs.check-gpu-mem-estimation.result }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          github-token: ${{ secrets.CENO_PR_COMMENT_TOKEN }}
+          script: |
+            const [owner, repo] = process.env.SOURCE_REPOSITORY.split("/");
+            const prNumber = Number(process.env.SOURCE_PR_NUMBER);
+            const benchmarkResult = process.env.BENCHMARK_RESULT || "skipped";
+            const memResult = process.env.MEM_RESULT || "skipped";
+            const lines = [
+              "Benchmark result from `scroll-tech/ceno-reth-benchmark`.",
+              "",
+              `- ceno version: \`${process.env.CENO_VERSION}\``,
+              `- benchmark job: \`${benchmarkResult}\``,
+              `- gpu mem estimation job: \`${memResult}\``,
+              `- workflow run: ${process.env.RUN_URL}`,
+            ];
+            if (process.env.BENCHMARK_RESULT_URL) {
+              lines.push(`- summary: ${process.env.BENCHMARK_RESULT_URL}`);
+            }
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: prNumber,
+              body: lines.join("\n"),
+            });
 #          fi
 #
 #          # Verify input file exists
