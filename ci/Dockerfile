@@ -5,10 +5,17 @@ FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
 ARG RUNNER_VERSION="2.320.0"
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt update -y && apt upgrade -y && useradd -m docker
-RUN apt install -y --no-install-recommends \
-    curl jq build-essential cmake libssl-dev libffi-dev python3 python3-venv python3-dev python3-pip \
-    libkrb5-3 zlib1g libicu70 m4
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl jq build-essential cmake libssl-dev libffi-dev python3.11 python3.11-venv python3.11-dev python3-pip \
+        libkrb5-3 zlib1g libicu70 m4 \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m docker
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 RUN cd /home/docker && mkdir actions-runner && cd actions-runner \
     && curl -o actions-runner-linux-x64-2.320.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.320.0/actions-runner-linux-x64-2.320.0.tar.gz \
@@ -19,9 +26,9 @@ RUN chown -R docker ~docker && cd /home/docker/actions-runner/bin/ \
     && chmod +x installdependencies.sh \
     && ./installdependencies.sh
 
-RUN apt install -y nvidia-utils-535
-RUN apt install -y openssh-client
-RUN apt install -y git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nvidia-utils-535 openssh-client git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Validate SSH access for private dependencies (requires --ssh sshkey=... at build time)
 RUN --mount=type=ssh,id=sshkey \
@@ -31,7 +38,8 @@ RUN --mount=type=ssh,id=sshkey \
     ssh-keyscan github.com >> /root/.ssh/known_hosts; \
     git ls-remote git@github.com:scroll-tech/ceno-reth-benchmark.git >/dev/null
 
-RUN apt install -y --no-install-recommends sudo && \
+RUN apt-get update && apt-get install -y --no-install-recommends sudo && \
+    rm -rf /var/lib/apt/lists/* && \
     echo "docker ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 WORKDIR /home/docker/actions-runner

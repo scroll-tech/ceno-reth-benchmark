@@ -219,12 +219,7 @@ static WORKSPACE_ROOT: LazyLock<PathBuf> = LazyLock::new(discover_workspace_root
 fn setup() -> (Vec<u8>, Program, Platform) {
     let stack_size = 128 * 1024 * 1024;
     let heap_size = 128 * 1024 * 1024;
-    // public io is [u8; 32] and will be serialized to [u32; 32] + some meta data
-    // so the overall we need >= 256 bytes
-    let pub_io_size_in_byte = 512;
-    println!(
-        "stack_size: {stack_size:#x}, heap_size: {heap_size:#x}, pub_io_size: {pub_io_size_in_byte:#x}"
-    );
+    println!("stack_size: {stack_size:#x}, heap_size: {heap_size:#x}");
 
     let elf_path = WORKSPACE_ROOT
         .join("bin")
@@ -235,8 +230,7 @@ fn setup() -> (Vec<u8>, Program, Platform) {
         .join("ceno-client-eth");
     let elf = std::fs::read(elf_path).unwrap();
     let program = Program::load_elf(&elf, u32::MAX).unwrap();
-    let platform =
-        setup_platform(Preset::Ceno, &program, stack_size, heap_size, pub_io_size_in_byte);
+    let platform = setup_platform(Preset::Ceno, &program, stack_size, heap_size);
     (elf, program, platform)
 }
 
@@ -423,18 +417,19 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     }
                     BenchMode::ProveApp => {
                         let mut hints = CenoStdin::default();
-                        let mut pub_io = CenoStdin::default();
 
-                        info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            hints.write(&client_input)?;
-                            pub_io.write(&block_hash.0)?;
-                            Ok(())
-                        })?;
+                        let pub_io_digest =
+                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
+                                hints.write(&client_input)?;
+                                Ok(unsafe {
+                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                                })
+                            })?;
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(
                                 hints,
-                                pub_io,
+                                pub_io_digest,
                                 max_steps,
                                 args.shard_id.map(|v| v as usize),
                             )
@@ -457,18 +452,19 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                     }
                     BenchMode::ProveStark => {
                         let mut hints = CenoStdin::default();
-                        let mut pub_io = CenoStdin::default();
 
-                        info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                            hints.write(&client_input)?;
-                            pub_io.write(&block_hash.0)?;
-                            Ok(())
-                        })?;
+                        let pub_io_digest =
+                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
+                                hints.write(&client_input)?;
+                                Ok(unsafe {
+                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                                })
+                            })?;
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(
                                 hints,
-                                pub_io,
+                                pub_io_digest,
                                 max_steps,
                                 args.shard_id.map(|v| v as usize),
                             )
