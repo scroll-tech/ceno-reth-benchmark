@@ -4,8 +4,8 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-import tomllib
 from pathlib import Path
+import tomllib
 
 CENO_GIT = "https://github.com/scroll-tech/ceno"
 CENO_WORKSPACE_CRATES: dict[str, dict[str, object]] = {
