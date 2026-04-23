@@ -428,7 +428,6 @@ jobs:
   report-to-source-pr:
     if: ${{ always() && inputs.source_repository != '' && inputs.source_pr_number != '' }}
     needs:
-      - check-gpu-mem-estimation
       - benchmark
     runs-on: ubuntu-latest
     steps:
@@ -440,7 +439,6 @@ jobs:
           CENO_VERSION: ${{ inputs.ceno_version != '' && inputs.ceno_version || 'pinned Cargo.toml version' }}
           BENCHMARK_RESULT: ${{ needs.benchmark.result }}
           BENCHMARK_RESULT_URL: ${{ needs.benchmark.outputs.result_url }}
-          MEM_RESULT: ${{ needs.check-gpu-mem-estimation.result }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           github-token: ${{ secrets.CENO_PR_COMMENT_TOKEN }}
@@ -454,7 +452,6 @@ jobs:
               "",
               `- ceno version: \`${process.env.CENO_VERSION}\``,
               `- benchmark job: \`${benchmarkResult}\``,
-              `- gpu mem estimation job: \`${memResult}\``,
               `- workflow run: ${process.env.RUN_URL}`,
             ];
             if (process.env.BENCHMARK_RESULT_URL) {
