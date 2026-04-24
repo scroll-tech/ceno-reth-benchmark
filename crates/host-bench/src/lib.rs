@@ -43,7 +43,10 @@ use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
 use ceno_host::CenoStdin;
 use ceno_recursion::aggregation::verify_e2e_stark_proof;
-use ceno_zkvm::e2e::{run_e2e_verify, setup_platform, MultiProver, Preset};
+use ceno_zkvm::e2e::{
+    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
+    Preset,
+};
 use gkr_iop::cpu::default_backend_config;
 use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
 use serde_json::json;
@@ -443,12 +446,20 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         };
 
                         let verifier = ceno_sdk.create_zkvm_verifier();
-                        if args.shard_id.is_some() {
-                            // skip verify when shard_id was supplied
-                            return Ok(())
-                        }
-                        info_span!("app.verify")
-                            .in_scope(|| run_e2e_verify(&verifier, proofs, Some(0), max_steps));
+                        info_span!("app.verify").in_scope(|| match args.shard_id {
+                            Some(_) => run_e2e_single_shard_debug_verify(
+                                &verifier,
+                                proofs
+                                    .into_iter()
+                                    .next()
+                                    .expect("missing shard proof for debug verify"),
+                                Some(0),
+                                max_steps,
+                            ),
+                            None => {
+                                run_e2e_full_trace_verify(&verifier, proofs, Some(0), max_steps)
+                            }
+                        });
                     }
                     BenchMode::ProveStark => {
                         let mut hints = CenoStdin::default();
