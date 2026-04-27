@@ -317,7 +317,7 @@ jobs:
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
-            --mode prove-stark \
+            --mode prove-app \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
