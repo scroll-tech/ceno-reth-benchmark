@@ -85,6 +85,11 @@ on:
         options:
           - "0"
           - "1"
+      rust_log:
+        description: "Value for RUST_LOG"
+        required: false
+        type: string
+        default: "info,openvm_stark_*=warn,openvm_cuda_common=warn"
 
 jobs:
   check-gpu-mem-estimation:
@@ -131,6 +136,8 @@ jobs:
 
       - name: Run GPU memory tracking benchmark
         id: run_gpu_mem_verify
+        env:
+          RUST_LOG: ${{ inputs.rust_log }}
         run: |
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
@@ -190,7 +197,6 @@ jobs:
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           RUST_MIN_STACK=16777216 \
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
@@ -257,6 +263,8 @@ jobs:
       
       - name: Run benchmark locally
         id: run_benchmark
+        env:
+          RUST_LOG: ${{ inputs.rust_log }}
         run: |
           block_number="${{ inputs.block_number }}"
           # Install Ceno CLI
@@ -314,7 +322,6 @@ jobs:
           RUST_MIN_STACK=16777216 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-app \
