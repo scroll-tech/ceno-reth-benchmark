@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#d6214e40612f8fbfd970f1db7897976c99d798ba"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#00bc85f0cdcb51eb5a73ab215bfb68ecc054a77f"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -9584,7 +9584,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#d6214e40612f8fbfd970f1db7897976c99d798ba"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#00bc85f0cdcb51eb5a73ab215bfb68ecc054a77f"
 dependencies = [
  "cc",
  "which",
@@ -9593,7 +9593,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#d6214e40612f8fbfd970f1db7897976c99d798ba"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fbatch_main_sumcheck#00bc85f0cdcb51eb5a73ab215bfb68ecc054a77f"
 dependencies = [
  "cc",
  "ff_ext",
