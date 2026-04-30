@@ -83,9 +83,6 @@ fn write_ceno_client_input_chunks(
         BytecodesInput,
     ) = client_input.clone().into();
 
-    hints.write(&ancestor_headers_input)?;
-    hints.write(&current_block_input)?;
-    hints.write(&StateTrieHeader { num_nodes: state_trie_input.num_nodes })?;
     let storage_trie_by_hash = storage_trie_inputs
         .into_iter()
         .map(|storage_trie| (storage_trie.hashed_address, storage_trie))
@@ -98,6 +95,17 @@ fn write_ceno_client_input_chunks(
     let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
     let (_, account_order, _, _, witness_order) = ClientExecutor
         .execute_recording_witness_chunks(ChainVariant::Mainnet, client_input.clone())?;
+    let mut post_update_witness_count = 0;
+    let mut after_state_trie = false;
+    for access in &witness_order {
+        match access {
+            WitnessAccess::StateTrie => after_state_trie = true,
+            WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_) if after_state_trie => {
+                post_update_witness_count += 1;
+            }
+            _ => {}
+        }
+    }
     let account_by_hash = account_order
         .into_iter()
         .map(|hash| {
@@ -109,6 +117,13 @@ fn write_ceno_client_input_chunks(
                 .map_err(Into::into)
         })
         .collect::<eyre::Result<BTreeMap<_, _>>>()?;
+
+    hints.write(&ancestor_headers_input)?;
+    hints.write(&current_block_input)?;
+    hints.write(&StateTrieHeader {
+        num_nodes: state_trie_input.num_nodes,
+        post_update_witness_count,
+    })?;
 
     for access in witness_order {
         match access {

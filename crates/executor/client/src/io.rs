@@ -64,6 +64,7 @@ pub struct StateTrieInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTrieHeader {
     pub num_nodes: usize,
+    pub post_update_witness_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -307,39 +308,132 @@ impl StreamingEthereumState<'_> {
         Ok(())
     }
 
+    fn account_from_state_trie(
+        &self,
+        hashed_address: B256,
+    ) -> Result<Option<TrieAccount>, ProviderError> {
+        self.state_trie
+            .as_ref()
+            .expect("state trie was loaded")
+            .get_rlp::<TrieAccount>(hashed_address.as_slice())
+            .map_err(|err| Self::provider_error(err.to_string()))
+    }
+
+    fn expected_storage_root_from_state_trie(
+        &self,
+        hashed_address: B256,
+    ) -> Result<B256, ProviderError> {
+        Ok(self
+            .account_from_state_trie(hashed_address)?
+            .map_or(reth_trie::EMPTY_ROOT_HASH, |account| account.storage_root))
+    }
+
     pub fn read_account(&self, hashed_address: B256) -> Result<Option<TrieAccount>, ProviderError> {
         if let Some(account) = self.account_cache.borrow().get(&hashed_address) {
             return Ok(account.clone());
         }
 
-        let account_input = match self.input.borrow_mut().read_witness_chunk() {
-            ClientInputChunk::Account(account_input) => account_input,
-            ClientInputChunk::StorageTrie(storage_trie_input) => {
-                return Err(Self::provider_error(format!(
-                    "expected account for {hashed_address}, got storage trie {}",
-                    storage_trie_input.hashed_address
-                )));
-            }
-            ClientInputChunk::Bytecode(_) => {
-                return Err(Self::provider_error(format!(
-                    "expected account for {hashed_address}, got bytecode"
-                )));
-            }
-        };
-        if account_input.hashed_address != hashed_address {
-            return Err(Self::provider_error(format!(
-                "streamed account hash mismatch: expected {hashed_address}, got {}",
-                account_input.hashed_address
-            )));
-        }
+        loop {
+            let account_input = match self.input.borrow_mut().read_witness_chunk() {
+                ClientInputChunk::Account(account_input) => account_input,
+                ClientInputChunk::StorageTrie(storage_trie_input) => {
+                    return Err(Self::provider_error(format!(
+                        "expected account for {hashed_address}, got storage trie {}",
+                        storage_trie_input.hashed_address
+                    )));
+                }
+                ClientInputChunk::Bytecode(_) => {
+                    return Err(Self::provider_error(format!(
+                        "expected account for {hashed_address}, got bytecode"
+                    )));
+                }
+            };
 
-        self.account_cache.borrow_mut().insert(hashed_address, account_input.account.clone());
-        Ok(account_input.account)
+            let streamed_address = account_input.hashed_address;
+            if self.account_cache.borrow().contains_key(&streamed_address) {
+                return Err(Self::provider_error(format!(
+                    "duplicate streamed account {streamed_address}"
+                )));
+            }
+
+            let streamed_account = account_input.account;
+            self.account_cache.borrow_mut().insert(streamed_address, streamed_account.clone());
+            if streamed_address == hashed_address {
+                return Ok(streamed_account);
+            }
+        }
     }
 
     fn expected_storage_root(&self, hashed_address: B256) -> Result<B256, ProviderError> {
         let account_in_trie = self.read_account(hashed_address)?;
         Ok(account_in_trie.map_or(reth_trie::EMPTY_ROOT_HASH, |account| account.storage_root))
+    }
+
+    fn cache_post_update_account(&self, account_input: AccountInput) -> Result<(), ProviderError> {
+        let hashed_address = account_input.hashed_address;
+        if self.account_cache.borrow().contains_key(&hashed_address) {
+            return Err(Self::provider_error(format!(
+                "duplicate streamed post-update account {hashed_address}"
+            )));
+        }
+
+        let trie_account = self.account_from_state_trie(hashed_address)?;
+        if trie_account != account_input.account {
+            return Err(Self::provider_error(format!(
+                "streamed post-update account mismatch for {hashed_address}: streamed {:?}, trie {:?}",
+                account_input.account, trie_account
+            )));
+        }
+
+        self.account_cache.borrow_mut().insert(hashed_address, account_input.account);
+        Ok(())
+    }
+
+    fn cache_post_update_storage_trie(
+        &self,
+        storage_trie_header: StorageTrieHeader,
+    ) -> Result<(), ProviderError> {
+        let hashed_address = storage_trie_header.hashed_address;
+        if self.storage_tries.borrow().contains_key(&hashed_address) {
+            return Err(Self::provider_error(format!(
+                "duplicate streamed post-update storage trie {hashed_address}"
+            )));
+        }
+
+        let expected_storage_root = self.expected_storage_root_from_state_trie(hashed_address)?;
+        let mut storage_trie_bytes = self.input.borrow_mut().read_raw_bytes();
+        let storage_trie =
+            Mpt::decode_trie(self.bump, &mut storage_trie_bytes, storage_trie_header.num_nodes)
+                .map_err(|err| Self::provider_error(err.to_string()))?;
+        if storage_trie.hash() != expected_storage_root {
+            return Err(Self::provider_error(format!(
+                "parent storage root mismatch for {hashed_address}: actual {}, expected {}",
+                storage_trie.hash(),
+                expected_storage_root
+            )));
+        }
+
+        self.storage_tries.borrow_mut().insert(hashed_address, storage_trie);
+        Ok(())
+    }
+
+    fn materialize_post_update_witnesses(&self) -> Result<(), ClientExecutionError> {
+        for _ in 0..self.state_trie_header.post_update_witness_count {
+            match self.input.borrow_mut().read_witness_chunk() {
+                ClientInputChunk::Account(account_input) => self
+                    .cache_post_update_account(account_input)
+                    .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
+                ClientInputChunk::StorageTrie(storage_trie_header) => self
+                    .cache_post_update_storage_trie(storage_trie_header)
+                    .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
+                ClientInputChunk::Bytecode(_) => {
+                    return Err(ClientExecutionError::TrieWitnessError(
+                        "expected post-update account or storage trie, got bytecode".to_string(),
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn load_storage_trie(&self, hashed_address: B256) -> Result<(), ProviderError> {
@@ -416,38 +510,50 @@ impl StreamingEthereumState<'_> {
     ) -> Result<(), ClientExecutionError> {
         self.ensure_state_trie_loaded()?;
         self.validate_account_cache()?;
+        self.materialize_post_update_witnesses()?;
+        self.validate_account_cache()?;
 
         for (address, account) in &bundle_state.state {
             let hashed_address = keccak256(address);
 
             if let Some(info) = &account.info {
-                if !account.storage.is_empty() &&
-                    !self.storage_tries.borrow().contains_key(&hashed_address) &&
-                    self.expected_storage_root(hashed_address)
-                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))? !=
-                        reth_trie::EMPTY_ROOT_HASH
+                let storage_root = if account.status.was_destroyed() || !account.storage.is_empty()
                 {
-                    self.load_storage_trie(hashed_address)
-                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?;
-                }
-
-                let mut storage_tries = self.storage_tries.borrow_mut();
-                let storage_trie =
-                    storage_tries.entry(hashed_address).or_insert(Mpt::new(self.bump));
-
-                if account.status.was_destroyed() {
-                    *storage_trie = Mpt::new(self.bump);
-                }
-
-                for (slot, value) in &account.storage {
-                    let hashed_slot = keccak256(slot.to_be_bytes::<32>());
-                    if value.present_value.is_zero() {
-                        storage_trie.delete(hashed_slot.as_slice())?;
-                    } else {
-                        storage_trie.insert_rlp(hashed_slot.as_slice(), value.present_value)?;
+                    if !self.storage_tries.borrow().contains_key(&hashed_address) &&
+                        self.expected_storage_root_from_state_trie(hashed_address).map_err(
+                            |err| ClientExecutionError::TrieWitnessError(err.to_string()),
+                        )? != reth_trie::EMPTY_ROOT_HASH &&
+                        !account.status.was_destroyed()
+                    {
+                        return Err(ClientExecutionError::TrieWitnessError(format!(
+                            "missing materialized post-update storage trie for {hashed_address}"
+                        )));
                     }
-                }
-                let storage_root = storage_trie.hash();
+
+                    let mut storage_tries = self.storage_tries.borrow_mut();
+                    let storage_trie =
+                        storage_tries.entry(hashed_address).or_insert(Mpt::new(self.bump));
+
+                    if account.status.was_destroyed() {
+                        *storage_trie = Mpt::new(self.bump);
+                    }
+
+                    for (slot, value) in &account.storage {
+                        let hashed_slot = keccak256(slot.to_be_bytes::<32>());
+                        if value.present_value.is_zero() {
+                            storage_trie.delete(hashed_slot.as_slice())?;
+                        } else {
+                            storage_trie.insert_rlp(hashed_slot.as_slice(), value.present_value)?;
+                        }
+                    }
+                    storage_trie.hash()
+                } else if let Some(storage_trie) = self.storage_tries.borrow().get(&hashed_address)
+                {
+                    storage_trie.hash()
+                } else {
+                    self.expected_storage_root_from_state_trie(hashed_address)
+                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?
+                };
                 let state_account = TrieAccount {
                     nonce: info.nonce,
                     balance: info.balance,
