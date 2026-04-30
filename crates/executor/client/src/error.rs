@@ -38,4 +38,7 @@ pub enum ClientExecutionError {
 
     #[error("MPT error: {0}")]
     MptError(#[from] openvm_mpt::Error),
+
+    #[error("trie witness error: {0}")]
+    TrieWitnessError(String),
 }

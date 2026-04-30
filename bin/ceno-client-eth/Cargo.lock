@@ -2152,6 +2152,7 @@ dependencies = [
  "alloy-consensus",
  "alloy-primitives",
  "bumpalo",
+ "bytes",
  "itertools 0.14.0",
  "openvm-mpt",
  "openvm-primitives",

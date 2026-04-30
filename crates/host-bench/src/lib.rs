@@ -13,7 +13,12 @@ use openvm_circuit::{
     },
 };
 use openvm_client_executor::{
-    io::ClientExecutorInput, ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
+    io::{
+        AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
+        ClientInputChunk, CurrentBlockInput, StateTrieInput, StorageTrieCount, StorageTrieInput,
+        WitnessAccess,
+    },
+    ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
 use openvm_host_executor::HostExecutor;
 pub use openvm_native_circuit::NativeConfig;
@@ -32,6 +37,7 @@ use openvm_stark_sdk::{
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
 use std::{
+    collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
     sync::LazyLock,
@@ -48,6 +54,65 @@ use ceno_zkvm::e2e::{
     Preset,
 };
 use gkr_iop::cpu::default_backend_config;
+
+fn write_ceno_client_input_chunks(
+    hints: &mut CenoStdin,
+    client_input: &ClientExecutorInput,
+) -> eyre::Result<()> {
+    let (
+        current_block_input,
+        ancestor_headers_input,
+        state_trie_input,
+        _storage_trie_count,
+        storage_trie_inputs,
+        bytecodes_input,
+    ): (
+        CurrentBlockInput,
+        AncestorHeadersInput,
+        StateTrieInput,
+        StorageTrieCount,
+        Vec<StorageTrieInput>,
+        BytecodesInput,
+    ) = client_input.clone().into();
+
+    hints.write(&ancestor_headers_input)?;
+    hints.write(&current_block_input)?;
+    hints.write(&state_trie_input)?;
+    let storage_trie_by_hash = storage_trie_inputs
+        .into_iter()
+        .map(|storage_trie| (storage_trie.hashed_address, storage_trie))
+        .collect::<BTreeMap<_, _>>();
+    let bytecode_by_hash = bytecodes_input
+        .bytecodes
+        .into_iter()
+        .map(|bytecode| (bytecode.hash_slow(), bytecode))
+        .collect::<BTreeMap<_, _>>();
+    let (_, _, _, witness_order) = ClientExecutor
+        .execute_recording_witness_chunks(ChainVariant::Mainnet, client_input.clone())?;
+
+    for access in witness_order {
+        match access {
+            WitnessAccess::StorageTrie(hash) => {
+                let storage_trie = storage_trie_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| {
+                        eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
+                    })?
+                    .clone();
+                hints.write(&ClientInputChunk::StorageTrie(storage_trie))?;
+            }
+            WitnessAccess::Bytecode(hash) => {
+                let bytecode = bytecode_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| eyre::eyre!("missing bytecode for recorded lookup hash {hash}"))?
+                    .clone();
+                hints.write(&ClientInputChunk::Bytecode(BytecodeInput { bytecode }))?;
+            }
+        }
+    }
+
+    Ok(())
+}
 use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
 use serde_json::json;
 
@@ -423,7 +488,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                hints.write(&client_input)?;
+                                write_ceno_client_input_chunks(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
@@ -466,7 +531,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                hints.write(&client_input)?;
+                                write_ceno_client_input_chunks(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
