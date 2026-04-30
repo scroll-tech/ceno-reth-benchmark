@@ -499,7 +499,6 @@ impl StreamingEthereumState<'_> {
         self.ensure_state_trie_loaded()?;
         self.validate_account_cache()?;
         self.materialize_post_update_witnesses()?;
-        self.validate_account_cache()?;
 
         for (address, account) in &bundle_state.state {
             let hashed_address = keccak256(address);
