@@ -13,7 +13,12 @@ use openvm_circuit::{
     },
 };
 use openvm_client_executor::{
-    io::ClientExecutorInput, ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
+    io::{
+        AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
+        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateTrieHeader,
+        StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
+    },
+    ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
 use openvm_host_executor::HostExecutor;
 pub use openvm_native_circuit::NativeConfig;
@@ -31,7 +36,9 @@ use openvm_stark_sdk::{
 };
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
+use reth_trie::TrieAccount;
 use std::{
+    collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
     sync::LazyLock,
@@ -41,13 +48,121 @@ use tracing::{info, info_span};
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
-use ceno_host::CenoStdin;
+use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_recursion::aggregation::verify_e2e_stark_proof;
 use ceno_zkvm::e2e::{
     run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
     Preset,
 };
 use gkr_iop::cpu::default_backend_config;
+
+fn write_raw_hint_bytes(hints: &mut CenoStdin, bytes: &[u8]) {
+    let end_of_data = bytes.len();
+    let mut data = bytes.to_vec();
+    data.resize(data.len().next_multiple_of(WORD_ALIGNMENT), 0);
+    hints.items.push(Item { data, end_of_data });
+}
+
+fn write_ceno_client_input(
+    hints: &mut CenoStdin,
+    client_input: &ClientExecutorInput,
+) -> eyre::Result<()> {
+    let (
+        current_block_input,
+        ancestor_headers_input,
+        state_trie_input,
+        storage_trie_inputs,
+        bytecodes_input,
+    ): (
+        CurrentBlockInput,
+        AncestorHeadersInput,
+        StateTrieInput,
+        Vec<StorageTrieInput>,
+        BytecodesInput,
+    ) = client_input.clone().into();
+
+    let storage_trie_by_hash = storage_trie_inputs
+        .into_iter()
+        .map(|storage_trie| (storage_trie.hashed_address, storage_trie))
+        .collect::<BTreeMap<_, _>>();
+    let bytecode_by_hash = bytecodes_input
+        .bytecodes
+        .into_iter()
+        .map(|bytecode| (bytecode.hash_slow(), bytecode))
+        .collect::<BTreeMap<_, _>>();
+    let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
+    let (_, account_order, _, _, witness_order) = ClientExecutor
+        .execute_recording_witness_order(ChainVariant::Mainnet, client_input.clone())?;
+    let mut post_update_witness_count = 0;
+    let mut after_state_trie = false;
+    for access in &witness_order {
+        match access {
+            WitnessAccess::StateTrie => after_state_trie = true,
+            WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_) if after_state_trie => {
+                post_update_witness_count += 1;
+            }
+            _ => {}
+        }
+    }
+    let account_by_hash = account_order
+        .into_iter()
+        .map(|hash| {
+            input_with_state
+                .state
+                .state_trie
+                .get_rlp::<TrieAccount>(hash.as_slice())
+                .map(|account| (hash, account))
+                .map_err(Into::into)
+        })
+        .collect::<eyre::Result<BTreeMap<_, _>>>()?;
+
+    hints.write(&ancestor_headers_input)?;
+    hints.write(&current_block_input)?;
+    hints.write(&StateTrieHeader {
+        num_nodes: state_trie_input.num_nodes,
+        post_update_witness_count,
+    })?;
+
+    for access in witness_order {
+        match access {
+            WitnessAccess::Account(hash) => {
+                let account = account_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
+                    .clone();
+                hints.write(&ClientWitnessInput::Account(AccountInput {
+                    hashed_address: hash,
+                    account,
+                }))?;
+            }
+            WitnessAccess::StorageTrie(hash) => {
+                let storage_trie = storage_trie_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| {
+                        eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
+                    })?
+                    .clone();
+                hints.write(&ClientWitnessInput::StorageTrie(StorageTrieHeader {
+                    hashed_address: storage_trie.hashed_address,
+                    num_nodes: storage_trie.num_nodes,
+                }))?;
+                write_raw_hint_bytes(hints, storage_trie.bytes.as_ref());
+            }
+            WitnessAccess::Bytecode(hash) => {
+                let bytecode = bytecode_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| eyre::eyre!("missing bytecode for recorded lookup hash {hash}"))?
+                    .clone();
+                hints.write(&ClientWitnessInput::Bytecode(BytecodeInput { bytecode }))?;
+            }
+            WitnessAccess::StateTrie => {
+                write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
+            }
+        }
+    }
+
+    Ok(())
+}
 use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
 use serde_json::json;
 
@@ -423,7 +538,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                hints.write(&client_input)?;
+                                write_ceno_client_input(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
@@ -466,7 +581,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                hints.write(&client_input)?;
+                                write_ceno_client_input(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })

@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#df88decc60fff7deac779c8b5318b2d821cfa1fe"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#7d1a9deb1e25911175d5425973ce7f42389f67ad"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#df88decc60fff7deac779c8b5318b2d821cfa1fe"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#7d1a9deb1e25911175d5425973ce7f42389f67ad"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -961,7 +961,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#df88decc60fff7deac779c8b5318b2d821cfa1fe"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#7d1a9deb1e25911175d5425973ce7f42389f67ad"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -974,7 +974,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#df88decc60fff7deac779c8b5318b2d821cfa1fe"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#7d1a9deb1e25911175d5425973ce7f42389f67ad"
 dependencies = [
  "bytemuck",
  "serde",
@@ -983,7 +983,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#df88decc60fff7deac779c8b5318b2d821cfa1fe"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fprover_mle_zero_padding#7d1a9deb1e25911175d5425973ce7f42389f67ad"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
@@ -2152,6 +2152,7 @@ dependencies = [
  "alloy-consensus",
  "alloy-primitives",
  "bumpalo",
+ "bytes",
  "itertools 0.14.0",
  "openvm-mpt",
  "openvm-primitives",
