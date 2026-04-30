@@ -20,8 +20,8 @@ use reth_trie::EMPTY_ROOT_HASH;
 use crate::{
     error::ClientExecutionError,
     io::{
-        AncestorHeadersInput, ChunkedClientInput, ClientExecutorInput, ClientExecutorInputWithState,
-        WitnessAccess,
+        AncestorHeadersInput, ChunkedClientInput, ClientExecutorInput,
+        ClientExecutorInputWithState, WitnessAccess,
     },
 };
 
