@@ -125,8 +125,6 @@ pub trait ChunkedClientInput {
 
     fn read_current_block(&mut self) -> CurrentBlockInput;
 
-    fn read_bytecode(&mut self) -> BytecodeInput;
-
     fn read_witness_chunk(&mut self) -> ClientInputChunk;
 
     fn read_raw_bytes(&mut self) -> &'static [u8];
@@ -168,86 +166,10 @@ impl From<ClientExecutorInput>
     }
 }
 
-#[derive(Debug)]
-pub struct PreparedClientExecutorInput {
-    pub current_block: Block<TransactionSigned, Header>,
-    pub ancestor_headers: Vec<Header>,
-    pub state: EthereumState,
-    pub bytecodes: Vec<Bytecode>,
-}
-
 #[derive(Debug, Clone)]
 pub struct ClientExecutorInputWithState {
     pub input: &'static ClientExecutorInput,
     pub state: EthereumState,
-}
-
-pub fn build_state_from_trie_inputs(
-    ancestor_headers: &[Header],
-    state_trie_input: StateTrieInput,
-    storage_trie_inputs: impl IntoIterator<Item = StorageTrieInput>,
-) -> Result<EthereumState, ClientExecutionError> {
-    let bump = Box::leak(Box::new(Bump::with_capacity(BUMP_AREA_SIZE)));
-
-    let state_trie_input = Box::leak(Box::new(state_trie_input));
-    let mut state_bytes = state_trie_input.bytes.as_ref();
-    let state_trie = Mpt::decode_trie(bump, &mut state_bytes, state_trie_input.num_nodes)?;
-    if state_trie.hash() != ancestor_headers[0].state_root {
-        return Err(ClientExecutionError::ParentStateRootMismatch {
-            actual: state_trie.hash(),
-            expected: ancestor_headers[0].state_root,
-        });
-    }
-
-    let storage_trie_inputs = storage_trie_inputs.into_iter();
-    let (lower_bound, _) = storage_trie_inputs.size_hint();
-    let mut storage_tries =
-        HashMap::with_capacity_and_hasher(lower_bound, DefaultHashBuilder::default());
-
-    for storage_trie_input in storage_trie_inputs {
-        let storage_trie_input = Box::leak(Box::new(storage_trie_input));
-        let account_in_trie =
-            state_trie.get_rlp::<TrieAccount>(storage_trie_input.hashed_address.as_slice())?;
-        let expected_storage_root =
-            account_in_trie.map_or(reth_trie::EMPTY_ROOT_HASH, |a| a.storage_root);
-
-        let mut storage_trie_bytes = storage_trie_input.bytes.as_ref();
-        let storage_trie =
-            Mpt::decode_trie(bump, &mut storage_trie_bytes, storage_trie_input.num_nodes)?;
-        if storage_trie.hash() != expected_storage_root {
-            return Err(ClientExecutionError::ParentStorageRootMismatch {
-                hashed_account: storage_trie_input.hashed_address,
-                actual: storage_trie.hash(),
-                expected: expected_storage_root,
-            });
-        }
-
-        storage_tries.insert(storage_trie_input.hashed_address, storage_trie);
-    }
-
-    Ok(EthereumState { state_trie, storage_tries, bump })
-}
-
-pub fn build_state_from_chunked_input(
-    ancestor_headers: &[Header],
-    input: &mut impl ChunkedClientInput,
-) -> Result<EthereumState, ClientExecutionError> {
-    let state_trie_header = input.read_state_trie_header();
-    let state_trie_input = StateTrieInput {
-        num_nodes: state_trie_header.num_nodes,
-        bytes: bytes::Bytes::copy_from_slice(input.read_raw_bytes()),
-    };
-    let storage_trie_count = input.read_storage_trie_count();
-    let storage_trie_inputs = (0..storage_trie_count.len).map(|_| {
-        let header = input.read_storage_trie_header();
-        StorageTrieInput {
-            hashed_address: header.hashed_address,
-            num_nodes: header.num_nodes,
-            bytes: bytes::Bytes::copy_from_slice(input.read_raw_bytes()),
-        }
-    });
-
-    build_state_from_trie_inputs(ancestor_headers, state_trie_input, storage_trie_inputs)
 }
 
 pub struct StreamingEthereumState<'a> {
@@ -343,36 +265,6 @@ impl ClientExecutorInputWithState {
         };
 
         Ok(Self { input, state })
-    }
-}
-
-impl PreparedClientExecutorInput {
-    pub fn build(
-        current_block_input: CurrentBlockInput,
-        ancestor_headers_input: AncestorHeadersInput,
-        state_trie_input: StateTrieInput,
-        storage_trie_inputs: impl IntoIterator<Item = StorageTrieInput>,
-        bytecodes_input: BytecodesInput,
-    ) -> Result<Self, ClientExecutionError> {
-        let AncestorHeadersInput { ancestor_headers } = ancestor_headers_input;
-        let state =
-            build_state_from_trie_inputs(&ancestor_headers, state_trie_input, storage_trie_inputs)?;
-
-        Ok(Self {
-            current_block: current_block_input.current_block,
-            ancestor_headers,
-            state,
-            bytecodes: bytecodes_input.bytecodes,
-        })
-    }
-
-    #[inline(always)]
-    pub fn parent_header(&self) -> &Header {
-        &self.ancestor_headers[0]
-    }
-
-    pub fn witness_db(&self) -> Result<WitnessDb<'_, '_>, ClientExecutionError> {
-        <Self as WitnessInput>::witness_db(self)
     }
 }
 
@@ -637,33 +529,6 @@ impl WitnessInput for ClientExecutorInputWithState {
     #[inline(always)]
     fn headers_len(&self) -> usize {
         1 + self.input.ancestor_headers.len()
-    }
-}
-
-impl WitnessInput for PreparedClientExecutorInput {
-    #[inline(always)]
-    fn state(&self) -> &EthereumState {
-        &self.state
-    }
-
-    #[inline(always)]
-    fn state_anchor(&self) -> B256 {
-        self.parent_header().state_root
-    }
-
-    #[inline(always)]
-    fn bytecodes(&self) -> impl Iterator<Item = &Bytecode> {
-        self.bytecodes.iter()
-    }
-
-    #[inline(always)]
-    fn headers(&self) -> impl Iterator<Item = &Header> {
-        once(&self.current_block.header).chain(self.ancestor_headers.iter())
-    }
-
-    #[inline(always)]
-    fn headers_len(&self) -> usize {
-        1 + self.ancestor_headers.len()
     }
 }
 

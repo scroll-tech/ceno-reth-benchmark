@@ -4,8 +4,8 @@ use alloy_primitives::Address;
 use ceno_crypto::ceno_crypto;
 use openvm_client_executor::{
     io::{
-        AncestorHeadersInput, BytecodeInput, ChunkedClientInput, ClientInputChunk,
-        CurrentBlockInput, StateTrieHeader, StorageTrieCount, StorageTrieHeader,
+        AncestorHeadersInput, ChunkedClientInput, ClientInputChunk, CurrentBlockInput,
+        StateTrieHeader, StorageTrieCount, StorageTrieHeader,
     },
     ChainVariant, ClientExecutor,
 };
@@ -39,10 +39,6 @@ impl ChunkedClientInput for CenoClientInputReader {
     }
 
     fn read_current_block(&mut self) -> CurrentBlockInput {
-        ceno_rt::read_owned()
-    }
-
-    fn read_bytecode(&mut self) -> BytecodeInput {
         ceno_rt::read_owned()
     }
 
