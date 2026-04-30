@@ -14,8 +14,8 @@ use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
 use reth_primitives::Header;
 use reth_primitives_traits::block::Block as _;
-use reth_trie::EMPTY_ROOT_HASH;
 use reth_revm::db::CacheDB;
+use reth_trie::EMPTY_ROOT_HASH;
 
 use crate::{
     error::ClientExecutionError,
@@ -55,7 +55,7 @@ impl ClientExecutor {
         chain_variant: ChainVariant,
         pre_input: ClientExecutorInput,
     ) -> Result<(Header, Vec<B256>), ClientExecutionError> {
-        let (header, _, bytecode_lookup_order, _) =
+        let (header, _, _, bytecode_lookup_order, _) =
             self.execute_recording_witness_chunks(chain_variant, pre_input)?;
         Ok((header, bytecode_lookup_order))
     }
@@ -64,18 +64,26 @@ impl ClientExecutor {
         &self,
         chain_variant: ChainVariant,
         pre_input: ClientExecutorInput,
-    ) -> Result<(Header, Vec<B256>, Vec<B256>, Vec<WitnessAccess>), ClientExecutionError> {
+    ) -> Result<(Header, Vec<B256>, Vec<B256>, Vec<B256>, Vec<WitnessAccess>), ClientExecutionError>
+    {
         let input = ClientExecutorInputWithState::build(pre_input)?;
+        let account_lookup_order = RefCell::new(Vec::new());
         let storage_lookup_order = RefCell::new(Vec::new());
         let bytecode_lookup_order = RefCell::new(Vec::new());
         let witness_order = RefCell::new(Vec::new());
         let header = self.execute_with_state(
             chain_variant,
             input,
-            Some((&storage_lookup_order, &bytecode_lookup_order, &witness_order)),
+            Some((
+                &account_lookup_order,
+                &storage_lookup_order,
+                &bytecode_lookup_order,
+                &witness_order,
+            )),
         )?;
         Ok((
             header,
+            account_lookup_order.into_inner(),
             storage_lookup_order.into_inner(),
             bytecode_lookup_order.into_inner(),
             witness_order.into_inner(),
@@ -108,21 +116,19 @@ impl ClientExecutor {
     ) -> Result<Header, ClientExecutionError> {
         let AncestorHeadersInput { ancestor_headers } = input.read_ancestor_headers();
         let current_block = input.read_current_block().current_block;
-        let mut state = io::build_streaming_state_from_chunked_input(&ancestor_headers, input)?;
-
-        let witness_db = io::WitnessDb::from_streaming_parts(
-            &state,
-            &current_block.header,
-            &ancestor_headers,
-        )?;
-        let cache_db = CacheDB::new(&witness_db);
+        let current_header = current_block.header.clone();
+        let current_block_number = current_header.number;
+        let current_state_root = current_block.state_root;
+        let current_transactions_root = current_block.transactions_root;
+        let current_ommers_hash = current_block.body.calculate_ommers_root();
+        let current_withdrawals_root = current_block.body.calculate_withdrawals_root();
+        let current_requests_hash = current_block.requests_hash;
 
         let spec = Arc::new(match chain_variant {
             ChainVariant::Mainnet => mainnet(),
             ChainVariant::Dev => dev(),
         });
         let recovered_block = current_block
-            .clone()
             .try_into_recovered()
             .map_err(|err| ClientExecutionError::BlockSenderRecoveryError(err.into()))?;
 
@@ -137,6 +143,11 @@ impl ClientExecutor {
                 .validate_block_pre_execution(&recovered_block)
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
+
+        let mut state = io::build_streaming_state_from_chunked_input(&ancestor_headers, input)?;
+        let witness_db =
+            io::WitnessDb::from_streaming_parts(&state, &current_header, &ancestor_headers)?;
+        let cache_db = CacheDB::new(&witness_db);
 
         let block_executor = BasicBlockExecutor::new(EthEvmConfig::new(spec.clone()), cache_db);
         let executor_output = block_executor.execute(&recovered_block)?;
@@ -157,7 +168,7 @@ impl ClientExecutor {
         let executor_outcome = ExecutionOutcome::new(
             executor_output.state,
             vec![executor_output.result.receipts],
-            current_block.header.number,
+            current_block_number,
             vec![executor_output.result.requests],
         );
 
@@ -165,25 +176,24 @@ impl ClientExecutor {
 
         let state_root = {
             state.update_from_bundle_state(&executor_outcome.bundle)?;
-            state.state_trie.hash()
+            state.state_root()
         };
 
-        if state_root != current_block.state_root {
+        if state_root != current_state_root {
             return Err(ClientExecutionError::StateRootMismatch {
                 actual: state_root,
-                expected: current_block.state_root,
+                expected: current_state_root,
             });
         }
 
-        let mut header = current_block.header.clone();
+        let mut header = current_header;
         header.parent_hash = ancestor_headers[0].hash_slow();
-        header.ommers_hash = current_block.body.calculate_ommers_root();
-        header.state_root = current_block.state_root;
-        header.transactions_root = current_block.transactions_root;
-        header.receipts_root = current_block.header.receipts_root;
-        header.withdrawals_root = current_block.body.calculate_withdrawals_root();
+        header.ommers_hash = current_ommers_hash;
+        header.state_root = current_state_root;
+        header.transactions_root = current_transactions_root;
+        header.withdrawals_root = current_withdrawals_root;
         header.logs_bloom = logs_bloom;
-        header.requests_hash = current_block.requests_hash;
+        header.requests_hash = current_requests_hash;
 
         Ok(header)
     }
@@ -195,18 +205,23 @@ impl ClientExecutor {
         lookup_orders: Option<(
             &RefCell<Vec<B256>>,
             &RefCell<Vec<B256>>,
+            &RefCell<Vec<B256>>,
             &RefCell<Vec<WitnessAccess>>,
         )>,
     ) -> Result<Header, ClientExecutionError> {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = match lookup_orders {
-            Some((storage_lookup_order, bytecode_lookup_order, witness_order)) => {
-                input.witness_db_recording(
-                    bytecode_lookup_order,
-                    storage_lookup_order,
-                    Some(witness_order),
-                )?
-            }
+            Some((
+                account_lookup_order,
+                storage_lookup_order,
+                bytecode_lookup_order,
+                witness_order,
+            )) => input.witness_db_recording(
+                account_lookup_order,
+                bytecode_lookup_order,
+                storage_lookup_order,
+                Some(witness_order),
+            )?,
             None => input.witness_db()?,
         };
         let cache_db = CacheDB::new(&witness_db);
@@ -263,20 +278,26 @@ impl ClientExecutor {
             vec![executor_output.result.requests],
         );
 
-        if let Some((storage_lookup_order, _, witness_order)) = lookup_orders {
+        if let Some((account_lookup_order, storage_lookup_order, _, witness_order)) = lookup_orders
+        {
+            let mut account_order = account_lookup_order.borrow_mut();
             let mut storage_order = storage_lookup_order.borrow_mut();
             let mut witness_order = witness_order.borrow_mut();
             for (address, account) in &executor_outcome.bundle.state {
                 let hashed_address = keccak256(address);
-                if account.info.is_some()
-                    && !account.storage.is_empty()
-                    && !storage_order.contains(&hashed_address)
-                    && input
+                if account.info.is_some() &&
+                    !account.storage.is_empty() &&
+                    !storage_order.contains(&hashed_address) &&
+                    input
                         .state
                         .storage_tries
                         .get(&hashed_address)
                         .map_or(false, |storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
                 {
+                    if !account_order.contains(&hashed_address) {
+                        account_order.push(hashed_address);
+                        witness_order.push(WitnessAccess::Account(hashed_address));
+                    }
                     storage_order.push(hashed_address);
                     witness_order.push(WitnessAccess::StorageTrie(hashed_address));
                 }

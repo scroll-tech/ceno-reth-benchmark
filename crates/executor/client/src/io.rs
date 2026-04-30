@@ -62,6 +62,11 @@ pub struct StateTrieInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateTrieHeader {
+    pub num_nodes: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageTrieCount {
     pub len: usize,
 }
@@ -71,6 +76,12 @@ pub struct StorageTrieInput {
     pub hashed_address: B256,
     pub num_nodes: usize,
     pub bytes: bytes::Bytes,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StorageTrieHeader {
+    pub hashed_address: B256,
+    pub num_nodes: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,13 +95,21 @@ pub struct BytecodeInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountInput {
+    pub hashed_address: B256,
+    pub account: Option<TrieAccount>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ClientInputChunk {
-    StorageTrie(StorageTrieInput),
+    Account(AccountInput),
+    StorageTrie(StorageTrieHeader),
     Bytecode(BytecodeInput),
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum WitnessAccess {
+    Account(B256),
     StorageTrie(B256),
     Bytecode(B256),
 }
@@ -98,17 +117,19 @@ pub enum WitnessAccess {
 pub trait ChunkedClientInput {
     fn read_ancestor_headers(&mut self) -> AncestorHeadersInput;
 
-    fn read_state_trie(&mut self) -> StateTrieInput;
+    fn read_state_trie_header(&mut self) -> StateTrieHeader;
 
     fn read_storage_trie_count(&mut self) -> StorageTrieCount;
 
-    fn read_storage_trie(&mut self) -> StorageTrieInput;
+    fn read_storage_trie_header(&mut self) -> StorageTrieHeader;
 
     fn read_current_block(&mut self) -> CurrentBlockInput;
 
     fn read_bytecode(&mut self) -> BytecodeInput;
 
     fn read_witness_chunk(&mut self) -> ClientInputChunk;
+
+    fn read_raw_bytes(&mut self) -> &'static [u8];
 }
 
 impl From<ClientExecutorInput>
@@ -211,15 +232,30 @@ pub fn build_state_from_chunked_input(
     ancestor_headers: &[Header],
     input: &mut impl ChunkedClientInput,
 ) -> Result<EthereumState, ClientExecutionError> {
-    let state_trie_input = input.read_state_trie();
+    let state_trie_header = input.read_state_trie_header();
+    let state_trie_input = StateTrieInput {
+        num_nodes: state_trie_header.num_nodes,
+        bytes: bytes::Bytes::copy_from_slice(input.read_raw_bytes()),
+    };
     let storage_trie_count = input.read_storage_trie_count();
-    let storage_trie_inputs = (0..storage_trie_count.len).map(|_| input.read_storage_trie());
+    let storage_trie_inputs = (0..storage_trie_count.len).map(|_| {
+        let header = input.read_storage_trie_header();
+        StorageTrieInput {
+            hashed_address: header.hashed_address,
+            num_nodes: header.num_nodes,
+            bytes: bytes::Bytes::copy_from_slice(input.read_raw_bytes()),
+        }
+    });
 
     build_state_from_trie_inputs(ancestor_headers, state_trie_input, storage_trie_inputs)
 }
 
 pub struct StreamingEthereumState<'a> {
-    pub state_trie: Mpt<'static>,
+    state_trie_header: StateTrieHeader,
+    state_trie_bytes: &'static [u8],
+    parent_state_root: B256,
+    pub state_trie: Option<Mpt<'static>>,
+    account_cache: RefCell<HashMap<B256, Option<TrieAccount>>>,
     pub storage_tries: RefCell<HashMap<B256, Mpt<'static>>>,
     pub bump: &'static Bump,
     input: RefCell<&'a mut dyn ChunkedClientInput>,
@@ -241,18 +277,18 @@ pub fn build_streaming_state_from_chunked_input<'a>(
 ) -> Result<StreamingEthereumState<'a>, ClientExecutionError> {
     let bump = Box::leak(Box::new(Bump::with_capacity(BUMP_AREA_SIZE)));
 
-    let state_trie_input = Box::leak(Box::new(input.read_state_trie()));
-    let mut state_bytes = state_trie_input.bytes.as_ref();
-    let state_trie = Mpt::decode_trie(bump, &mut state_bytes, state_trie_input.num_nodes)?;
-    if state_trie.hash() != ancestor_headers[0].state_root {
-        return Err(ClientExecutionError::ParentStateRootMismatch {
-            actual: state_trie.hash(),
-            expected: ancestor_headers[0].state_root,
-        });
-    }
+    let state_trie_header = input.read_state_trie_header();
+    let state_trie_bytes = input.read_raw_bytes();
 
     Ok(StreamingEthereumState {
-        state_trie,
+        state_trie_header,
+        state_trie_bytes,
+        parent_state_root: ancestor_headers[0].state_root,
+        state_trie: None,
+        account_cache: RefCell::new(HashMap::with_capacity_and_hasher(
+            1,
+            DefaultHashBuilder::default(),
+        )),
         storage_tries: RefCell::new(HashMap::with_capacity_and_hasher(
             1,
             DefaultHashBuilder::default(),
@@ -345,11 +381,73 @@ impl StreamingEthereumState<'_> {
         ProviderError::TrieWitnessError(message.into())
     }
 
+    fn ensure_state_trie_loaded(&mut self) -> Result<(), ClientExecutionError> {
+        if self.state_trie.is_some() {
+            return Ok(());
+        }
+
+        let mut state_bytes = self.state_trie_bytes;
+        let state_trie =
+            Mpt::decode_trie(self.bump, &mut state_bytes, self.state_trie_header.num_nodes)?;
+        if state_trie.hash() != self.parent_state_root {
+            return Err(ClientExecutionError::ParentStateRootMismatch {
+                actual: state_trie.hash(),
+                expected: self.parent_state_root,
+            });
+        }
+        self.state_trie = Some(state_trie);
+        Ok(())
+    }
+
+    pub fn state_root(&self) -> B256 {
+        self.state_trie.as_ref().expect("state trie must be loaded before root calculation").hash()
+    }
+
+    fn validate_account_cache(&self) -> Result<(), ClientExecutionError> {
+        let state_trie = self.state_trie.as_ref().expect("state trie was loaded");
+        for (hashed_address, streamed_account) in self.account_cache.borrow().iter() {
+            let trie_account = state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice())?;
+            if &trie_account != streamed_account {
+                return Err(ClientExecutionError::TrieWitnessError(format!(
+                    "streamed account mismatch for {hashed_address}: streamed {streamed_account:?}, trie {trie_account:?}"
+                )));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn read_account(&self, hashed_address: B256) -> Result<Option<TrieAccount>, ProviderError> {
+        if let Some(account) = self.account_cache.borrow().get(&hashed_address) {
+            return Ok(account.clone());
+        }
+
+        let account_input = match self.input.borrow_mut().read_witness_chunk() {
+            ClientInputChunk::Account(account_input) => account_input,
+            ClientInputChunk::StorageTrie(storage_trie_input) => {
+                return Err(Self::provider_error(format!(
+                    "expected account for {hashed_address}, got storage trie {}",
+                    storage_trie_input.hashed_address
+                )));
+            }
+            ClientInputChunk::Bytecode(_) => {
+                return Err(Self::provider_error(format!(
+                    "expected account for {hashed_address}, got bytecode"
+                )));
+            }
+        };
+        if account_input.hashed_address != hashed_address {
+            return Err(Self::provider_error(format!(
+                "streamed account hash mismatch: expected {hashed_address}, got {}",
+                account_input.hashed_address
+            )));
+        }
+
+        self.account_cache.borrow_mut().insert(hashed_address, account_input.account.clone());
+        Ok(account_input.account)
+    }
+
     fn expected_storage_root(&self, hashed_address: B256) -> Result<B256, ProviderError> {
-        let account_in_trie = self
-            .state_trie
-            .get_rlp::<TrieAccount>(hashed_address.as_slice())
-            .map_err(|err| Self::provider_error(err.to_string()))?;
+        let account_in_trie = self.read_account(hashed_address)?;
         Ok(account_in_trie.map_or(reth_trie::EMPTY_ROOT_HASH, |account| account.storage_root))
     }
 
@@ -358,30 +456,32 @@ impl StreamingEthereumState<'_> {
             return Ok(());
         }
 
-        let storage_trie_input = match self.input.borrow_mut().read_witness_chunk() {
-            ClientInputChunk::StorageTrie(storage_trie_input) => storage_trie_input,
+        let storage_trie_header = match self.input.borrow_mut().read_witness_chunk() {
+            ClientInputChunk::StorageTrie(storage_trie_header) => storage_trie_header,
+            ClientInputChunk::Account(account_input) => {
+                return Err(Self::provider_error(format!(
+                    "expected storage trie for {hashed_address}, got account {}",
+                    account_input.hashed_address
+                )));
+            }
             ClientInputChunk::Bytecode(_) => {
                 return Err(Self::provider_error(format!(
                     "expected storage trie for {hashed_address}, got bytecode"
                 )));
             }
         };
-        if storage_trie_input.hashed_address != hashed_address {
+        if storage_trie_header.hashed_address != hashed_address {
             return Err(Self::provider_error(format!(
                 "streamed storage trie hash mismatch: expected {hashed_address}, got {}",
-                storage_trie_input.hashed_address
+                storage_trie_header.hashed_address
             )));
         }
 
         let expected_storage_root = self.expected_storage_root(hashed_address)?;
-        let storage_trie_input = Box::leak(Box::new(storage_trie_input));
-        let mut storage_trie_bytes = storage_trie_input.bytes.as_ref();
-        let storage_trie = Mpt::decode_trie(
-            self.bump,
-            &mut storage_trie_bytes,
-            storage_trie_input.num_nodes,
-        )
-        .map_err(|err| Self::provider_error(err.to_string()))?;
+        let mut storage_trie_bytes = self.input.borrow_mut().read_raw_bytes();
+        let storage_trie =
+            Mpt::decode_trie(self.bump, &mut storage_trie_bytes, storage_trie_header.num_nodes)
+                .map_err(|err| Self::provider_error(err.to_string()))?;
         if storage_trie.hash() != expected_storage_root {
             return Err(Self::provider_error(format!(
                 "parent storage root mismatch for {hashed_address}: actual {}, expected {}",
@@ -397,6 +497,12 @@ impl StreamingEthereumState<'_> {
     pub fn read_bytecode(&self, hash: B256) -> Result<Bytecode, ProviderError> {
         let bytecode = match self.input.borrow_mut().read_witness_chunk() {
             ClientInputChunk::Bytecode(bytecode_input) => bytecode_input.bytecode,
+            ClientInputChunk::Account(account_input) => {
+                return Err(Self::provider_error(format!(
+                    "expected bytecode for {hash}, got account {}",
+                    account_input.hashed_address
+                )));
+            }
             ClientInputChunk::StorageTrie(storage_trie_input) => {
                 return Err(Self::provider_error(format!(
                     "expected bytecode for {hash}, got storage trie {}",
@@ -417,15 +523,18 @@ impl StreamingEthereumState<'_> {
         &mut self,
         bundle_state: &BundleState,
     ) -> Result<(), ClientExecutionError> {
+        self.ensure_state_trie_loaded()?;
+        self.validate_account_cache()?;
+
         for (address, account) in &bundle_state.state {
             let hashed_address = keccak256(address);
 
             if let Some(info) = &account.info {
-                if !account.storage.is_empty()
-                    && !self.storage_tries.borrow().contains_key(&hashed_address)
-                    && self.expected_storage_root(hashed_address)
-                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?
-                        != reth_trie::EMPTY_ROOT_HASH
+                if !account.storage.is_empty() &&
+                    !self.storage_tries.borrow().contains_key(&hashed_address) &&
+                    self.expected_storage_root(hashed_address)
+                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))? !=
+                        reth_trie::EMPTY_ROOT_HASH
                 {
                     self.load_storage_trie(hashed_address)
                         .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?;
@@ -454,9 +563,16 @@ impl StreamingEthereumState<'_> {
                     storage_root,
                     code_hash: info.code_hash,
                 };
-                self.state_trie.insert_rlp(hashed_address.as_slice(), state_account)?;
+                self.state_trie
+                    .as_mut()
+                    .expect("state trie was loaded")
+                    .insert_rlp(hashed_address.as_slice(), state_account)?;
             } else {
-                self.state_trie.delete(hashed_address.as_slice()).unwrap();
+                self.state_trie
+                    .as_mut()
+                    .expect("state trie was loaded")
+                    .delete(hashed_address.as_slice())
+                    .unwrap();
                 self.storage_tries.borrow_mut().remove(&hashed_address);
             }
         }
@@ -479,6 +595,7 @@ impl ClientExecutorInputWithState {
 
     pub fn witness_db_recording<'a>(
         &'a self,
+        account_lookup_order: &'a RefCell<Vec<B256>>,
         bytecode_lookup_order: &'a RefCell<Vec<B256>>,
         storage_lookup_order: &'a RefCell<Vec<B256>>,
         witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
@@ -488,6 +605,7 @@ impl ClientExecutorInputWithState {
             &self.input.current_block.header,
             &self.input.ancestor_headers,
             &self.input.bytecodes,
+            account_lookup_order,
             bytecode_lookup_order,
             storage_lookup_order,
             witness_order,
@@ -605,7 +723,12 @@ pub trait WitnessInput {
         }
 
         Ok(WitnessDb {
-            state: StateProvider::Eager { state, storage_lookup_order: None, witness_order: None },
+            state: StateProvider::Eager {
+                state,
+                account_lookup_order: None,
+                storage_lookup_order: None,
+                witness_order: None,
+            },
             block_hashes,
             bytecodes: BytecodeProvider::Eager {
                 bytecode_by_hash,
@@ -628,6 +751,7 @@ enum BytecodeProvider<'a> {
 enum StateProvider<'a, 'input> {
     Eager {
         state: &'a EthereumState,
+        account_lookup_order: Option<&'a RefCell<Vec<B256>>>,
         storage_lookup_order: Option<&'a RefCell<Vec<B256>>>,
         witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
     },
@@ -657,6 +781,7 @@ impl<'a> WitnessDb<'a, 'a> {
         Self {
             state: StateProvider::Eager {
                 state: inner,
+                account_lookup_order: None,
                 storage_lookup_order: None,
                 witness_order: None,
             },
@@ -703,7 +828,12 @@ impl<'a> WitnessDb<'a, 'a> {
         }
 
         Ok(Self {
-            state: StateProvider::Eager { state, storage_lookup_order: None, witness_order: None },
+            state: StateProvider::Eager {
+                state,
+                account_lookup_order: None,
+                storage_lookup_order: None,
+                witness_order: None,
+            },
             block_hashes,
             bytecodes: BytecodeProvider::Eager {
                 bytecode_by_hash,
@@ -718,6 +848,7 @@ impl<'a> WitnessDb<'a, 'a> {
         current_header: &'a Header,
         ancestor_headers: &'a [Header],
         bytecodes: &'a [Bytecode],
+        account_lookup_order_input: &'a RefCell<Vec<B256>>,
         bytecode_lookup_order: &'a RefCell<Vec<B256>>,
         storage_lookup_order: &'a RefCell<Vec<B256>>,
         witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
@@ -733,12 +864,14 @@ impl<'a> WitnessDb<'a, 'a> {
             *bytecode_witness_order = witness_order;
         }
         if let StateProvider::Eager {
-            storage_lookup_order: order,
+            account_lookup_order: account_order,
+            storage_lookup_order: storage_order,
             witness_order: storage_witness_order,
             ..
         } = &mut witness_db.state
         {
-            *order = Some(storage_lookup_order);
+            *account_order = Some(account_lookup_order_input);
+            *storage_order = Some(storage_lookup_order);
             *storage_witness_order = witness_order;
         }
         Ok(witness_db)
@@ -792,14 +925,23 @@ impl DatabaseRef for WitnessDb<'_, '_> {
         let hashed_address = keccak256(address);
 
         let account_in_trie = match &self.state {
-            StateProvider::Eager { state, .. } => state
-                .state_trie
-                .get_rlp::<TrieAccount>(hashed_address.as_slice())
-                .unwrap(),
-            StateProvider::Streaming(state) => state
-                .state_trie
-                .get_rlp::<TrieAccount>(hashed_address.as_slice())
-                .unwrap(),
+            StateProvider::Eager { state, account_lookup_order, witness_order, .. } => {
+                let mut first_lookup = false;
+                if let Some(account_lookup_order) = account_lookup_order {
+                    let mut order = account_lookup_order.borrow_mut();
+                    if !order.contains(&hashed_address) {
+                        order.push(hashed_address);
+                        first_lookup = true;
+                    }
+                }
+                if first_lookup {
+                    if let Some(witness_order) = witness_order {
+                        witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
+                    }
+                }
+                state.state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice()).unwrap()
+            }
+            StateProvider::Streaming(state) => state.read_account(hashed_address)?,
         };
 
         let account = account_in_trie.map(|account_in_trie| AccountInfo {
@@ -830,7 +972,7 @@ impl DatabaseRef for WitnessDb<'_, '_> {
                 StateProvider::Eager { .. } => Err(ProviderError::TrieWitnessError(
                     "streaming bytecode requested for eager state".to_string(),
                 )),
-            }
+            },
         }
     }
 
@@ -840,7 +982,26 @@ impl DatabaseRef for WitnessDb<'_, '_> {
 
         let hashed_slot = keccak256(index.to_be_bytes::<32>());
         match &self.state {
-            StateProvider::Eager { state, storage_lookup_order, witness_order } => {
+            StateProvider::Eager {
+                state,
+                account_lookup_order,
+                storage_lookup_order,
+                witness_order,
+            } => {
+                let mut first_account_lookup = false;
+                if let Some(account_lookup_order) = account_lookup_order {
+                    let mut order = account_lookup_order.borrow_mut();
+                    if !order.contains(&hashed_address) {
+                        order.push(hashed_address);
+                        first_account_lookup = true;
+                    }
+                }
+                if first_account_lookup {
+                    if let Some(witness_order) = witness_order {
+                        witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
+                    }
+                }
+
                 let mut first_lookup = false;
                 if let Some(storage_lookup_order) = storage_lookup_order {
                     let mut order = storage_lookup_order.borrow_mut();
@@ -866,9 +1027,8 @@ impl DatabaseRef for WitnessDb<'_, '_> {
             StateProvider::Streaming(state) => {
                 state.load_storage_trie(hashed_address)?;
                 let storage_tries = state.storage_tries.borrow();
-                let storage_trie = storage_tries
-                    .get(&hashed_address)
-                    .expect("streaming storage trie was loaded");
+                let storage_trie =
+                    storage_tries.get(&hashed_address).expect("streaming storage trie was loaded");
                 Ok(storage_trie
                     .get_rlp::<U256>(hashed_slot.as_slice())
                     .expect("Can get from MPT")

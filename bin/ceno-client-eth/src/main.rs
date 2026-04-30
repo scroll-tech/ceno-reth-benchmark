@@ -4,8 +4,8 @@ use alloy_primitives::Address;
 use ceno_crypto::ceno_crypto;
 use openvm_client_executor::{
     io::{
-        AncestorHeadersInput, BytecodeInput, ChunkedClientInput, ClientInputChunk, CurrentBlockInput,
-        StateTrieInput, StorageTrieCount, StorageTrieInput,
+        AncestorHeadersInput, BytecodeInput, ChunkedClientInput, ClientInputChunk,
+        CurrentBlockInput, StateTrieHeader, StorageTrieCount, StorageTrieHeader,
     },
     ChainVariant, ClientExecutor,
 };
@@ -26,7 +26,7 @@ impl ChunkedClientInput for CenoClientInputReader {
         ceno_rt::read_owned()
     }
 
-    fn read_state_trie(&mut self) -> StateTrieInput {
+    fn read_state_trie_header(&mut self) -> StateTrieHeader {
         ceno_rt::read_owned()
     }
 
@@ -34,7 +34,7 @@ impl ChunkedClientInput for CenoClientInputReader {
         ceno_rt::read_owned()
     }
 
-    fn read_storage_trie(&mut self) -> StorageTrieInput {
+    fn read_storage_trie_header(&mut self) -> StorageTrieHeader {
         ceno_rt::read_owned()
     }
 
@@ -48,6 +48,10 @@ impl ChunkedClientInput for CenoClientInputReader {
 
     fn read_witness_chunk(&mut self) -> ClientInputChunk {
         ceno_rt::read_owned()
+    }
+
+    fn read_raw_bytes(&mut self) -> &'static [u8] {
+        ceno_rt::read_slice()
     }
 }
 
@@ -70,7 +74,6 @@ pub fn main() {
     let block_hash = header.hash_slow();
 
     // commit block hash.
-    let digest_words =
-        unsafe { core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0) };
+    let digest_words = unsafe { core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0) };
     ceno_rt::commit_digest(digest_words);
 }

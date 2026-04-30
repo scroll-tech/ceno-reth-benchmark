@@ -14,9 +14,9 @@ use openvm_circuit::{
 };
 use openvm_client_executor::{
     io::{
-        AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
-        ClientInputChunk, CurrentBlockInput, StateTrieInput, StorageTrieCount, StorageTrieInput,
-        WitnessAccess,
+        AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
+        ClientExecutorInputWithState, ClientInputChunk, CurrentBlockInput, StateTrieHeader,
+        StateTrieInput, StorageTrieCount, StorageTrieHeader, StorageTrieInput, WitnessAccess,
     },
     ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
@@ -36,6 +36,7 @@ use openvm_stark_sdk::{
 };
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
+use reth_trie::TrieAccount;
 use std::{
     collections::BTreeMap,
     env, fs,
@@ -47,13 +48,20 @@ use tracing::{info, info_span};
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
-use ceno_host::CenoStdin;
+use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_recursion::aggregation::verify_e2e_stark_proof;
 use ceno_zkvm::e2e::{
     run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
     Preset,
 };
 use gkr_iop::cpu::default_backend_config;
+
+fn write_raw_hint_bytes(hints: &mut CenoStdin, bytes: &[u8]) {
+    let end_of_data = bytes.len();
+    let mut data = bytes.to_vec();
+    data.resize(data.len().next_multiple_of(WORD_ALIGNMENT), 0);
+    hints.items.push(Item { data, end_of_data });
+}
 
 fn write_ceno_client_input_chunks(
     hints: &mut CenoStdin,
@@ -77,7 +85,8 @@ fn write_ceno_client_input_chunks(
 
     hints.write(&ancestor_headers_input)?;
     hints.write(&current_block_input)?;
-    hints.write(&state_trie_input)?;
+    hints.write(&StateTrieHeader { num_nodes: state_trie_input.num_nodes })?;
+    write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
     let storage_trie_by_hash = storage_trie_inputs
         .into_iter()
         .map(|storage_trie| (storage_trie.hashed_address, storage_trie))
@@ -87,11 +96,33 @@ fn write_ceno_client_input_chunks(
         .into_iter()
         .map(|bytecode| (bytecode.hash_slow(), bytecode))
         .collect::<BTreeMap<_, _>>();
-    let (_, _, _, witness_order) = ClientExecutor
+    let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
+    let (_, account_order, _, _, witness_order) = ClientExecutor
         .execute_recording_witness_chunks(ChainVariant::Mainnet, client_input.clone())?;
+    let account_by_hash = account_order
+        .into_iter()
+        .map(|hash| {
+            input_with_state
+                .state
+                .state_trie
+                .get_rlp::<TrieAccount>(hash.as_slice())
+                .map(|account| (hash, account))
+                .map_err(Into::into)
+        })
+        .collect::<eyre::Result<BTreeMap<_, _>>>()?;
 
     for access in witness_order {
         match access {
+            WitnessAccess::Account(hash) => {
+                let account = account_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
+                    .clone();
+                hints.write(&ClientInputChunk::Account(AccountInput {
+                    hashed_address: hash,
+                    account,
+                }))?;
+            }
             WitnessAccess::StorageTrie(hash) => {
                 let storage_trie = storage_trie_by_hash
                     .get(&hash)
@@ -99,7 +130,11 @@ fn write_ceno_client_input_chunks(
                         eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
                     })?
                     .clone();
-                hints.write(&ClientInputChunk::StorageTrie(storage_trie))?;
+                hints.write(&ClientInputChunk::StorageTrie(StorageTrieHeader {
+                    hashed_address: storage_trie.hashed_address,
+                    num_nodes: storage_trie.num_nodes,
+                }))?;
+                write_raw_hint_bytes(hints, storage_trie.bytes.as_ref());
             }
             WitnessAccess::Bytecode(hash) => {
                 let bytecode = bytecode_by_hash
