@@ -12,11 +12,11 @@ This change makes the state witness path more just-in-time:
 
 - The state trie and storage trie byte payloads are read as raw hint slices instead of eagerly copied into heap-owned `Bytes`.
 - The full parent state trie decode is delayed until the final bundle-state update needs it.
-- Account reads during EVM execution are streamed as `AccountInput` chunks in witness-access order.
+- Account reads during EVM execution are streamed as `AccountInput` witness items in witness-access order.
 - The guest caches only the small `Option<TrieAccount>` values that are actually used.
 - Before applying bundle updates, the guest decodes the parent state trie and validates every streamed account against it.
 
-This preserves the important trust boundary: hint chunks are not trusted just because they are streamed. They are checked against the decoded parent state trie before the final state-root transition is accepted.
+This preserves the important trust boundary: hint data is not trusted just because it is streamed. It is checked against the decoded parent state trie before the final state-root transition is accepted.
 
 ## Validation Result
 
@@ -57,7 +57,7 @@ The total ShardRAM row count increases because the streaming path performs more 
 The streaming refactor must not weaken validation:
 
 - Hint data is untrusted.
-- Streamed account chunks must be validated against the parent state trie before state update.
+- Streamed account witness items must be validated against the parent state trie before state update.
 - The decoded parent state trie root must match the ancestor header state root.
 - The final post-execution state root must still be derived by applying bundle updates to the verified trie state.
 - Future storage streaming must keep equivalent validation, either by checking streamed slots against decoded storage tries before update or by using a sound per-storage transition proof.

@@ -15,8 +15,8 @@ use openvm_circuit::{
 use openvm_client_executor::{
     io::{
         AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
-        ClientExecutorInputWithState, ClientInputChunk, CurrentBlockInput, StateTrieHeader,
-        StateTrieInput, StorageTrieCount, StorageTrieHeader, StorageTrieInput, WitnessAccess,
+        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateTrieHeader,
+        StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
     },
     ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
@@ -63,7 +63,7 @@ fn write_raw_hint_bytes(hints: &mut CenoStdin, bytes: &[u8]) {
     hints.items.push(Item { data, end_of_data });
 }
 
-fn write_ceno_client_input_chunks(
+fn write_ceno_client_input(
     hints: &mut CenoStdin,
     client_input: &ClientExecutorInput,
 ) -> eyre::Result<()> {
@@ -71,14 +71,12 @@ fn write_ceno_client_input_chunks(
         current_block_input,
         ancestor_headers_input,
         state_trie_input,
-        _storage_trie_count,
         storage_trie_inputs,
         bytecodes_input,
     ): (
         CurrentBlockInput,
         AncestorHeadersInput,
         StateTrieInput,
-        StorageTrieCount,
         Vec<StorageTrieInput>,
         BytecodesInput,
     ) = client_input.clone().into();
@@ -94,7 +92,7 @@ fn write_ceno_client_input_chunks(
         .collect::<BTreeMap<_, _>>();
     let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
     let (_, account_order, _, _, witness_order) = ClientExecutor
-        .execute_recording_witness_chunks(ChainVariant::Mainnet, client_input.clone())?;
+        .execute_recording_witness_order(ChainVariant::Mainnet, client_input.clone())?;
     let mut post_update_witness_count = 0;
     let mut after_state_trie = false;
     for access in &witness_order {
@@ -132,7 +130,7 @@ fn write_ceno_client_input_chunks(
                     .get(&hash)
                     .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
                     .clone();
-                hints.write(&ClientInputChunk::Account(AccountInput {
+                hints.write(&ClientWitnessInput::Account(AccountInput {
                     hashed_address: hash,
                     account,
                 }))?;
@@ -144,7 +142,7 @@ fn write_ceno_client_input_chunks(
                         eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
                     })?
                     .clone();
-                hints.write(&ClientInputChunk::StorageTrie(StorageTrieHeader {
+                hints.write(&ClientWitnessInput::StorageTrie(StorageTrieHeader {
                     hashed_address: storage_trie.hashed_address,
                     num_nodes: storage_trie.num_nodes,
                 }))?;
@@ -155,7 +153,7 @@ fn write_ceno_client_input_chunks(
                     .get(&hash)
                     .ok_or_else(|| eyre::eyre!("missing bytecode for recorded lookup hash {hash}"))?
                     .clone();
-                hints.write(&ClientInputChunk::Bytecode(BytecodeInput { bytecode }))?;
+                hints.write(&ClientWitnessInput::Bytecode(BytecodeInput { bytecode }))?;
             }
             WitnessAccess::StateTrie => {
                 write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
@@ -540,7 +538,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input_chunks(&mut hints, &client_input)?;
+                                write_ceno_client_input(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
@@ -583,7 +581,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
                         let pub_io_digest =
                             info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input_chunks(&mut hints, &client_input)?;
+                                write_ceno_client_input(&mut hints, &client_input)?;
                                 Ok(unsafe {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })

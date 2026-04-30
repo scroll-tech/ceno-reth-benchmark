@@ -20,8 +20,8 @@ use reth_trie::EMPTY_ROOT_HASH;
 use crate::{
     error::ClientExecutionError,
     io::{
-        AncestorHeadersInput, ChunkedClientInput, ClientExecutorInput,
-        ClientExecutorInputWithState, WitnessAccess,
+        AncestorHeadersInput, ClientExecutorInput, ClientExecutorInputWithState, ClientInputReader,
+        WitnessAccess,
     },
 };
 
@@ -49,7 +49,7 @@ impl ClientExecutor {
         self.execute_with_state(chain_variant, input, None)
     }
 
-    pub fn execute_recording_witness_chunks(
+    pub fn execute_recording_witness_order(
         &self,
         chain_variant: ChainVariant,
         pre_input: ClientExecutorInput,
@@ -79,10 +79,10 @@ impl ClientExecutor {
         ))
     }
 
-    pub fn execute_chunked_from_reader(
+    pub fn execute_from_reader(
         &self,
         chain_variant: ChainVariant,
-        input: &mut impl ChunkedClientInput,
+        input: &mut impl ClientInputReader,
     ) -> Result<Header, ClientExecutionError> {
         let AncestorHeadersInput { ancestor_headers } = input.read_ancestor_headers();
         let current_block = input.read_current_block().current_block;
@@ -114,7 +114,7 @@ impl ClientExecutor {
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
 
-        let mut state = io::build_streaming_state_from_chunked_input(&ancestor_headers, input)?;
+        let mut state = io::build_streaming_state_from_input_reader(&ancestor_headers, input)?;
         let witness_db =
             io::WitnessDb::from_streaming_parts(&state, &current_header, &ancestor_headers)?;
         let cache_db = CacheDB::new(&witness_db);

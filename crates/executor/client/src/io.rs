@@ -68,11 +68,6 @@ pub struct StateTrieHeader {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StorageTrieCount {
-    pub len: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageTrieInput {
     pub hashed_address: B256,
     pub num_nodes: usize,
@@ -102,7 +97,7 @@ pub struct AccountInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum ClientInputChunk {
+pub enum ClientWitnessInput {
     Account(AccountInput),
     StorageTrie(StorageTrieHeader),
     Bytecode(BytecodeInput),
@@ -116,18 +111,14 @@ pub enum WitnessAccess {
     StateTrie,
 }
 
-pub trait ChunkedClientInput {
+pub trait ClientInputReader {
     fn read_ancestor_headers(&mut self) -> AncestorHeadersInput;
 
     fn read_state_trie_header(&mut self) -> StateTrieHeader;
 
-    fn read_storage_trie_count(&mut self) -> StorageTrieCount;
-
-    fn read_storage_trie_header(&mut self) -> StorageTrieHeader;
-
     fn read_current_block(&mut self) -> CurrentBlockInput;
 
-    fn read_witness_chunk(&mut self) -> ClientInputChunk;
+    fn read_witness_input(&mut self) -> ClientWitnessInput;
 
     fn read_raw_bytes(&mut self) -> &'static [u8];
 }
@@ -137,7 +128,6 @@ impl From<ClientExecutorInput>
         CurrentBlockInput,
         AncestorHeadersInput,
         StateTrieInput,
-        StorageTrieCount,
         Vec<StorageTrieInput>,
         BytecodesInput,
     )
@@ -155,13 +145,11 @@ impl From<ClientExecutorInput>
                 bytes,
             })
             .collect::<Vec<_>>();
-        let storage_trie_count = StorageTrieCount { len: storage_tries.len() };
 
         (
             CurrentBlockInput { current_block },
             AncestorHeadersInput { ancestor_headers },
             StateTrieInput { num_nodes, bytes },
-            storage_trie_count,
             storage_tries,
             BytecodesInput { bytecodes },
         )
@@ -181,7 +169,7 @@ pub struct StreamingEthereumState<'a> {
     account_cache: RefCell<HashMap<B256, Option<TrieAccount>>>,
     pub storage_tries: RefCell<HashMap<B256, Mpt<'static>>>,
     pub bump: &'static Bump,
-    input: RefCell<&'a mut dyn ChunkedClientInput>,
+    input: RefCell<&'a mut dyn ClientInputReader>,
 }
 
 impl core::fmt::Debug for StreamingEthereumState<'_> {
@@ -194,9 +182,9 @@ impl core::fmt::Debug for StreamingEthereumState<'_> {
     }
 }
 
-pub fn build_streaming_state_from_chunked_input<'a>(
+pub fn build_streaming_state_from_input_reader<'a>(
     ancestor_headers: &[Header],
-    input: &'a mut dyn ChunkedClientInput,
+    input: &'a mut dyn ClientInputReader,
 ) -> Result<StreamingEthereumState<'a>, ClientExecutionError> {
     let bump = Box::leak(Box::new(Bump::with_capacity(BUMP_AREA_SIZE)));
 
@@ -334,15 +322,15 @@ impl StreamingEthereumState<'_> {
         }
 
         loop {
-            let account_input = match self.input.borrow_mut().read_witness_chunk() {
-                ClientInputChunk::Account(account_input) => account_input,
-                ClientInputChunk::StorageTrie(storage_trie_input) => {
+            let account_input = match self.input.borrow_mut().read_witness_input() {
+                ClientWitnessInput::Account(account_input) => account_input,
+                ClientWitnessInput::StorageTrie(storage_trie_input) => {
                     return Err(Self::provider_error(format!(
                         "expected account for {hashed_address}, got storage trie {}",
                         storage_trie_input.hashed_address
                     )));
                 }
-                ClientInputChunk::Bytecode(_) => {
+                ClientWitnessInput::Bytecode(_) => {
                     return Err(Self::provider_error(format!(
                         "expected account for {hashed_address}, got bytecode"
                     )));
@@ -419,14 +407,14 @@ impl StreamingEthereumState<'_> {
 
     fn materialize_post_update_witnesses(&self) -> Result<(), ClientExecutionError> {
         for _ in 0..self.state_trie_header.post_update_witness_count {
-            match self.input.borrow_mut().read_witness_chunk() {
-                ClientInputChunk::Account(account_input) => self
+            match self.input.borrow_mut().read_witness_input() {
+                ClientWitnessInput::Account(account_input) => self
                     .cache_post_update_account(account_input)
                     .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
-                ClientInputChunk::StorageTrie(storage_trie_header) => self
+                ClientWitnessInput::StorageTrie(storage_trie_header) => self
                     .cache_post_update_storage_trie(storage_trie_header)
                     .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
-                ClientInputChunk::Bytecode(_) => {
+                ClientWitnessInput::Bytecode(_) => {
                     return Err(ClientExecutionError::TrieWitnessError(
                         "expected post-update account or storage trie, got bytecode".to_string(),
                     ));
@@ -441,15 +429,15 @@ impl StreamingEthereumState<'_> {
             return Ok(());
         }
 
-        let storage_trie_header = match self.input.borrow_mut().read_witness_chunk() {
-            ClientInputChunk::StorageTrie(storage_trie_header) => storage_trie_header,
-            ClientInputChunk::Account(account_input) => {
+        let storage_trie_header = match self.input.borrow_mut().read_witness_input() {
+            ClientWitnessInput::StorageTrie(storage_trie_header) => storage_trie_header,
+            ClientWitnessInput::Account(account_input) => {
                 return Err(Self::provider_error(format!(
                     "expected storage trie for {hashed_address}, got account {}",
                     account_input.hashed_address
                 )));
             }
-            ClientInputChunk::Bytecode(_) => {
+            ClientWitnessInput::Bytecode(_) => {
                 return Err(Self::provider_error(format!(
                     "expected storage trie for {hashed_address}, got bytecode"
                 )));
@@ -480,15 +468,15 @@ impl StreamingEthereumState<'_> {
     }
 
     pub fn read_bytecode(&self, hash: B256) -> Result<Bytecode, ProviderError> {
-        let bytecode = match self.input.borrow_mut().read_witness_chunk() {
-            ClientInputChunk::Bytecode(bytecode_input) => bytecode_input.bytecode,
-            ClientInputChunk::Account(account_input) => {
+        let bytecode = match self.input.borrow_mut().read_witness_input() {
+            ClientWitnessInput::Bytecode(bytecode_input) => bytecode_input.bytecode,
+            ClientWitnessInput::Account(account_input) => {
                 return Err(Self::provider_error(format!(
                     "expected bytecode for {hash}, got account {}",
                     account_input.hashed_address
                 )));
             }
-            ClientInputChunk::StorageTrie(storage_trie_input) => {
+            ClientWitnessInput::StorageTrie(storage_trie_input) => {
                 return Err(Self::provider_error(format!(
                     "expected bytecode for {hash}, got storage trie {}",
                     storage_trie_input.hashed_address

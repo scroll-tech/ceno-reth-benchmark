@@ -4,8 +4,8 @@ use alloy_primitives::Address;
 use ceno_crypto::ceno_crypto;
 use openvm_client_executor::{
     io::{
-        AncestorHeadersInput, ChunkedClientInput, ClientInputChunk, CurrentBlockInput,
-        StateTrieHeader, StorageTrieCount, StorageTrieHeader,
+        AncestorHeadersInput, ClientInputReader, ClientWitnessInput, CurrentBlockInput,
+        StateTrieHeader,
     },
     ChainVariant, ClientExecutor,
 };
@@ -21,7 +21,7 @@ ceno_crypto!(
 
 struct CenoClientInputReader;
 
-impl ChunkedClientInput for CenoClientInputReader {
+impl ClientInputReader for CenoClientInputReader {
     fn read_ancestor_headers(&mut self) -> AncestorHeadersInput {
         ceno_rt::read_owned()
     }
@@ -30,19 +30,11 @@ impl ChunkedClientInput for CenoClientInputReader {
         ceno_rt::read_owned()
     }
 
-    fn read_storage_trie_count(&mut self) -> StorageTrieCount {
-        ceno_rt::read_owned()
-    }
-
-    fn read_storage_trie_header(&mut self) -> StorageTrieHeader {
-        ceno_rt::read_owned()
-    }
-
     fn read_current_block(&mut self) -> CurrentBlockInput {
         ceno_rt::read_owned()
     }
 
-    fn read_witness_chunk(&mut self) -> ClientInputChunk {
+    fn read_witness_input(&mut self) -> ClientWitnessInput {
         ceno_rt::read_owned()
     }
 
@@ -59,14 +51,14 @@ pub fn main() {
     syscall_phantom_log_pc_cycle("end ceno crypto");
     // Execute the block (crypto is installed inside executor).
     #[cfg(feature = "profiling")]
-    syscall_phantom_log_pc_cycle("start execute chunked input");
+    syscall_phantom_log_pc_cycle("start execute input");
     let executor = ClientExecutor;
     let mut input = CenoClientInputReader;
     let header = executor
-        .execute_chunked_from_reader(ChainVariant::Mainnet, &mut input)
+        .execute_from_reader(ChainVariant::Mainnet, &mut input)
         .expect("failed to execute client");
     #[cfg(feature = "profiling")]
-    syscall_phantom_log_pc_cycle("end execute chunked input");
+    syscall_phantom_log_pc_cycle("end execute input");
     let block_hash = header.hash_slow();
 
     // commit block hash.
