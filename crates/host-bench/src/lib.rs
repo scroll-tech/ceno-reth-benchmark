@@ -86,7 +86,6 @@ fn write_ceno_client_input_chunks(
     hints.write(&ancestor_headers_input)?;
     hints.write(&current_block_input)?;
     hints.write(&StateTrieHeader { num_nodes: state_trie_input.num_nodes })?;
-    write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
     let storage_trie_by_hash = storage_trie_inputs
         .into_iter()
         .map(|storage_trie| (storage_trie.hashed_address, storage_trie))
@@ -142,6 +141,9 @@ fn write_ceno_client_input_chunks(
                     .ok_or_else(|| eyre::eyre!("missing bytecode for recorded lookup hash {hash}"))?
                     .clone();
                 hints.write(&ClientInputChunk::Bytecode(BytecodeInput { bytecode }))?;
+            }
+            WitnessAccess::StateTrie => {
+                write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
             }
         }
     }

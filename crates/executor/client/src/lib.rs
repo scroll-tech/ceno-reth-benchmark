@@ -253,6 +253,7 @@ impl ClientExecutor {
             let mut account_order = account_lookup_order.borrow_mut();
             let mut storage_order = storage_lookup_order.borrow_mut();
             let mut witness_order = witness_order.borrow_mut();
+            witness_order.push(WitnessAccess::StateTrie);
             for (address, account) in &executor_outcome.bundle.state {
                 let hashed_address = keccak256(address);
                 if account.info.is_some() &&

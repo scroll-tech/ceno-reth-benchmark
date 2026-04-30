@@ -112,6 +112,7 @@ pub enum WitnessAccess {
     Account(B256),
     StorageTrie(B256),
     Bytecode(B256),
+    StateTrie,
 }
 
 pub trait ChunkedClientInput {
@@ -174,7 +175,6 @@ pub struct ClientExecutorInputWithState {
 
 pub struct StreamingEthereumState<'a> {
     state_trie_header: StateTrieHeader,
-    state_trie_bytes: &'static [u8],
     parent_state_root: B256,
     pub state_trie: Option<Mpt<'static>>,
     account_cache: RefCell<HashMap<B256, Option<TrieAccount>>>,
@@ -200,11 +200,9 @@ pub fn build_streaming_state_from_chunked_input<'a>(
     let bump = Box::leak(Box::new(Bump::with_capacity(BUMP_AREA_SIZE)));
 
     let state_trie_header = input.read_state_trie_header();
-    let state_trie_bytes = input.read_raw_bytes();
 
     Ok(StreamingEthereumState {
         state_trie_header,
-        state_trie_bytes,
         parent_state_root: ancestor_headers[0].state_root,
         state_trie: None,
         account_cache: RefCell::new(HashMap::with_capacity_and_hasher(
@@ -278,7 +276,8 @@ impl StreamingEthereumState<'_> {
             return Ok(());
         }
 
-        let mut state_bytes = self.state_trie_bytes;
+        let mut input = self.input.borrow_mut();
+        let mut state_bytes = input.read_raw_bytes();
         let state_trie =
             Mpt::decode_trie(self.bump, &mut state_bytes, self.state_trie_header.num_nodes)?;
         if state_trie.hash() != self.parent_state_root {
