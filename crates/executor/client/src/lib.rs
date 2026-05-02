@@ -266,26 +266,6 @@ impl ClientExecutor {
                     witness_order.push(WitnessAccess::StorageTrie(hashed_address));
                 }
             }
-            let mut update_storage_addresses = executor_outcome
-                .bundle
-                .state
-                .iter()
-                .map(|(address, account)| (keccak256(address), account))
-                .collect::<Vec<_>>();
-            update_storage_addresses.sort_by_key(|(hashed_address, _)| *hashed_address);
-            for (hashed_address, account) in update_storage_addresses {
-                if account.info.is_some() &&
-                    !account.status.was_destroyed() &&
-                    !account.storage.is_empty() &&
-                    input
-                        .state
-                        .storage_tries
-                        .get(&hashed_address)
-                        .map_or(false, |storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
-                {
-                    witness_order.push(WitnessAccess::StorageTrieForUpdate(hashed_address));
-                }
-            }
         }
 
         drop(witness_db);
