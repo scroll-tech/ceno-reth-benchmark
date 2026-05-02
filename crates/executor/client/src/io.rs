@@ -109,6 +109,7 @@ pub enum WitnessAccess {
     StorageTrie(B256),
     Bytecode(B256),
     StateTrie,
+    StorageTrieForUpdate(B256),
 }
 
 pub trait ClientInputReader {
@@ -357,6 +358,45 @@ impl StreamingEthereumState<'_> {
         Ok(account_in_trie.map_or(reth_trie::EMPTY_ROOT_HASH, |account| account.storage_root))
     }
 
+    fn reread_storage_trie_for_update(&self, hashed_address: B256) -> Result<(), ProviderError> {
+        let storage_trie_header = match self.input.borrow_mut().read_witness_input() {
+            ClientWitnessInput::StorageTrie(storage_trie_header) => storage_trie_header,
+            ClientWitnessInput::Account(account_input) => {
+                return Err(Self::provider_error(format!(
+                    "expected update storage trie for {hashed_address}, got account {}",
+                    account_input.hashed_address
+                )));
+            }
+            ClientWitnessInput::Bytecode(_) => {
+                return Err(Self::provider_error(format!(
+                    "expected update storage trie for {hashed_address}, got bytecode"
+                )));
+            }
+        };
+        if storage_trie_header.hashed_address != hashed_address {
+            return Err(Self::provider_error(format!(
+                "streamed update storage trie hash mismatch: expected {hashed_address}, got {}",
+                storage_trie_header.hashed_address
+            )));
+        }
+
+        let expected_storage_root = self.expected_storage_root_from_state_trie(hashed_address)?;
+        let mut storage_trie_bytes = self.input.borrow_mut().read_raw_bytes();
+        let storage_trie =
+            Mpt::decode_trie(self.bump, &mut storage_trie_bytes, storage_trie_header.num_nodes)
+                .map_err(|err| Self::provider_error(err.to_string()))?;
+        if storage_trie.hash() != expected_storage_root {
+            return Err(Self::provider_error(format!(
+                "parent storage root mismatch for update {hashed_address}: actual {}, expected {}",
+                storage_trie.hash(),
+                expected_storage_root
+            )));
+        }
+
+        self.storage_tries.borrow_mut().insert(hashed_address, storage_trie);
+        Ok(())
+    }
+
     fn cache_post_update_account(&self, account_input: AccountInput) -> Result<(), ProviderError> {
         let hashed_address = account_input.hashed_address;
         if self.account_cache.borrow().contains_key(&hashed_address) {
@@ -500,21 +540,34 @@ impl StreamingEthereumState<'_> {
         self.validate_account_cache()?;
         self.materialize_post_update_witnesses()?;
 
-        for (address, account) in &bundle_state.state {
-            let hashed_address = keccak256(address);
-
+        for (hashed_address, account) in bundle_state
+            .state
+            .iter()
+            .map(|(address, account)| (keccak256(address), account))
+            .sorted_by_key(|(hashed_address, _)| *hashed_address)
+        {
             if let Some(info) = &account.info {
                 let storage_root = if account.status.was_destroyed() || !account.storage.is_empty()
                 {
+                    let expected_storage_root = self
+                        .expected_storage_root_from_state_trie(hashed_address)
+                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?;
                     if !self.storage_tries.borrow().contains_key(&hashed_address) &&
-                        self.expected_storage_root_from_state_trie(hashed_address).map_err(
-                            |err| ClientExecutionError::TrieWitnessError(err.to_string()),
-                        )? != reth_trie::EMPTY_ROOT_HASH &&
+                        expected_storage_root != reth_trie::EMPTY_ROOT_HASH &&
                         !account.status.was_destroyed()
                     {
                         return Err(ClientExecutionError::TrieWitnessError(format!(
                             "missing materialized post-update storage trie for {hashed_address}"
                         )));
+                    }
+
+                    if !account.status.was_destroyed() &&
+                        !account.storage.is_empty() &&
+                        expected_storage_root != reth_trie::EMPTY_ROOT_HASH
+                    {
+                        self.reread_storage_trie_for_update(hashed_address).map_err(|err| {
+                            ClientExecutionError::TrieWitnessError(err.to_string())
+                        })?;
                     }
 
                     let mut storage_tries = self.storage_tries.borrow_mut();

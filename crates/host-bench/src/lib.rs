@@ -158,6 +158,19 @@ fn write_ceno_client_input(
             WitnessAccess::StateTrie => {
                 write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
             }
+            WitnessAccess::StorageTrieForUpdate(hash) => {
+                let storage_trie = storage_trie_by_hash
+                    .get(&hash)
+                    .ok_or_else(|| {
+                        eyre::eyre!("missing storage trie for recorded update hash {hash}")
+                    })?
+                    .clone();
+                hints.write(&ClientWitnessInput::StorageTrie(StorageTrieHeader {
+                    hashed_address: storage_trie.hashed_address,
+                    num_nodes: storage_trie.num_nodes,
+                }))?;
+                write_raw_hint_bytes(hints, storage_trie.bytes.as_ref());
+            }
         }
     }
 
