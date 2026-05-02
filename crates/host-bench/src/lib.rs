@@ -91,7 +91,7 @@ fn write_ceno_client_input(
         .map(|bytecode| (bytecode.hash_slow(), bytecode))
         .collect::<BTreeMap<_, _>>();
     let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
-    let (_, account_order, _, _, witness_order) = ClientExecutor
+    let (_, witness_order) = ClientExecutor
         .execute_recording_witness_order(ChainVariant::Mainnet, client_input.clone())?;
     let mut post_update_witness_count = 0;
     let mut after_state_trie = false;
@@ -104,8 +104,12 @@ fn write_ceno_client_input(
             _ => {}
         }
     }
-    let account_by_hash = account_order
-        .into_iter()
+    let account_by_hash = witness_order
+        .iter()
+        .filter_map(|a| match a {
+            WitnessAccess::Account(h) => Some(*h),
+            _ => None,
+        })
         .map(|hash| {
             input_with_state
                 .state
