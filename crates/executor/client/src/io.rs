@@ -19,6 +19,34 @@ use serde_with::serde_as;
 /// Bump area size in bytes.
 const BUMP_AREA_SIZE: usize = 1000 * 1000;
 
+/// Validates a chain of consecutive headers and builds a block-number → hash map.
+///
+/// `headers` must be in reverse-chronological order (current block first, then ancestors).
+fn build_block_hashes<'a>(
+    headers: impl Iterator<Item = &'a Header>,
+    capacity: usize,
+) -> Result<HashMap<u64, B256>, ClientExecutionError> {
+    let mut block_hashes =
+        HashMap::with_capacity_and_hasher(capacity, DefaultHashBuilder::default());
+    for (child, parent) in headers.tuple_windows() {
+        if parent.number != child.number - 1 {
+            return Err(ClientExecutionError::NonConsecutiveBlockHeaders {
+                parent_block_number: parent.number,
+                child_block_number: child.number,
+            });
+        }
+        if parent.hash_slow() != child.parent_hash {
+            return Err(ClientExecutionError::ParentBlockHashMismatch {
+                parent_block_number: parent.number,
+                expected: parent.hash_slow(),
+                actual: child.parent_hash,
+            });
+        }
+        block_hashes.insert(parent.number, child.parent_hash);
+    }
+    Ok(block_hashes)
+}
+
 /// The input for the client to execute a block and fully verify the STF (state transition
 /// function).
 #[serde_as]
@@ -657,27 +685,7 @@ pub trait WitnessInput {
         let bytecode_by_hash =
             self.bytecodes().map(|code| (code.hash_slow(), code)).collect::<HashMap<_, _>>();
 
-        // Verify and build block hashes
-        let mut block_hashes: HashMap<u64, B256, _> =
-            HashMap::with_capacity_and_hasher(self.headers_len(), DefaultHashBuilder::default());
-        for (child_header, parent_header) in self.headers().tuple_windows() {
-            if parent_header.number != child_header.number - 1 {
-                return Err(ClientExecutionError::NonConsecutiveBlockHeaders {
-                    parent_block_number: parent_header.number,
-                    child_block_number: child_header.number,
-                });
-            }
-
-            if parent_header.hash_slow() != child_header.parent_hash {
-                return Err(ClientExecutionError::ParentBlockHashMismatch {
-                    parent_block_number: parent_header.number,
-                    expected: parent_header.hash_slow(),
-                    actual: child_header.parent_hash,
-                });
-            }
-
-            block_hashes.insert(parent_header.number, child_header.parent_hash);
-        }
+        let block_hashes = build_block_hashes(self.headers(), self.headers_len())?;
 
         Ok(WitnessDb {
             state: StateProvider::Eager {
@@ -760,29 +768,10 @@ impl<'a> WitnessDb<'a, 'a> {
         let bytecode_by_hash =
             bytecodes.iter().map(|code| (code.hash_slow(), code)).collect::<HashMap<_, _>>();
 
-        let headers = once(current_header).chain(ancestor_headers.iter());
-        let mut block_hashes: HashMap<u64, B256, _> = HashMap::with_capacity_and_hasher(
+        let block_hashes = build_block_hashes(
+            once(current_header).chain(ancestor_headers.iter()),
             1 + ancestor_headers.len(),
-            DefaultHashBuilder::default(),
-        );
-        for (child_header, parent_header) in headers.tuple_windows() {
-            if parent_header.number != child_header.number - 1 {
-                return Err(ClientExecutionError::NonConsecutiveBlockHeaders {
-                    parent_block_number: parent_header.number,
-                    child_block_number: child_header.number,
-                });
-            }
-
-            if parent_header.hash_slow() != child_header.parent_hash {
-                return Err(ClientExecutionError::ParentBlockHashMismatch {
-                    parent_block_number: parent_header.number,
-                    expected: parent_header.hash_slow(),
-                    actual: child_header.parent_hash,
-                });
-            }
-
-            block_hashes.insert(parent_header.number, child_header.parent_hash);
-        }
+        )?;
 
         Ok(Self {
             state: StateProvider::Eager {
@@ -841,29 +830,10 @@ impl<'a, 'input> WitnessDb<'a, 'input> {
         current_header: &'a Header,
         ancestor_headers: &'a [Header],
     ) -> Result<WitnessDb<'a, 'input>, ClientExecutionError> {
-        let headers = once(current_header).chain(ancestor_headers.iter());
-        let mut block_hashes: HashMap<u64, B256, _> = HashMap::with_capacity_and_hasher(
+        let block_hashes = build_block_hashes(
+            once(current_header).chain(ancestor_headers.iter()),
             1 + ancestor_headers.len(),
-            DefaultHashBuilder::default(),
-        );
-        for (child_header, parent_header) in headers.tuple_windows() {
-            if parent_header.number != child_header.number - 1 {
-                return Err(ClientExecutionError::NonConsecutiveBlockHeaders {
-                    parent_block_number: parent_header.number,
-                    child_block_number: child_header.number,
-                });
-            }
-
-            if parent_header.hash_slow() != child_header.parent_hash {
-                return Err(ClientExecutionError::ParentBlockHashMismatch {
-                    parent_block_number: parent_header.number,
-                    expected: parent_header.hash_slow(),
-                    actual: child_header.parent_hash,
-                });
-            }
-
-            block_hashes.insert(parent_header.number, child_header.parent_hash);
-        }
+        )?;
 
         Ok(Self {
             state: StateProvider::Streaming(state),
