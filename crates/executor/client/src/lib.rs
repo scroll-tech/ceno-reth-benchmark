@@ -53,8 +53,7 @@ impl ClientExecutor {
         &self,
         chain_variant: ChainVariant,
         pre_input: ClientExecutorInput,
-    ) -> Result<(Header, Vec<B256>, Vec<B256>, Vec<B256>, Vec<WitnessAccess>), ClientExecutionError>
-    {
+    ) -> Result<(Header, Vec<WitnessAccess>), ClientExecutionError> {
         let input = ClientExecutorInputWithState::build(pre_input)?;
         let account_lookup_order = RefCell::new(Vec::new());
         let storage_lookup_order = RefCell::new(Vec::new());
@@ -70,13 +69,7 @@ impl ClientExecutor {
                 &witness_order,
             )),
         )?;
-        Ok((
-            header,
-            account_lookup_order.into_inner(),
-            storage_lookup_order.into_inner(),
-            bytecode_lookup_order.into_inner(),
-            witness_order.into_inner(),
-        ))
+        Ok((header, witness_order.into_inner()))
     }
 
     pub fn execute_from_reader(
