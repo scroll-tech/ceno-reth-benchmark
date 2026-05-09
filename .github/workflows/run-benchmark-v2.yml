@@ -86,13 +86,14 @@ on:
           - "0"
           - "1"
       gpu_cache_level:
-        description: "Value for CENO_GPU_CACHE_LEVEL"
+        description: "Value for CENO_GPU_CACHE_LEVEL: 0/none disables GPU cache, 1/trace caches trace only, 2/full caches trace and encoded codeword"
         required: false
         type: choice
         default: "0"
         options:
           - "0"
           - "1"
+          - "2"
 
 jobs:
   check-gpu-mem-estimation:
