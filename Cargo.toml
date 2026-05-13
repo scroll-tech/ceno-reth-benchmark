@@ -60,14 +60,14 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/batch_main_sumcheck" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/batch_main_sumcheck" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/batch_main_sumcheck" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/batch_main_sumcheck" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/batch_main_sumcheck" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/batch_main_sumcheck" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.28" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.28" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/jagged_pcs" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/jagged_pcs" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/jagged_pcs" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/jagged_pcs" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/jagged_pcs" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/jagged_pcs" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/jagged_pcs" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/jagged_pcs" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
@@ -166,7 +166,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "feat/batch_main_sumcheck", default-features = false, features = ["bb31"] }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "jagged-pcs-gpu-plan-integration", default-features = false, features = ["bb31"] }
 # ceno_gpu = { path = "../ceno-gpu/cuda_hal", package = "cuda_hal", default-feature = false, features = ["bb31"] }
 
 #[patch."https://github.com/scroll-tech/gkr-backend.git"]
