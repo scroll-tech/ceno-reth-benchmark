@@ -463,12 +463,16 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let max_steps = usize::MAX;
 
     let start = std::time::Instant::now();
-    let mut ceno_sdk: ceno_sdk::CenoSDK<_, _, BabyBearPoseidon2Config, NativeConfig> =
-        ceno_sdk::CenoSDK::new_with_app_config(
-            program,
-            platform,
-            MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
-        );
+    let mut ceno_sdk: ceno_sdk::CenoSDK<
+        ff_ext::BabyBearExt4,
+        mpcs::Jagged<mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>>,
+        BabyBearPoseidon2Config,
+        NativeConfig,
+    > = ceno_sdk::CenoSDK::new_with_app_config(
+        program,
+        platform,
+        MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
+    );
 
     ceno_sdk.init_base_prover(max_num_variables, security_level);
     info!("setup ceno sdk done in {:?}", start.elapsed());
@@ -581,77 +585,10 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
-                        let mut hints = CenoStdin::default();
-
-                        let pub_io_digest =
-                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input(&mut hints, &client_input)?;
-                                Ok(unsafe {
-                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                                })
-                            })?;
-
-                        let proofs = info_span!("app.prove").in_scope(|| {
-                            ceno_sdk.generate_base_proof(
-                                hints,
-                                pub_io_digest,
-                                max_steps,
-                                args.shard_id.map(|v| v as usize),
-                            )
-                        });
-
-                        if let Some(output_dir) = args.output_dir.as_ref() {
-                            let mut path = output_dir.clone();
-                            path.push("app_proof.bitcode");
-                            fs::write(path, bitcode::serialize(&proofs)?)?;
-                        };
-
-                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
-
-                        // TODO check verify result
-                        info_span!("recursion.verify").in_scope(|| {
-                            verify_e2e_stark_proof(
-                                &ceno_sdk.get_agg_verifier(),
-                                &vm_stark_proof,
-                                &Bn254Fr::ZERO,
-                                &Bn254Fr::ZERO,
-                            )
-                            .expect("root proof verification failed");
-                        });
-
-                        // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
-                        // let proof = prover.prove(stdin)?;
-                        // let block_hash = proof
-                        //     .user_public_values
-                        //     .iter()
-                        //     .map(|pv| pv.as_canonical_u32() as u8)
-                        //     .collect::<Vec<u8>>();
-                        // println!("block_hash (prove_stark): {}",
-                        // ToHexExt::encode_hex(&block_hash));
-                        //
-                        if let Some(output_dir) = args.output_dir.as_ref() {
-                            let versioned_proof = VersionedVmStarkProof::new(vm_stark_proof)?;
-                            write_versioned_proof(output_dir, args.block_number, versioned_proof)?;
-                        }
+                        eyre::bail!("Ceno Jagged benchmark currently supports prove-app only")
                     }
                     BenchMode::ProveStarkOnly => {
-                        let Some(app_proofs_path) = args.app_proofs.as_ref() else {
-                            panic!("empty app_proofs_path")
-                        };
-                        let proofs = read_object_from_file(app_proofs_path)?;
-                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
-                        // TODO check verify result
-                        info_span!("recursion.verify").in_scope(|| {
-                            verify_e2e_stark_proof(
-                                &ceno_sdk.get_agg_verifier(),
-                                &vm_stark_proof,
-                                &Bn254Fr::ZERO,
-                                &Bn254Fr::ZERO,
-                            )
-                            .expect("root proof verification failed");
-                        });
+                        eyre::bail!("Ceno Jagged benchmark currently supports prove-app only")
                     }
                     #[cfg(feature = "evm-verify")]
                     BenchMode::ProveEvm => {
@@ -670,20 +607,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         println!("block_hash (prove_evm): {}", ToHexExt::encode_hex(block_hash));
                     }
                     BenchMode::GenerateFixtures => {
-                        // generate pk,vk if needed
-                        let _app_pk = ceno_sdk.get_app_pk();
-                        let agg_pk = ceno_sdk.init_agg_pk();
-
-                        let fixture_path = args.fixtures_path.unwrap();
-
-                        // TODO serialize ceno app pk
-                        // let mut app_pk_path = fixture_path.clone();
-                        // app_pk_path.push("app_pk.bitcode");
-                        // fs::write(app_pk_path, bitcode::serialize(&app_pk)?)?;
-
-                        let mut agg_pk_path = fixture_path.clone();
-                        agg_pk_path.push("agg_pk.bitcode");
-                        fs::write(agg_pk_path, bitcode::serialize(&agg_pk)?)?;
+                        eyre::bail!("Ceno Jagged benchmark currently supports prove-app only")
                     }
                     _ => {
                         // This case is handled earlier and should not reach here
