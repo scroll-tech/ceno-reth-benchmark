@@ -216,6 +216,12 @@ jobs:
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
+          echo "Generated proof output sizes:"
+          if find output -type f -print -quit | grep -q .; then
+            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
+          else
+            echo "No proof output files found in output/"
+          fi
           if [ $benchmark_status -ne 0 ]; then
             echo "GPU memory tracking benchmark failed with status $benchmark_status"
             if [ "${{ inputs.ignore_failed }}" != "true" ]; then
@@ -341,6 +347,12 @@ jobs:
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
+          echo "Generated proof output sizes:"
+          if find output -type f -print -quit | grep -q .; then
+            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
+          else
+            echo "No proof output files found in output/"
+          fi
           if [ $benchmark_status -ne 0 ]; then
             echo "Benchmark run failed with status $benchmark_status"
             if [ "${{ inputs.ignore_failed }}" != "true" ]; then
