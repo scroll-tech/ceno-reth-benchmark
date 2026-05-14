@@ -463,6 +463,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let max_steps = usize::MAX;
 
     let start = std::time::Instant::now();
+    let max_cell_per_shard = std::env::var("CENO_MAX_CELL_PER_SHARD")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or((1 << 30) * 8 / 4 / 2);
+
     let mut ceno_sdk: ceno_sdk::CenoSDK<
         ff_ext::BabyBearExt4,
         mpcs::Jagged<mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>>,
@@ -471,7 +476,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     > = ceno_sdk::CenoSDK::new_with_app_config(
         program,
         platform,
-        MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
+        MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
     );
 
     ceno_sdk.init_base_prover(max_num_variables, security_level);
