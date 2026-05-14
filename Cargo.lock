@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#efe8c440cc96018324b6ce1ce3eacf194674c38d"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#6a31b1be94bb88787f68d1b11097405cee7e7529"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -9585,7 +9585,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#efe8c440cc96018324b6ce1ce3eacf194674c38d"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#6a31b1be94bb88787f68d1b11097405cee7e7529"
 dependencies = [
  "cc",
  "which",
@@ -9594,7 +9594,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#efe8c440cc96018324b6ce1ce3eacf194674c38d"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#6a31b1be94bb88787f68d1b11097405cee7e7529"
 dependencies = [
  "cc",
  "ff_ext",
