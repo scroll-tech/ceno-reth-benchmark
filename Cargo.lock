@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1818,7 +1818,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "glob",
 ]
@@ -1847,7 +1847,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1936,7 +1936,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1949,7 +1949,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1963,7 +1963,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#6e90bc85
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#d6035c4fd38f7d38f13a60e24418210abe5afc51"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#95b0801bf66fd270f0b0a4c2a7c0fc5373e3e5cf"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2663,7 +2663,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3647,7 +3647,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#d3262096acd075a2ee88cf3284e1176ba462511f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#c56293cdcb9bb1537df15459d6029ee0daf0e0fa"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -9585,7 +9585,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#d6035c4fd38f7d38f13a60e24418210abe5afc51"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#95b0801bf66fd270f0b0a4c2a7c0fc5373e3e5cf"
 dependencies = [
  "cc",
  "which",
@@ -9594,7 +9594,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#d6035c4fd38f7d38f13a60e24418210abe5afc51"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=jagged-pcs-gpu-plan-integration#95b0801bf66fd270f0b0a4c2a7c0fc5373e3e5cf"
 dependencies = [
  "cc",
  "ff_ext",
