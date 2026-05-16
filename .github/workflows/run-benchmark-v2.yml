@@ -89,16 +89,16 @@ on:
         description: "Value for CENO_GPU_CACHE_LEVEL: 0/none disables GPU cache, 1/trace caches trace only, 2/full caches trace and encoded codeword"
         required: false
         type: choice
-        default: "0"
+        default: "1"
         options:
           - "0"
           - "1"
           - "2"
       max_cell_per_shard:
-        description: "Value for CENO_MAX_CELL_PER_SHARD"
+        description: "Value for CENO_MAX_CELL_PER_SHARD; 1207959552 = (1 << 30) * 9 / 4 / 2"
         required: false
         type: string
-        default: "1073741824"
+        default: "1207959552"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
