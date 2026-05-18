@@ -174,7 +174,13 @@ def analyze_trace_log(file_path: str):
 
         # Track when we enter a module block (for GPU operations breakdown)
         # We update module context whenever we see these operations, even if nested
-        if operation in ['commit_traces', 'prove_tower_relation_gpu', 'prove_main_constraints', 'pcs_opening']:
+        if operation in [
+            'commit_traces',
+            'prove_tower_relation_gpu',
+            'prove_main_constraints',
+            'prove_batched_main_constraints',
+            'pcs_opening',
+        ]:
             current_module = operation
             module_indent_level = indent
         # Exit the module block when we see a sibling or parent operation (but not children)
@@ -200,6 +206,7 @@ def analyze_trace_log(file_path: str):
             'transport_structural_witness',
             'build_tower_witness_gpu',
             'prove_tower_relation_gpu',
+            'prove_batched_main_constraints',
             'prove_main_constraints',
             'pcs_opening',
         ]:
@@ -260,6 +267,7 @@ def generate_summary_markdown(app_prove_inner_time: float,
         'transport_structural_witness',
         'build_tower_witness_gpu',
         'prove_tower_relation_gpu',
+        'prove_batched_main_constraints',
         'prove_main_constraints',
         'pcs_opening',
     ]
@@ -396,9 +404,15 @@ def generate_breakdown_module_markdown(app_prove_inner_time: float,
     output.append(f"**Total app_prove.inner time: {app_prove_inner_time:.3f}s**\n")
 
     # Main modules to analyze
-    modules = ['commit_traces', 'prove_tower_relation_gpu', 'prove_main_constraints', 'pcs_opening']
+    modules = [
+        'commit_traces',
+        'prove_tower_relation_gpu',
+        'prove_batched_main_constraints',
+        'prove_main_constraints',
+        'pcs_opening',
+    ]
 
-    # Table 1: Summary of 4 modules
+    # Table 1: Summary of main modules
     output.append("## Table 1: Modules Summary\n")
     output.append("| Module | Time (s) | % of app_prove.inner |")
     output.append("|--------|----------|---------------------|")
@@ -432,13 +446,16 @@ def generate_breakdown_module_markdown(app_prove_inner_time: float,
         'prove_main_constraints': [
             'prove_generic_sumcheck_gpu',
         ],
+        'prove_batched_main_constraints': [
+            'prove_generic_sumcheck_gpu',
+        ],
         'pcs_opening': [
             'batch_commit_phase',
             'batch_query_phase',
         ],
     }
 
-    # Table 2-5: Breakdown for each module
+    # Detailed breakdown for each module.
     table_num = 2
     for module in modules:
         module_time = total_by_operation.get(module, 0.0)

@@ -463,12 +463,42 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let max_steps = usize::MAX;
 
     let start = std::time::Instant::now();
-    let mut ceno_sdk: ceno_sdk::CenoSDK<_, _, BabyBearPoseidon2Config, NativeConfig> =
-        ceno_sdk::CenoSDK::new_with_app_config(
-            program,
-            platform,
+    let max_cell_per_shard = std::env::var("CENO_MAX_CELL_PER_SHARD")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or((1 << 30) * 8 / 4 / 2);
+
+    let mut ceno_sdk: ceno_sdk::CenoSDK<
+        ff_ext::BabyBearExt4,
+        mpcs::Jagged<mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>>,
+        BabyBearPoseidon2Config,
+        NativeConfig,
+    > = ceno_sdk::CenoSDK::new_with_app_config(
+        program.clone(),
+        platform.clone(),
+        MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
+    );
+
+    let new_basefold_sdk = || -> eyre::Result<
+        ceno_sdk::CenoSDK<
+            ff_ext::BabyBearExt4,
+            mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>,
+            BabyBearPoseidon2Config,
+            NativeConfig,
+        >,
+    > {
+        let mut sdk = ceno_sdk::CenoSDK::new_with_app_config(
+            program.clone(),
+            platform.clone(),
             MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
         );
+        sdk.init_base_prover(max_num_variables, security_level);
+        if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
+            let agg_pk = read_object_from_file(agg_pk_path)?;
+            sdk.set_agg_pk(agg_pk);
+        }
+        Ok(sdk)
+    };
 
     ceno_sdk.init_base_prover(max_num_variables, security_level);
     info!("setup ceno sdk done in {:?}", start.elapsed());
@@ -581,6 +611,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
+                        let mut basefold_sdk = new_basefold_sdk()?;
                         let mut hints = CenoStdin::default();
 
                         let pub_io_digest =
@@ -592,7 +623,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             })?;
 
                         let proofs = info_span!("app.prove").in_scope(|| {
-                            ceno_sdk.generate_base_proof(
+                            basefold_sdk.generate_base_proof(
                                 hints,
                                 pub_io_digest,
                                 max_steps,
@@ -607,12 +638,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         };
 
                         let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
+                            .in_scope(|| basefold_sdk.compress_to_root_proof(proofs));
 
-                        // TODO check verify result
                         info_span!("recursion.verify").in_scope(|| {
                             verify_e2e_stark_proof(
-                                &ceno_sdk.get_agg_verifier(),
+                                &basefold_sdk.get_agg_verifier(),
                                 &vm_stark_proof,
                                 &Bn254Fr::ZERO,
                                 &Bn254Fr::ZERO,
@@ -620,32 +650,22 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             .expect("root proof verification failed");
                         });
 
-                        // let mut prover = sdk.prover(elf)?.with_program_name(program_name);
-                        // let proof = prover.prove(stdin)?;
-                        // let block_hash = proof
-                        //     .user_public_values
-                        //     .iter()
-                        //     .map(|pv| pv.as_canonical_u32() as u8)
-                        //     .collect::<Vec<u8>>();
-                        // println!("block_hash (prove_stark): {}",
-                        // ToHexExt::encode_hex(&block_hash));
-                        //
                         if let Some(output_dir) = args.output_dir.as_ref() {
                             let versioned_proof = VersionedVmStarkProof::new(vm_stark_proof)?;
                             write_versioned_proof(output_dir, args.block_number, versioned_proof)?;
                         }
                     }
                     BenchMode::ProveStarkOnly => {
+                        let mut basefold_sdk = new_basefold_sdk()?;
                         let Some(app_proofs_path) = args.app_proofs.as_ref() else {
                             panic!("empty app_proofs_path")
                         };
                         let proofs = read_object_from_file(app_proofs_path)?;
                         let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| ceno_sdk.compress_to_root_proof(proofs));
-                        // TODO check verify result
+                            .in_scope(|| basefold_sdk.compress_to_root_proof(proofs));
                         info_span!("recursion.verify").in_scope(|| {
                             verify_e2e_stark_proof(
-                                &ceno_sdk.get_agg_verifier(),
+                                &basefold_sdk.get_agg_verifier(),
                                 &vm_stark_proof,
                                 &Bn254Fr::ZERO,
                                 &Bn254Fr::ZERO,
@@ -670,16 +690,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         println!("block_hash (prove_evm): {}", ToHexExt::encode_hex(block_hash));
                     }
                     BenchMode::GenerateFixtures => {
-                        // generate pk,vk if needed
-                        let _app_pk = ceno_sdk.get_app_pk();
-                        let agg_pk = ceno_sdk.init_agg_pk();
+                        let mut basefold_sdk = new_basefold_sdk()?;
+                        let _app_pk = basefold_sdk.get_app_pk();
+                        let agg_pk = basefold_sdk.init_agg_pk();
 
                         let fixture_path = args.fixtures_path.unwrap();
-
-                        // TODO serialize ceno app pk
-                        // let mut app_pk_path = fixture_path.clone();
-                        // app_pk_path.push("app_pk.bitcode");
-                        // fs::write(app_pk_path, bitcode::serialize(&app_pk)?)?;
 
                         let mut agg_pk_path = fixture_path.clone();
                         agg_pk_path.push("agg_pk.bitcode");

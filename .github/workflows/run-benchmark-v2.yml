@@ -22,7 +22,7 @@ on:
         description: "Block number to generate input for"
         required: true
         type: string
-        default: "23100006"
+        default: "23817600"
       rerun_keygen:
         description: "Rerun keygen"
         required: false
@@ -85,6 +85,25 @@ on:
         options:
           - "0"
           - "1"
+      gpu_cache_level:
+        description: "Value for CENO_GPU_CACHE_LEVEL: 0/none disables GPU cache, 1/trace caches trace only, 2/full caches trace and encoded codeword"
+        required: false
+        type: choice
+        default: "1"
+        options:
+          - "0"
+          - "1"
+          - "2"
+      max_cell_per_shard:
+        description: "Value for CENO_MAX_CELL_PER_SHARD; 1207959552 = (1 << 30) * 9 / 4 / 2"
+        required: false
+        type: string
+        default: "1207959552"
+      gpu_jagged_reshape_log_height:
+        description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
+        required: false
+        type: string
+        default: "24"
 
 jobs:
   check-gpu-mem-estimation:
@@ -188,8 +207,10 @@ jobs:
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
+          CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           RUST_MIN_STACK=16777216 \
-          CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
+          CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
@@ -201,6 +222,12 @@ jobs:
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
+          echo "Generated proof output sizes:"
+          if find output -type f -print -quit | grep -q .; then
+            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
+          else
+            echo "No proof output files found in output/"
+          fi
           if [ $benchmark_status -ne 0 ]; then
             echo "GPU memory tracking benchmark failed with status $benchmark_status"
             if [ "${{ inputs.ignore_failed }}" != "true" ]; then
@@ -313,7 +340,9 @@ jobs:
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           RUST_MIN_STACK=16777216 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
-          CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
+          CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
+          CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
@@ -325,6 +354,12 @@ jobs:
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
+          echo "Generated proof output sizes:"
+          if find output -type f -print -quit | grep -q .; then
+            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
+          else
+            echo "No proof output files found in output/"
+          fi
           if [ $benchmark_status -ne 0 ]; then
             echo "Benchmark run failed with status $benchmark_status"
             if [ "${{ inputs.ignore_failed }}" != "true" ]; then
