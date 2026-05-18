@@ -2431,7 +2431,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#610e33fbe9b3d4276b809ae66d6cc446a6ee659e"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#38cdaa145eae5bc2f2c357f2278e726fbc794aba"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -9585,7 +9585,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#610e33fbe9b3d4276b809ae66d6cc446a6ee659e"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#38cdaa145eae5bc2f2c357f2278e726fbc794aba"
 dependencies = [
  "cc",
  "which",
@@ -9594,7 +9594,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#610e33fbe9b3d4276b809ae66d6cc446a6ee659e"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fwitgen_gpu#38cdaa145eae5bc2f2c357f2278e726fbc794aba"
 dependencies = [
  "cc",
  "ff_ext",
