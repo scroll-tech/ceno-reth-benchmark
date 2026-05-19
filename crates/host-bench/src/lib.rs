@@ -466,7 +466,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let max_cell_per_shard = std::env::var("CENO_MAX_CELL_PER_SHARD")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
-        .unwrap_or((1 << 30) * 8 / 4 / 2);
+        .unwrap_or((1 << 30) * 6 / 4 / 2);
 
     let mut ceno_sdk: ceno_sdk::CenoSDK<
         ff_ext::BabyBearExt4,
