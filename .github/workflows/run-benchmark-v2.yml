@@ -64,6 +64,21 @@ on:
         required: false
         type: boolean
         default: "false"
+      enable_basic_block:
+        description: "Generate and use Ceno basic-block metadata in the benchmark job"
+        required: false
+        type: boolean
+        default: "false"
+      bb_top_n:
+        description: "Number of dynamic basic blocks to extract"
+        required: false
+        type: string
+        default: "2"
+      bb_max_len:
+        description: "Maximum extracted basic-block opcode length; 0 means unbounded"
+        required: false
+        type: string
+        default: "256"
       gpu_enable_witgen:
         description: "Value for CENO_GPU_ENABLE_WITGEN"
         required: false
@@ -381,6 +396,37 @@ jobs:
           mkdir -p output
           mkdir -p rpc-cache
 
+          mkdir -p bb-meta
+          BB_ARGS=()
+          if [ "${{ inputs.enable_basic_block }}" = "true" ]; then
+            BB_META_FILE="bb-meta/mainnet${block_number}-top${{ inputs.bb_top_n }}-maxlen${{ inputs.bb_max_len }}.json"
+            echo "Generating Ceno basic-block metadata..."
+            echo "block_number=${block_number}"
+            echo "bb_top_n=${{ inputs.bb_top_n }}"
+            echo "bb_max_len=${{ inputs.bb_max_len }}"
+            echo "bb_meta_file=${BB_META_FILE}"
+            CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
+            CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
+            CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
+            RUST_MIN_STACK=16777216 \
+            CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
+            CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
+            CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
+            CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
+            RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
+            cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+              --release --bin ceno-reth-benchmark-bin -- \
+              --mode prove-app \
+              --block-number "$block_number" \
+              --rpc-url ${{ secrets.RPC_URL_1 }} \
+              --cache-dir rpc-cache \
+              --bb-max-blocks "${{ inputs.bb_top_n }}" \
+              --bb-block-len "${{ inputs.bb_max_len }}" \
+              --bb-extract-meta-file "$BB_META_FILE"
+            ls -lh "$BB_META_FILE"
+            BB_ARGS=(--bb-meta-file "$BB_META_FILE")
+          fi
+
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
           LOG_NAME="mainnet${block_number}-${TIMESTAMP}"
@@ -403,10 +449,11 @@ jobs:
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-app \
-            --block-number $block_number \
+            --block-number "$block_number" \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+            --cache-dir rpc-cache \
+            "${BB_ARGS[@]}" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
