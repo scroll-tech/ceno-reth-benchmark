@@ -51,8 +51,8 @@ use ceno_emul::{Platform, Program};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_recursion::aggregation::verify_e2e_stark_proof;
 use ceno_zkvm::e2e::{
-    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
-    Preset,
+    run_basic_block_meta_extraction, run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify,
+    setup_platform, BasicBlockExtractionConfig, BasicBlockSelection, MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -272,6 +272,22 @@ pub struct HostArgs {
     /// app_proofs path when used in prove-stark-only mode
     #[arg(long)]
     pub app_proofs: Option<PathBuf>,
+
+    /// Maximum number of dynamic basic blocks to extract or select.
+    #[arg(long, default_value_t = 0)]
+    pub bb_max_blocks: usize,
+
+    /// Basic-block length: exact for static selection; max for extraction, where 0 is unbounded.
+    #[arg(long, default_value_t = 0)]
+    pub bb_block_len: usize,
+
+    /// Run Ceno preflight, extract top dynamic basic blocks, write metadata, and exit.
+    #[arg(long)]
+    pub bb_extract_meta_file: Option<PathBuf>,
+
+    /// JSON file with explicit Ceno basic-block metadata for hybrid proving.
+    #[arg(long)]
+    pub bb_meta_file: Option<PathBuf>,
 }
 
 fn write_versioned_proof(
@@ -478,6 +494,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         platform.clone(),
         MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
     );
+    if let Some(path) = args.bb_meta_file.clone() {
+        ceno_sdk.set_basic_block_selection(BasicBlockSelection::FromFile { path });
+    }
 
     let new_basefold_sdk = || -> eyre::Result<
         ceno_sdk::CenoSDK<
@@ -492,6 +511,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
             platform.clone(),
             MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
         );
+        if let Some(path) = args.bb_meta_file.clone() {
+            sdk.set_basic_block_selection(BasicBlockSelection::FromFile { path });
+        }
         sdk.init_base_prover(max_num_variables, security_level);
         if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
             let agg_pk = read_object_from_file(agg_pk_path)?;
@@ -500,16 +522,20 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         Ok(sdk)
     };
 
-    ceno_sdk.init_base_prover(max_num_variables, security_level);
-    info!("setup ceno sdk done in {:?}", start.elapsed());
+    if args.bb_extract_meta_file.is_none() {
+        ceno_sdk.init_base_prover(max_num_variables, security_level);
+        info!("setup ceno sdk done in {:?}", start.elapsed());
+    }
 
     // if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
     //     eyre::bail!("app_pk_path and agg_pk_path must be provided together");
     // }
-    if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
-        // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
-        let agg_pk = read_object_from_file(agg_pk_path)?;
-        ceno_sdk.set_agg_pk(agg_pk);
+    if args.bb_extract_meta_file.is_none() {
+        if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
+            // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
+            let agg_pk = read_object_from_file(agg_pk_path)?;
+            ceno_sdk.set_agg_pk(agg_pk);
+        }
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
@@ -577,6 +603,43 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
                             })?;
+
+                        if let Some(output) = args.bb_extract_meta_file.clone() {
+                            if args.bb_max_blocks == 0 {
+                                eyre::bail!("--bb-extract-meta-file requires --bb-max-blocks > 0");
+                            }
+                            let hint_words = Vec::from(&hints);
+                            let config = BasicBlockExtractionConfig {
+                                max_blocks: args.bb_max_blocks,
+                                block_len: args.bb_block_len,
+                                output,
+                            };
+                            let stats = info_span!("app.bb_extract").in_scope(|| {
+                                run_basic_block_meta_extraction::<ff_ext::BabyBearExt4>(
+                                    program.clone(),
+                                    platform.clone(),
+                                    MultiProver::new(
+                                        0,
+                                        1,
+                                        max_cell_per_shard,
+                                        MAX_CYCLE_PER_SHARD,
+                                    ),
+                                    &hint_words,
+                                    pub_io_digest,
+                                    max_steps,
+                                    config,
+                                )
+                            })
+                            .map_err(|err| eyre::eyre!("{err:?}"))?;
+                            info!(
+                                "basic-block extraction done: selected={}, candidates={}, coverage={:.2}%, register_rw_saved={}",
+                                stats.selected_blocks,
+                                stats.candidate_blocks,
+                                stats.coverage_percent,
+                                stats.register_rw_saved
+                            );
+                            return Ok(());
+                        }
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(

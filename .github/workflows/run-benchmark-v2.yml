@@ -8,6 +8,14 @@ on:
         required: false
         type: string
         default: ""
+      IS_CENO_PRO:
+        description: "Use scroll-tech/ceno-pro instead of scroll-tech/ceno"
+        required: false
+        type: choice
+        default: "0"
+        options:
+          - "0"
+          - "1"
       source_repository:
         description: "Origin repository to comment back to"
         required: false
@@ -120,19 +128,28 @@ jobs:
           components: rust-src
           cache: false
 
+      - name: Give Github Action access to private dependencies
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+            ${{ secrets.SECRET_FOR_CENO_PRO }}
+
       - name: Resolve ceno source
         run: |
           python3 scripts/resolve_ceno_source.py \
             --benchmark-root . \
-            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
+            --requested-ref "${{ inputs.ceno_version }}" \
+            --is-ceno-pro "${{ inputs.IS_CENO_PRO }}" >> "$GITHUB_ENV"
 
       - name: Checkout ceno at requested version
         if: ${{ env.CENO_USE_PINNED == 'false' }}
         uses: actions/checkout@v4
         with:
-          repository: scroll-tech/ceno
+          repository: ${{ env.CENO_SOURCE_REPOSITORY }}
           ref: ${{ env.CENO_REQUESTED_VERSION }}
           path: ceno-src
+          ssh-key: ${{ inputs.IS_CENO_PRO == '1' && secrets.SECRET_FOR_CENO_PRO || '' }}
 
       - name: Patch local ceno dependencies
         if: ${{ env.CENO_USE_PINNED == 'false' }}
@@ -140,13 +157,8 @@ jobs:
           python3 scripts/patch_ceno_pr_deps.py \
             --benchmark-root . \
             --ceno-root ./ceno-src \
-            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
-
-      - name: Give Github Action access to ceno-gpu
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.SECRET_FOR_CENO_GPU }}
+            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}" \
+            --ceno-git "${{ env.CENO_SOURCE_GIT }}"
 
       - name: Run GPU memory tracking benchmark
         id: run_gpu_mem_verify
@@ -161,7 +173,7 @@ jobs:
             CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
           else
             CENO_VERSION="${CENO_REQUESTED_VERSION}"
-            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
+            CENO_GIT_URL="${CENO_SOURCE_GIT}"
             CENO_PACKAGE="cargo-ceno"
             CENO_REF_FLAG="--rev ${CENO_VERSION}"
             if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
@@ -254,19 +266,28 @@ jobs:
           components: rust-src
           cache: false
 
+      - name: Give Github Action access to private dependencies
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.SECRET_FOR_CENO_GPU }}
+            ${{ secrets.SECRET_FOR_CENO_PRO }}
+
       - name: Resolve ceno source
         run: |
           python3 scripts/resolve_ceno_source.py \
             --benchmark-root . \
-            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
+            --requested-ref "${{ inputs.ceno_version }}" \
+            --is-ceno-pro "${{ inputs.IS_CENO_PRO }}" >> "$GITHUB_ENV"
 
       - name: Checkout ceno at requested version
         if: ${{ env.CENO_USE_PINNED == 'false' }}
         uses: actions/checkout@v4
         with:
-          repository: scroll-tech/ceno
+          repository: ${{ env.CENO_SOURCE_REPOSITORY }}
           ref: ${{ env.CENO_REQUESTED_VERSION }}
           path: ceno-src
+          ssh-key: ${{ inputs.IS_CENO_PRO == '1' && secrets.SECRET_FOR_CENO_PRO || '' }}
 
       - name: Patch local ceno dependencies
         if: ${{ env.CENO_USE_PINNED == 'false' }}
@@ -274,13 +295,8 @@ jobs:
           python3 scripts/patch_ceno_pr_deps.py \
             --benchmark-root . \
             --ceno-root ./ceno-src \
-            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
-
-      - name: Give Github Action access to ceno-gpu
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.SECRET_FOR_CENO_GPU }}
+            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}" \
+            --ceno-git "${{ env.CENO_SOURCE_GIT }}"
       
       - name: Run benchmark locally
         id: run_benchmark
@@ -295,7 +311,7 @@ jobs:
             CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
           else
             CENO_VERSION="${CENO_REQUESTED_VERSION}"
-            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
+            CENO_GIT_URL="${CENO_SOURCE_GIT}"
             CENO_PACKAGE="cargo-ceno"
             CENO_REF_FLAG="--rev ${CENO_VERSION}"
             if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 import tomllib
 
-CENO_GIT = "https://github.com/scroll-tech/ceno"
+DEFAULT_CENO_GIT = "https://github.com/scroll-tech/ceno.git"
 CENO_WORKSPACE_CRATES: dict[str, dict[str, object]] = {
     "ceno_emul": {},
     "ceno_host": {},
@@ -51,13 +51,15 @@ def replace_inline_dep(text: str, dep_name: str, inline_value: str, path: Path) 
     return new_text
 
 
-def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str) -> None:
+def patch_workspace_cargo(
+    benchmark_cargo: Path, ceno_cargo: Path, ceno_git: str, ceno_ref: str
+) -> None:
     benchmark_text = benchmark_cargo.read_text()
     ceno_toml = load_toml(ceno_cargo)
     ceno_workspace_deps = ceno_toml["workspace"]["dependencies"]
 
     for dep_name, extra in CENO_WORKSPACE_CRATES.items():
-        items: list[tuple[str, object]] = [("git", CENO_GIT)]
+        items: list[tuple[str, object]] = [("git", ceno_git)]
         if "package" in extra:
             items.append(("package", extra["package"]))
         items.append(("rev", ceno_ref))
@@ -87,10 +89,10 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
     benchmark_cargo.write_text(benchmark_text)
 
 
-def patch_guest_cargo(guest_cargo: Path, ceno_ref: str) -> None:
+def patch_guest_cargo(guest_cargo: Path, ceno_git: str, ceno_ref: str) -> None:
     guest_text = guest_cargo.read_text()
     for dep_name, extra in GUEST_CENO_CRATES.items():
-        items: list[tuple[str, object]] = [("git", CENO_GIT), ("rev", ceno_ref)]
+        items: list[tuple[str, object]] = [("git", ceno_git), ("rev", ceno_ref)]
         for key, value in extra.items():
             items.append((key, value))
         guest_text = replace_inline_dep(
@@ -107,6 +109,7 @@ def main() -> int:
     parser.add_argument("--benchmark-root", required=True)
     parser.add_argument("--ceno-root", required=True)
     parser.add_argument("--ceno-ref", required=True)
+    parser.add_argument("--ceno-git", default=DEFAULT_CENO_GIT)
     args = parser.parse_args()
 
     benchmark_root = Path(args.benchmark_root).resolve()
@@ -119,8 +122,8 @@ def main() -> int:
     if not benchmark_cargo.exists() or not guest_cargo.exists() or not ceno_cargo.exists():
         raise SystemExit("Required Cargo.toml file is missing")
 
-    patch_workspace_cargo(benchmark_cargo, ceno_cargo, args.ceno_ref)
-    patch_guest_cargo(guest_cargo, args.ceno_ref)
+    patch_workspace_cargo(benchmark_cargo, ceno_cargo, args.ceno_git, args.ceno_ref)
+    patch_guest_cargo(guest_cargo, args.ceno_git, args.ceno_ref)
     return 0
 
 
