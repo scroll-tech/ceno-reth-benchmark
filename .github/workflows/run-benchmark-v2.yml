@@ -133,7 +133,27 @@ jobs:
         with:
           ssh-private-key: |
             ${{ secrets.SECRET_FOR_CENO_GPU }}
-            ${{ secrets.SECRET_FOR_CENO_PRO }}
+          log-public-key: false
+
+      - name: Configure ceno-pro SSH access
+        if: ${{ inputs.IS_CENO_PRO == '1' }}
+        env:
+          CENO_PRO_SSH_KEY: ${{ secrets.SECRET_FOR_CENO_PRO }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$CENO_PRO_SSH_KEY" > ~/.ssh/ceno_pro
+          chmod 600 ~/.ssh/ceno_pro
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'EOF'
+          Host github.com-ceno-pro
+            HostName github.com
+            HostKeyAlias github.com
+            User git
+            IdentityFile ~/.ssh/ceno_pro
+            IdentitiesOnly yes
+          EOF
+          git config --global url."ssh://git@github.com-ceno-pro/scroll-tech/ceno-pro.git".insteadOf "ssh://git@github.com/scroll-tech/ceno-pro.git"
 
       - name: Resolve ceno source
         run: |
@@ -271,7 +291,27 @@ jobs:
         with:
           ssh-private-key: |
             ${{ secrets.SECRET_FOR_CENO_GPU }}
-            ${{ secrets.SECRET_FOR_CENO_PRO }}
+          log-public-key: false
+
+      - name: Configure ceno-pro SSH access
+        if: ${{ inputs.IS_CENO_PRO == '1' }}
+        env:
+          CENO_PRO_SSH_KEY: ${{ secrets.SECRET_FOR_CENO_PRO }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$CENO_PRO_SSH_KEY" > ~/.ssh/ceno_pro
+          chmod 600 ~/.ssh/ceno_pro
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<'EOF'
+          Host github.com-ceno-pro
+            HostName github.com
+            HostKeyAlias github.com
+            User git
+            IdentityFile ~/.ssh/ceno_pro
+            IdentitiesOnly yes
+          EOF
+          git config --global url."ssh://git@github.com-ceno-pro/scroll-tech/ceno-pro.git".insteadOf "ssh://git@github.com/scroll-tech/ceno-pro.git"
 
       - name: Resolve ceno source
         run: |
