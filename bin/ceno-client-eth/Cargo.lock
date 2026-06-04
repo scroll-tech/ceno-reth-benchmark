@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#2d8b88d4767f0fe600c133bc36b41b85a590eead"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#7d8086c273c4515c77806039e76a949691768cc7"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#2d8b88d4767f0fe600c133bc36b41b85a590eead"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#7d8086c273c4515c77806039e76a949691768cc7"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -961,7 +961,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#2d8b88d4767f0fe600c133bc36b41b85a590eead"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#7d8086c273c4515c77806039e76a949691768cc7"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -974,7 +974,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#2d8b88d4767f0fe600c133bc36b41b85a590eead"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#7d8086c273c4515c77806039e76a949691768cc7"
 dependencies = [
  "bytemuck",
  "serde",
@@ -983,7 +983,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fjagged_pcs#2d8b88d4767f0fe600c133bc36b41b85a590eead"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#7d8086c273c4515c77806039e76a949691768cc7"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
