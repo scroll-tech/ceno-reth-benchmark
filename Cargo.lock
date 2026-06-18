@@ -2432,7 +2432,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#ceccac2595eaba44d4bdbdbdbb35d59c7aa41a9c"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#8e7aef5d5e2eef02b152eb0de8b92ed2938708d5"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -9586,7 +9586,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#ceccac2595eaba44d4bdbdbdbb35d59c7aa41a9c"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#8e7aef5d5e2eef02b152eb0de8b92ed2938708d5"
 dependencies = [
  "cc",
  "which",
@@ -9595,7 +9595,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#ceccac2595eaba44d4bdbdbdbb35d59c7aa41a9c"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#8e7aef5d5e2eef02b152eb0de8b92ed2938708d5"
 dependencies = [
  "cc",
  "ff_ext",
