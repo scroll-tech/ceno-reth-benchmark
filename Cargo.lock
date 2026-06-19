@@ -1663,7 +1663,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1818,7 +1818,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "glob",
 ]
@@ -1847,7 +1847,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1880,7 +1880,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1893,7 +1893,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "bincode 1.3.3",
  "ceno-examples",
@@ -1936,7 +1936,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1949,7 +1949,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1963,7 +1963,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#6e90bc85
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "arrayref",
  "base64 0.22.1",
@@ -2432,7 +2432,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#9254d9495fa6c6575dc2f4963ed98938a5eb1ef8"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#a6fd1f3dd6a1b8ecc37e38e6ae9906ea844db3d3"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2664,7 +2664,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3303,7 +3303,7 @@ dependencies = [
 [[package]]
 name = "ff_ext"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "once_cell",
  "p3",
@@ -3648,7 +3648,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#47412bce26f1f8131c9417a09e6dd2cbaf33b815"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt#5b217302d53cc584e7be1e23e92fc2787110d0c3"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -4968,7 +4968,7 @@ dependencies = [
 [[package]]
 name = "mpcs"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "bincode 1.3.3",
  "clap",
@@ -4991,7 +4991,7 @@ dependencies = [
 [[package]]
 name = "multilinear_extensions"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "either",
  "ff_ext",
@@ -6625,7 +6625,7 @@ dependencies = [
 [[package]]
 name = "p3"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "p3-air",
  "p3-baby-bear",
@@ -7366,7 +7366,7 @@ dependencies = [
 [[package]]
 name = "poseidon"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "ff_ext",
  "p3",
@@ -9548,7 +9548,7 @@ dependencies = [
 [[package]]
 name = "sp1-curves"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "cfg-if",
  "dashu",
@@ -9586,7 +9586,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#9254d9495fa6c6575dc2f4963ed98938a5eb1ef8"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#a6fd1f3dd6a1b8ecc37e38e6ae9906ea844db3d3"
 dependencies = [
  "cc",
  "which",
@@ -9595,7 +9595,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#9254d9495fa6c6575dc2f4963ed98938a5eb1ef8"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fopt_sc_first_round#a6fd1f3dd6a1b8ecc37e38e6ae9906ea844db3d3"
 dependencies = [
  "cc",
  "ff_ext",
@@ -9705,7 +9705,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "sumcheck"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "either",
  "ff_ext",
@@ -9723,7 +9723,7 @@ dependencies = [
 [[package]]
 name = "sumcheck_macro"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "itertools 0.13.0",
  "p3",
@@ -10415,7 +10415,7 @@ dependencies = [
 [[package]]
 name = "transcript"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "ff_ext",
  "itertools 0.13.0",
@@ -10791,7 +10791,7 @@ dependencies = [
 [[package]]
 name = "whir"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "bincode 1.3.3",
  "clap",
@@ -11169,7 +11169,7 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 [[package]]
 name = "witness"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=feat%2Fceno-pro#3b99622c356ed60fed1d6f48968feb619795211c"
+source = "git+https://github.com/scroll-tech/gkr-backend.git?branch=fuse_jagged_assist_claim#18eb6392df453a8f30fca9878636e23407a808eb"
 dependencies = [
  "ff_ext",
  "multilinear_extensions",
