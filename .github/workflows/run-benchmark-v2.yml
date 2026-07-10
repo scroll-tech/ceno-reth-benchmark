@@ -200,6 +200,7 @@ jobs:
 
           echo "Running GPU memory tracking benchmark for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          ulimit -s 1048576
           set +e
 
           # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
@@ -208,7 +209,7 @@ jobs:
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
-          RUST_MIN_STACK=16777216 \
+          RUST_MIN_STACK=536870912 \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
@@ -334,11 +335,12 @@ jobs:
 
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          ulimit -s 1048576
           set +e
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
-          RUST_MIN_STACK=16777216 \
+          RUST_MIN_STACK=536870912 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
