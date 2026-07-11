@@ -5,7 +5,16 @@ Analyze trace log and generate breakdown statistics in Markdown format.
 
 import re
 from collections import defaultdict
+from datetime import datetime
 from typing import Dict, Tuple, List
+
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*m')
+
+
+def strip_ansi(line: str) -> str:
+    """Remove ANSI color/style escape sequences emitted by tracing."""
+    return ANSI_RE.sub('', line)
 
 
 def parse_time_to_seconds(time_str: str) -> float:
@@ -20,6 +29,22 @@ def parse_time_to_seconds(time_str: str) -> float:
     elif time_str.endswith('s'):
         return float(time_str[:-1])
     return 0.0
+
+
+def parse_duration_after(label: str, line: str) -> float:
+    """Parse `label: 1.23s` style duration lines."""
+    match = re.search(rf'{re.escape(label)}:\s*([0-9.]+(?:ns|ms|µs|s))', line)
+    if not match:
+        return 0.0
+    return parse_time_to_seconds(match.group(1))
+
+
+def parse_log_timestamp(line: str):
+    """Parse the leading tracing timestamp, when present."""
+    match = re.search(r'(\d{4}-\d{2}-\d{2}T[0-9:.]+Z)', strip_ansi(line))
+    if not match:
+        return None
+    return datetime.fromisoformat(match.group(1).replace('Z', '+00:00'))
 
 
 def get_indent_level(line: str) -> int:
@@ -40,6 +65,7 @@ def parse_trace_line(line: str) -> Tuple[str, float, str, int]:
     """
     Parse a trace log line and return (operation_name, time_in_seconds, extra_info, indent_level).
     """
+    line = strip_ansi(line)
     # Match pattern: [ceno] operation_name [ time | ... ] optional_extra
     # The [ceno] prefix is optional
     # Support hyphens, dots, and underscores in operation names
@@ -99,6 +125,17 @@ def analyze_trace_log(file_path: str):
         'emulator_time': 0.0,
         'app_prove_time': 0.0,
         'recursion_time': 0.0,
+        'sdk_setup_time': 0.0,
+        'base_prover_setup_time': 0.0,
+        'recursion_setup_time': 0.0,
+        'recursion_leaf_time': 0.0,
+        'recursion_internal_time': 0.0,
+        'recursion_root_time': 0.0,
+        'root_verify_time': 0.0,
+        'total_create_proof_time': 0.0,
+        'root_proof_size_bytes': 0,
+        'root_proof_size_mib': 0.0,
+        'root_proof_path': '',
     }
 
     # Read and parse the file
@@ -106,37 +143,96 @@ def analyze_trace_log(file_path: str):
         lines = f.readlines()
 
     # First pass: find key timings
+    host_executor_start = None
+    host_executor_finish = None
     for line in lines:
+        clean_line = strip_ansi(line)
+        timestamp = parse_log_timestamp(clean_line)
+        if 'start host_executor' in clean_line and timestamp is not None:
+            host_executor_start = timestamp
+        elif 'finish host_executor' in clean_line and timestamp is not None:
+            host_executor_finish = timestamp
+
+        block_match = re.search(r'block_number[=:]\s*(\d+)', clean_line)
+        if block_match and not e2e_stats['block_number']:
+            e2e_stats['block_number'] = block_match.group(1)
+
         # Find reth-block (E2E time)
-        if 'reth-block' in line or 'reth_block' in line:
-            operation, time_seconds, extra_info, _ = parse_trace_line(line)
+        if 'reth-block' in clean_line or 'reth_block' in clean_line:
+            operation, time_seconds, extra_info, _ = parse_trace_line(clean_line)
             if operation in ['reth-block', 'reth_block']:
                 e2e_stats['reth_block_time'] = time_seconds
                 if extra_info.startswith('block_'):
                     e2e_stats['block_number'] = extra_info.replace('block_', '')
 
         # Find emulator.preflight-execute
-        if 'preflight-execute' in line or 'emulator.preflight_execute' in line:
-            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', line)
+        if 'preflight-execute' in clean_line or 'emulator.preflight_execute' in clean_line:
+            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
             if match:
                 e2e_stats['emulator_time'] = parse_time_to_seconds(match.group(1))
 
         # Find app_prove.inner
-        if 'app_prove.inner' in line or 'app_prove_inner' in line:
-            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', line)
+        if 'app_prove.inner' in clean_line or 'app_prove_inner' in clean_line:
+            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
             if match:
                 app_prove_inner_time = parse_time_to_seconds(match.group(1))
                 e2e_stats['app_prove_time'] = app_prove_inner_time
 
         # Find recursion.compress_to_root_proof
-        if 'recursion.compress_to_root_proof' in line or 'compress_to_root_proof' in line:
-            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', line)
+        if 'recursion.compress_to_root_proof' in clean_line or 'compress_to_root_proof' in clean_line:
+            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
             if match:
                 e2e_stats['recursion_time'] = parse_time_to_seconds(match.group(1))
 
+        # Newer OpenVM/tracing output no longer emits tracing-tree close lines for
+        # these spans. The benchmark binary prints explicit timings; parse them as
+        # a fallback so CI reports do not silently collapse to zeros.
+        for key, label in [
+            ('sdk_setup_time', 'ceno prove-stark sdk setup time'),
+            ('base_prover_setup_time', 'ceno prove-stark base prover setup time'),
+            ('recursion_setup_time', 'ceno prove-stark recursion setup time (gpu)'),
+            ('app_prove_time', 'ceno prove-stark app create_proof time'),
+            ('recursion_leaf_time', 'ceno prove-stark recursion leaf aggregation time (gpu)'),
+            ('recursion_internal_time', 'ceno prove-stark recursion internal aggregation time (gpu)'),
+            ('recursion_root_time', 'ceno prove-stark recursion root proving time (gpu)'),
+            ('recursion_time', 'ceno prove-stark recursion total create_proof time (gpu)'),
+            ('root_verify_time', 'ceno prove-stark root verify time'),
+            ('total_create_proof_time', 'ceno prove-stark total create_proof time (gpu)'),
+        ]:
+            parsed = parse_duration_after(label, clean_line)
+            if parsed > 0:
+                e2e_stats[key] = parsed
+
+        root_size_match = re.search(r'ceno root proof size:\s*(\d+)\s*bytes\s*\(([0-9.]+)\s*MiB\)', clean_line)
+        if root_size_match:
+            e2e_stats['root_proof_size_bytes'] = int(root_size_match.group(1))
+            e2e_stats['root_proof_size_mib'] = float(root_size_match.group(2))
+
+        root_path_match = re.search(r'wrote ceno root proof to\s+(\S+)', clean_line)
+        if root_path_match:
+            e2e_stats['root_proof_path'] = root_path_match.group(1)
+
+    if app_prove_inner_time == 0.0 and e2e_stats['app_prove_time'] > 0.0:
+        app_prove_inner_time = e2e_stats['app_prove_time']
+
+    if e2e_stats['emulator_time'] == 0.0 and host_executor_start and host_executor_finish:
+        e2e_stats['emulator_time'] = (host_executor_finish - host_executor_start).total_seconds()
+
+    if e2e_stats['reth_block_time'] == 0.0:
+        setup_time = (
+            e2e_stats['sdk_setup_time']
+            + e2e_stats['base_prover_setup_time']
+            + e2e_stats['recursion_setup_time']
+        )
+        if e2e_stats['total_create_proof_time'] > 0.0:
+            e2e_stats['reth_block_time'] = (
+                e2e_stats['emulator_time']
+                + setup_time
+                + e2e_stats['total_create_proof_time']
+            )
+
     if app_prove_inner_time == 0.0:
-        print("Warning: Could not find app_prove.inner timing in the log")
-        app_prove_inner_time = 1.0  # placeholder
+        raise ValueError("Could not find app_prove.inner or app create_proof timing in the log")
 
     # Second pass: collect all relevant operations and chip breakdowns
     current_chip = None
@@ -145,13 +241,39 @@ def analyze_trace_log(file_path: str):
     module_indent_level = 0
 
     for i, line in enumerate(lines):
-        operation, time_seconds, extra_info, indent = parse_trace_line(line)
+        clean_line = strip_ansi(line)
+        operation, time_seconds, extra_info, indent = parse_trace_line(clean_line)
+
+        if 'elapsed_ms=' in clean_line or 'elapsed_ms' in clean_line:
+            elapsed_match = re.search(r'elapsed_ms(?:=|\s*=\s*)([0-9.]+)', clean_line)
+            if elapsed_match:
+                elapsed_seconds = float(elapsed_match.group(1)) / 1000.0
+                span_module = None
+                for module in [
+                    'commit_traces',
+                    'prove_tower_relation_gpu',
+                    'prove_batched_main_constraints',
+                    'prove_main_constraints',
+                    'pcs_opening',
+                ]:
+                    if f'[ceno] {module}' in clean_line or module in clean_line:
+                        span_module = module
+                        break
+
+                op_match = re.search(r'\]\s+([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+){0,3})\s+elapsed_ms', clean_line)
+                elapsed_op = op_match.group(1).replace(' ', '_') if op_match else 'elapsed_ms'
+
+                if span_module:
+                    if span_module == 'commit_traces' and 'jagged_batch_commit_from_host total' in clean_line:
+                        total_by_operation[span_module] += elapsed_seconds
+                    elif elapsed_op != 'elapsed_ms':
+                        module_operations[span_module][elapsed_op] += elapsed_seconds
 
         # Collect GPU operations within module blocks (must be before "if not operation" check)
-        if current_module and '[ceno-gpu]' in line:
+        if current_module and '[ceno-gpu]' in clean_line:
             # Parse the ceno-gpu operation
             gpu_pattern = r'\[ceno-gpu\]\s+([\w._-]+)\s*\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|'
-            gpu_match = re.search(gpu_pattern, line)
+            gpu_match = re.search(gpu_pattern, clean_line)
             if gpu_match:
                 gpu_op = gpu_match.group(1)
                 gpu_time_str = gpu_match.group(2)
@@ -249,11 +371,43 @@ def generate_summary_markdown(app_prove_inner_time: float,
         output.append(f"| emulator | {emulator_time:.3f} | {(emulator_time/e2e_time*100):.2f}% |")
         output.append(f"| app_prove | {app_prove_time:.3f} | {(app_prove_time/e2e_time*100):.2f}% |")
         output.append(f"| recursion | {recursion_time:.3f} | {(recursion_time/e2e_time*100):.2f}% |")
+        if e2e_stats.get('root_verify_time', 0.0) > 0:
+            root_verify_time = e2e_stats['root_verify_time']
+            output.append(f"| root_verify | {root_verify_time:.3f} | {(root_verify_time/e2e_time*100):.2f}% |")
 
         total_layers = emulator_time + app_prove_time + recursion_time
         output.append(f"| **TOTAL** | **{total_layers:.3f}** | **{(total_layers/e2e_time*100):.2f}%** |")
 
     output.append("")  # Empty line
+
+    explicit_timings = [
+        ('sdk_setup', e2e_stats.get('sdk_setup_time', 0.0)),
+        ('base_prover_setup', e2e_stats.get('base_prover_setup_time', 0.0)),
+        ('recursion_setup', e2e_stats.get('recursion_setup_time', 0.0)),
+        ('recursion_leaf_aggregation', e2e_stats.get('recursion_leaf_time', 0.0)),
+        ('recursion_internal_aggregation', e2e_stats.get('recursion_internal_time', 0.0)),
+        ('recursion_root_proving', e2e_stats.get('recursion_root_time', 0.0)),
+        ('root_verify', e2e_stats.get('root_verify_time', 0.0)),
+        ('total_create_proof', e2e_stats.get('total_create_proof_time', 0.0)),
+    ]
+    if any(time > 0 for _, time in explicit_timings):
+        output.append("## Explicit Benchmark Timings\n")
+        output.append("| Metric | Time (s) |")
+        output.append("|--------|----------|")
+        for name, time in explicit_timings:
+            if time > 0:
+                output.append(f"| {name} | {time:.3f} |")
+        output.append("")
+
+    if e2e_stats.get('root_proof_size_bytes', 0) or e2e_stats.get('root_proof_path'):
+        output.append("## Proof Output\n")
+        output.append("| Metric | Value |")
+        output.append("|--------|-------|")
+        if e2e_stats.get('root_proof_size_bytes', 0):
+            output.append(f"| root_proof_size | {e2e_stats['root_proof_size_bytes']} bytes ({e2e_stats['root_proof_size_mib']:.2f} MiB) |")
+        if e2e_stats.get('root_proof_path'):
+            output.append(f"| root_proof_path | {e2e_stats['root_proof_path']} |")
+        output.append("")
 
     # Summary table
     output.append("## Table 2: App Prove Breakdown\n")
@@ -471,7 +625,8 @@ def generate_breakdown_module_markdown(app_prove_inner_time: float,
         expected_ops = module_gpu_ops.get(module, [])
 
         total_gpu_time = 0.0
-        for op in expected_ops:
+        ordered_ops = expected_ops + sorted(op for op in gpu_ops if op not in expected_ops)
+        for op in ordered_ops:
             op_time = gpu_ops.get(op, 0.0)
             if op_time > 0:
                 pct_of_module = (op_time / module_time * 100) if module_time > 0 else 0.0
@@ -501,6 +656,10 @@ def main():
 
     try:
         app_prove_inner_time, total_by_operation, chip_proof_by_table, chip_operations, e2e_stats, generate_witness_by_shard, create_proof_by_shard, module_operations = analyze_trace_log(trace_file)
+        if not e2e_stats.get('block_number'):
+            raise ValueError("Could not find block_number in the log")
+        if e2e_stats.get('app_prove_time', 0.0) <= 0.0:
+            raise ValueError("Could not find app prove timing in the log")
 
         # Generate summary
         summary_md = generate_summary_markdown(app_prove_inner_time, total_by_operation, chip_proof_by_table, e2e_stats, generate_witness_by_shard, create_proof_by_shard)

@@ -419,6 +419,8 @@ jobs:
             fi
             echo "Continuing despite failure because ignore_failed=true"
           else
+            test -s output/app_proof.bitcode
+            test -s "output/${block_number}_root_proof.bin"
             echo "e2e proof generated successfully"
           fi
 
@@ -437,6 +439,7 @@ jobs:
           name: benchmark-debug-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             output/app_proof.bitcode
+            output/*_root_proof.bin
             ${{ env.LOG_FILE }}
           if-no-files-found: warn
 

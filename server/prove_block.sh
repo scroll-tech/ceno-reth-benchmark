@@ -85,7 +85,7 @@ else
     echo "[prove_block.sh] ETH_RPC_URL not set and BLOCK_NUMBER not provided" >&2
     exit 1
   fi
-  echo "[prove_block.sh] Fetching latest block number from $ETH_RPC_URL" >&2
+  echo "[prove_block.sh] Fetching latest block number from configured RPC" >&2
   BLOCK_NUMBER="$(curl -s -X POST \
     -H 'Content-Type: application/json' \
     --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
@@ -199,11 +199,15 @@ fi
 
 start_ts_ms=$(date +%s%3N)
 PROOF_JSON="$job_dir/${PROOF_FILENAME}"
+ROOT_PROOF_BIN="$job_dir/${BLOCK_NUMBER}_root_proof.bin"
+JOB_ROOT_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_root_proof.bin"
 
 OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
+export OUTPUT_PATH
 
+set +e
 "$BIN_PATH" \
   --mode "$MODE" \
   --block-number "$BLOCK_NUMBER" \
@@ -223,13 +227,16 @@ export CENO_GPU_CACHE_LEVEL
   # --app-pk-path /app/app_pk \
 
 status=$?
+set -e
 
 end_ts_ms=$(date +%s%3N)
 duration_ms=$(( end_ts_ms - start_ts_ms ))
 echo "$duration_ms" > "$job_dir/latency_ms.txt"
 
 proof_b64=""
-if [[ -f "$PROOF_JSON" ]]; then
+if [[ -f "$ROOT_PROOF_BIN" ]]; then
+  proof_b64="$(base64 -w0 "$ROOT_PROOF_BIN" 2>/dev/null || base64 "$ROOT_PROOF_BIN" | tr -d '\n')" || proof_b64=""
+elif [[ -f "$PROOF_JSON" ]]; then
   proof_output_path="$job_dir/proofs/${BLOCK_NUMBER}.json"
   proof_b64="$(python3 - "$PROOF_JSON" "$proof_output_path" <<'PY'
 import json, sys, base64, pathlib
@@ -310,7 +317,19 @@ if [[ -f "$PROOF_JSON" ]]; then
   fi
   set -e
 else
-  echo "[prove_block.sh] Warning: proof file not found at $PROOF_JSON" >&2
+  if [[ ! -f "$ROOT_PROOF_BIN" ]]; then
+    echo "[prove_block.sh] Warning: proof file not found at $PROOF_JSON" >&2
+  fi
+fi
+
+if [[ -f "$ROOT_PROOF_BIN" ]]; then
+  set +e
+  if ! s5cmd cp "$ROOT_PROOF_BIN" "$JOB_ROOT_PROOF_S3_URI"; then
+    echo "[prove_block.sh] Warning: failed to upload root proof file to ${JOB_ROOT_PROOF_S3_URI}" >&2
+  fi
+  set -e
+else
+  echo "[prove_block.sh] Warning: root proof file not found at $ROOT_PROOF_BIN" >&2
 fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then
