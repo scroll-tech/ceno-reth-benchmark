@@ -415,6 +415,13 @@ fn ceno_recursion_backend_label() -> &'static str {
     }
 }
 
+fn env_flag_enabled(name: &str) -> bool {
+    matches!(
+        std::env::var(name).as_deref(),
+        Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+    )
+}
+
 fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecursionV2Prover> {
     sdk.init_agg_prover().map_err(|err| eyre::eyre!("{err:?}"))
 }
@@ -801,6 +808,21 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             panic!("empty app_proofs_path")
                         };
                         let proofs: Vec<CenoBenchProof> = read_object_from_file(app_proofs_path)?;
+                        if env_flag_enabled("CENO_VERIFY_APP_PROOF_BEFORE_RECURSION") {
+                            let sdk = prebuilt_jagged_sdk
+                                .as_ref()
+                                .expect("ceno sdk should be initialized before app proof verify");
+                            let verifier = sdk.create_zkvm_verifier();
+                            let verify_proofs = proofs.clone();
+                            info_span!("app.verify.loaded").in_scope(|| {
+                                run_e2e_full_trace_verify(
+                                    &verifier,
+                                    verify_proofs,
+                                    Some(0),
+                                    max_steps,
+                                )
+                            });
+                        }
                         let timed_root_output = info_span!("recursion.compress_to_root_proof")
                             .in_scope(|| agg_prover.prove_with_root_vk_timed(&proofs))?;
                         let root_output = timed_root_output.root_output;
