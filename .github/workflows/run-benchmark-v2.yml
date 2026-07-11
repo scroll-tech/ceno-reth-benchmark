@@ -187,6 +187,27 @@ jobs:
 
           cd ../..
 
+          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
+          mkdir -p output/guest
+          cp "$GUEST_ELF" output/guest/ceno-client-eth
+          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
+          {
+            echo "guest_elf=$GUEST_ELF"
+            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
+            echo
+            echo "[cargo-ceno]"
+            cargo ceno --version
+            echo
+            echo "[rustc]"
+            rustc -Vv
+            echo
+            echo "[cargo]"
+            cargo -Vv
+            echo
+            echo "[guest ceno deps]"
+            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
+          } > output/guest/ceno-client-eth.metadata.txt
+
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
@@ -238,6 +259,14 @@ jobs:
           else
             echo "GPU memory tracking benchmark completed successfully"
           fi
+
+      - name: Upload guest program artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-program-gpu-mem-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/guest/
+          if-no-files-found: warn
 
   benchmark:
     if: ${{ inputs.run_gpu_benchmark }}
@@ -322,6 +351,27 @@ jobs:
 
           cd ../..
 
+          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
+          mkdir -p output/guest
+          cp "$GUEST_ELF" output/guest/ceno-client-eth
+          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
+          {
+            echo "guest_elf=$GUEST_ELF"
+            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
+            echo
+            echo "[cargo-ceno]"
+            cargo ceno --version
+            echo
+            echo "[rustc]"
+            rustc -Vv
+            echo
+            echo "[cargo]"
+            cargo -Vv
+            echo
+            echo "[guest ceno deps]"
+            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
+          } > output/guest/ceno-client-eth.metadata.txt
+
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
@@ -371,6 +421,14 @@ jobs:
           else
             echo "e2e proof generated successfully"
           fi
+
+      - name: Upload guest program artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-program-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/guest/
+          if-no-files-found: warn
 
       - name: Upload benchmark debug artifacts
         if: always()
