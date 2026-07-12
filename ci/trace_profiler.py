@@ -186,8 +186,7 @@ def analyze_trace_log(file_path: str):
             if match:
                 e2e_stats['recursion_time'] = parse_time_to_seconds(match.group(1))
 
-        # Newer OpenVM/tracing output no longer emits tracing-tree close lines for
-        # these spans. The benchmark binary prints explicit timings; parse them as
+        # The benchmark binary prints explicit timings; parse them as
         # a fallback so CI reports do not silently collapse to zeros.
         for key, label in [
             ('sdk_setup_time', 'ceno prove-stark sdk setup time'),
