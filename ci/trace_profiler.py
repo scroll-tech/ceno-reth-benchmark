@@ -121,7 +121,9 @@ def analyze_trace_log(file_path: str):
     # E2E layer statistics
     e2e_stats = {
         'reth_block_time': 0.0,
+        'reth_block_time_synthesized': False,
         'block_number': '',
+        'host_executor_time': 0.0,
         'emulator_time': 0.0,
         'app_prove_time': 0.0,
         'recursion_time': 0.0,
@@ -215,8 +217,10 @@ def analyze_trace_log(file_path: str):
     if app_prove_inner_time == 0.0 and e2e_stats['app_prove_time'] > 0.0:
         app_prove_inner_time = e2e_stats['app_prove_time']
 
-    if e2e_stats['emulator_time'] == 0.0 and host_executor_start and host_executor_finish:
-        e2e_stats['emulator_time'] = (host_executor_finish - host_executor_start).total_seconds()
+    if host_executor_start and host_executor_finish:
+        e2e_stats['host_executor_time'] = (
+            host_executor_finish - host_executor_start
+        ).total_seconds()
 
     if e2e_stats['reth_block_time'] == 0.0:
         setup_time = (
@@ -226,10 +230,12 @@ def analyze_trace_log(file_path: str):
         )
         if e2e_stats['total_create_proof_time'] > 0.0:
             e2e_stats['reth_block_time'] = (
-                e2e_stats['emulator_time']
+                e2e_stats['host_executor_time']
+                + e2e_stats['emulator_time']
                 + setup_time
                 + e2e_stats['total_create_proof_time']
             )
+            e2e_stats['reth_block_time_synthesized'] = True
 
     if app_prove_inner_time == 0.0:
         raise ValueError("Could not find app_prove.inner or app create_proof timing in the log")
@@ -364,11 +370,15 @@ def generate_summary_markdown(app_prove_inner_time: float,
     output.append("|-------|----------|----------|")
 
     emulator_time = e2e_stats.get('emulator_time', 0.0)
+    host_executor_time = e2e_stats.get('host_executor_time', 0.0)
     app_prove_time = e2e_stats.get('app_prove_time', 0.0)
     recursion_time = e2e_stats.get('recursion_time', 0.0)
 
     if e2e_time > 0:
-        output.append(f"| emulator | {emulator_time:.3f} | {(emulator_time/e2e_time*100):.2f}% |")
+        if host_executor_time > 0 and e2e_stats.get('reth_block_time_synthesized', False):
+            output.append(f"| host_executor | {host_executor_time:.3f} | {(host_executor_time/e2e_time*100):.2f}% |")
+        if emulator_time > 0:
+            output.append(f"| emulator | {emulator_time:.3f} | {(emulator_time/e2e_time*100):.2f}% |")
         output.append(f"| app_prove | {app_prove_time:.3f} | {(app_prove_time/e2e_time*100):.2f}% |")
         output.append(f"| recursion | {recursion_time:.3f} | {(recursion_time/e2e_time*100):.2f}% |")
         if e2e_stats.get('root_verify_time', 0.0) > 0:
@@ -376,6 +386,8 @@ def generate_summary_markdown(app_prove_inner_time: float,
             output.append(f"| root_verify | {root_verify_time:.3f} | {(root_verify_time/e2e_time*100):.2f}% |")
 
         total_layers = emulator_time + app_prove_time + recursion_time
+        if e2e_stats.get('reth_block_time_synthesized', False):
+            total_layers += host_executor_time
         output.append(f"| **TOTAL** | **{total_layers:.3f}** | **{(total_layers/e2e_time*100):.2f}%** |")
 
     output.append("")  # Empty line

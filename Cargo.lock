@@ -4777,6 +4777,7 @@ dependencies = [
  "halo2-axiom",
  "hex",
  "metrics",
+ "metrics-util",
  "mpcs",
  "openvm-client-executor",
  "openvm-host-executor",
@@ -4786,6 +4787,7 @@ dependencies = [
  "serde_json",
  "toml 0.9.8",
  "tracing",
+ "tracing-forest",
  "tracing-subscriber",
  "url",
 ]

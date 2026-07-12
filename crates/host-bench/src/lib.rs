@@ -55,11 +55,111 @@ use ceno_zkvm::e2e::{
 };
 use gkr_iop::cpu::default_backend_config;
 
-fn run_with_metric_collection<F>(_: &str, f: F) -> eyre::Result<()>
+struct SpanTiming {
+    name: &'static str,
+    start: std::time::Instant,
+}
+
+struct SpanMetricsLayer;
+
+impl<S> tracing_subscriber::Layer<S> for SpanMetricsLayer
+where
+    S: tracing::Subscriber + for<'lookup> tracing_subscriber::registry::LookupSpan<'lookup>,
+{
+    fn on_new_span(
+        &self,
+        attrs: &tracing::span::Attributes<'_>,
+        id: &tracing::Id,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Some(span) = ctx.span(id) {
+            span.extensions_mut().insert(SpanTiming {
+                name: attrs.metadata().name(),
+                start: std::time::Instant::now(),
+            });
+        }
+    }
+
+    fn on_close(&self, id: tracing::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
+        let Some(span) = ctx.span(&id) else {
+            return;
+        };
+        let extensions = span.extensions();
+        let Some(timing) = extensions.get::<SpanTiming>() else {
+            return;
+        };
+        let metric = format!("{}_time_ms", timing.name);
+        metrics::gauge!(metric).set(timing.start.elapsed().as_secs_f64() * 1000.0);
+    }
+}
+
+fn snapshot_to_json(snapshot: metrics_util::debugging::Snapshot) -> serde_json::Value {
+    use metrics_util::{debugging::DebugValue, MetricKind};
+    use serde_json::json;
+
+    let mut gauges = Vec::new();
+    let mut counters = Vec::new();
+    let mut histograms = Vec::new();
+
+    for (key, _, _, value) in snapshot.into_vec() {
+        let labels =
+            key.key().labels().map(|label| json!([label.key(), label.value()])).collect::<Vec<_>>();
+        let entry = match value {
+            DebugValue::Counter(value) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": value.to_string(),
+            }),
+            DebugValue::Gauge(value) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": value.into_inner().round().to_string(),
+            }),
+            DebugValue::Histogram(values) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": values
+                    .into_iter()
+                    .map(|value| value.into_inner().to_string())
+                    .collect::<Vec<_>>(),
+            }),
+        };
+        match key.kind() {
+            MetricKind::Counter => counters.push(entry),
+            MetricKind::Gauge => gauges.push(entry),
+            MetricKind::Histogram => histograms.push(entry),
+        }
+    }
+
+    json!({
+        "gauge": gauges,
+        "counter": counters,
+        "histogram": histograms,
+    })
+}
+
+fn run_with_metric_collection<F>(output_env: &str, f: F) -> eyre::Result<()>
 where
     F: FnOnce() -> eyre::Result<()>,
 {
-    f()
+    let output_path = std::env::var_os(output_env).map(PathBuf::from);
+    let recorder = metrics_util::debugging::DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _ = recorder.install();
+
+    let result = f();
+
+    if let Some(output_path) = output_path {
+        if let Some(parent) = output_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        let value = snapshot_to_json(snapshotter.snapshot());
+        fs::write(output_path, serde_json::to_vec_pretty(&value)?)?;
+    }
+
+    result
 }
 
 fn write_raw_hint_bytes(hints: &mut CenoStdin, bytes: &[u8]) {
@@ -427,8 +527,13 @@ fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecurs
 }
 
 fn init_tracing() {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+    use tracing_forest::ForestLayer;
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+    let _ = tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(SpanMetricsLayer)
+        .with(ForestLayer::default())
         .try_init();
 }
 
@@ -549,8 +654,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let leaf_l_skip = env_usize_or("CENO_REC_LEAF_L_SKIP", default_l_skip);
     let internal_l_skip = env_usize_or("CENO_REC_INTERNAL_L_SKIP", default_l_skip);
     let root_l_skip = env_usize_or("CENO_REC_ROOT_L_SKIP", default_l_skip);
-    let leaf_n_stack = env_usize_or("CENO_REC_LEAF_N_STACK", 17);
-    let internal_n_stack = env_usize_or("CENO_REC_INTERNAL_N_STACK", 17);
+    let leaf_n_stack = env_usize_or("CENO_REC_LEAF_N_STACK", 18);
+    let internal_n_stack = env_usize_or("CENO_REC_INTERNAL_N_STACK", 18);
     let root_n_stack = env_usize_or("CENO_REC_ROOT_N_STACK", ceno_sdk::DEFAULT_RECURSION_N_STACK);
     let leaf_k_whir = env_usize_or("CENO_REC_LEAF_K_WHIR", default_k_whir);
     let internal_k_whir = env_usize_or("CENO_REC_INTERNAL_K_WHIR", default_k_whir);
