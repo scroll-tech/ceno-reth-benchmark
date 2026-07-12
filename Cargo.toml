@@ -7,7 +7,6 @@ members = [
     "crates/storage/rpc-db",
     "crates/host-bench",
     "crates/mpt",
-    "bin/verifier-bench",
     "bin/ceno-host"
 ]
 exclude = []
@@ -66,8 +65,8 @@ ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
 ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
 gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.29" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.29" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.34" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.34" }
 
 # reth
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.9.3", default-features = false }
@@ -167,7 +166,6 @@ openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p2
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
 ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "main", default-features = false, features = ["bb31"] }
-# ceno_gpu = { path = "../ceno-gpu/cuda_hal", package = "cuda_hal", default-feature = false, features = ["bb31"] }
 
 [patch."https://github.com/axiom-crypto/openvm-kzg.git"]
 openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }

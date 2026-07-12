@@ -9,7 +9,13 @@ CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL:-}"
 CENO_STATUS_API_KEY="${CENO_STATUS_API_KEY:-}"
 CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
-CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-none}"
+CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-1}"
+CENO_GPU_ENABLE_WITGEN="${CENO_GPU_ENABLE_WITGEN:-0}"
+CENO_CONCURRENT_CHIP_PROVING="${CENO_CONCURRENT_CHIP_PROVING:-1}"
+CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-1073741824}"
+CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT="${CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT:-23}"
+CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB="${CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB:-3048}"
+RUST_MIN_STACK="${RUST_MIN_STACK:-536870912}"
 CHAIN_ID="${CHAIN_ID:-1}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
@@ -18,14 +24,6 @@ CHAIN_ID="${CHAIN_ID:-1}"
 BIN_PATH="${OVM_BIN:-/usr/local/bin/ceno-reth-benchmark-bin}"
 JOBS_DIR="${JOBS_DIR:-/app/jobs}"
 MODE="${MODE:-prove-stark}"
-APP_LOG_BLOWUP="${APP_LOG_BLOWUP:-1}"
-LEAF_LOG_BLOWUP="${LEAF_LOG_BLOWUP:-1}"
-INTERNAL_LOG_BLOWUP="${INTERNAL_LOG_BLOWUP:-2}"
-ROOT_LOG_BLOWUP="${ROOT_LOG_BLOWUP:-3}"
-MAX_SEGMENT_LENGTH="${MAX_SEGMENT_LENGTH:-4194304}"
-SEGMENT_MAX_CELLS="${SEGMENT_MAX_CELLS:-1200000000}"
-VPMM_PAGE_SIZE=$((4 << 20))
-VPMM_PAGES=$((12 * $MAX_SEGMENT_LENGTH/ $VPMM_PAGE_SIZE))
 
 if [[ $# -lt 1 ]]; then
   echo "[prove_block.sh] Usage: $0 <proof_uuid>" >&2
@@ -45,10 +43,12 @@ job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
 
 CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL%/}"
+POST_STATUS_HTTP_STATUS=""
 
 post_status() {
   local endpoint="$1"
   local payload="$2"
+  POST_STATUS_HTTP_STATUS=""
   if [[ -z "$CENO_STATUS_API_BASE_URL" ]]; then
     return
   fi
@@ -65,6 +65,7 @@ post_status() {
     --data-binary "@${payload_file}" \
     "${CENO_STATUS_API_BASE_URL}/${endpoint}")
   status="$response"
+  POST_STATUS_HTTP_STATUS="$status"
   echo "[post_status] status=${status}" >&2
   if [[ -s /tmp/post_status_resp.$$ ]]; then
     echo "[post_status] response=$(cat /tmp/post_status_resp.$$)" >&2
@@ -85,7 +86,7 @@ else
     echo "[prove_block.sh] ETH_RPC_URL not set and BLOCK_NUMBER not provided" >&2
     exit 1
   fi
-  echo "[prove_block.sh] Fetching latest block number from $ETH_RPC_URL" >&2
+  echo "[prove_block.sh] Fetching latest block number from configured RPC" >&2
   BLOCK_NUMBER="$(curl -s -X POST \
     -H 'Content-Type: application/json' \
     --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
@@ -102,9 +103,18 @@ else
 fi
 
 PROOF_FILENAME="${BLOCK_NUMBER}_proof.json"
+ROOT_PROOF_FILENAME="${BLOCK_NUMBER}_root_proof.bin"
 JOB_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${PROOF_FILENAME}"
+JOB_ROOT_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${ROOT_PROOF_FILENAME}"
 
 if [[ -z "$BLOCK_NUMBER_OVERRIDE" ]]; then
+  echo "[prove_block.sh] Checking for existing root proof at ${JOB_ROOT_PROOF_S3_URI}" >&2
+  if s5cmd ls "$JOB_ROOT_PROOF_S3_URI" >/dev/null 2>&1; then
+    echo "[prove_block.sh] Found existing root proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
+
   echo "[prove_block.sh] Checking for existing proof at ${JOB_PROOF_S3_URI}" >&2
   if s5cmd ls "$JOB_PROOF_S3_URI" >/dev/null 2>&1; then
     echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
@@ -133,6 +143,11 @@ if [[ -n "$GENERATED_INPUT_PATH" ]]; then
 else
   if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
     post_status "proofs/queued" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
+    if [[ "$POST_STATUS_HTTP_STATUS" == "409" ]]; then
+      echo "[prove_block.sh] Status API reports block ${BLOCK_NUMBER} is already proved; sleeping 300s then exiting" >&2
+      sleep 300
+      exit 0
+    fi
   fi
   echo "[prove_block.sh] Generating input locally via --mode make-input" >&2
   "$BIN_PATH" \
@@ -165,71 +180,57 @@ fi
 INPUT_PATH="$GENERATED_INPUT_PATH"
 echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
 
-AGG_PK_PATH="$job_dir/agg_pk.bitcode"
 METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
-
-# Generate aggregation proving key if missing.
-if [[ ! -f "$AGG_PK_PATH" ]]; then
-  echo "[prove_block.sh] Generating aggregation proving key under $job_dir" >&2
-  "$BIN_PATH" \
-    --mode generate-fixtures \
-    --block-number "$BLOCK_NUMBER" \
-    --input-path "$INPUT_PATH" \
-    --cache-dir "$cache_root" \
-    --rpc-url "$ETH_RPC_URL" \
-    --fixtures-path "$job_dir" \
-    --app-log-blowup "$APP_LOG_BLOWUP" \
-    --leaf-log-blowup "$LEAF_LOG_BLOWUP" \
-    --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
-    --root-log-blowup "$ROOT_LOG_BLOWUP" \
-    --max-segment-length "$MAX_SEGMENT_LENGTH" \
-    --segment-max-cells "$SEGMENT_MAX_CELLS" \
-    --chain-id "$CHAIN_ID"
-fi
-
-if [[ ! -f "$AGG_PK_PATH" ]]; then
-  echo "[prove_block.sh] Error: agg_pk.bitcode not found after generation" >&2
-  exit 1
-fi
 
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
+  if [[ "$POST_STATUS_HTTP_STATUS" == "409" ]]; then
+    echo "[prove_block.sh] Status API reports block ${BLOCK_NUMBER} is already proved; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
 fi
 
 start_ts_ms=$(date +%s%3N)
 PROOF_JSON="$job_dir/${PROOF_FILENAME}"
+ROOT_PROOF_BIN="$job_dir/${ROOT_PROOF_FILENAME}"
 
 OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
+export CENO_GPU_ENABLE_WITGEN
+export CENO_CONCURRENT_CHIP_PROVING
+export CENO_MAX_CELL_PER_SHARD
+export CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT
+export CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB
+export RUST_MIN_STACK
+export OUTPUT_PATH
+ulimit -s 1048576
 
+set +e
 "$BIN_PATH" \
   --mode "$MODE" \
   --block-number "$BLOCK_NUMBER" \
   --input-path "$INPUT_PATH" \
   --cache-dir "$cache_root" \
   --rpc-url "$ETH_RPC_URL" \
-  --app-log-blowup "$APP_LOG_BLOWUP" \
-  --leaf-log-blowup "$LEAF_LOG_BLOWUP" \
-  --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
-  --root-log-blowup "$ROOT_LOG_BLOWUP" \
-  --max-segment-length "$MAX_SEGMENT_LENGTH" \
-  --segment-max-cells "$SEGMENT_MAX_CELLS" \
-  --agg-pk-path "$AGG_PK_PATH" \
   --output-dir "$job_dir" \
   --skip-comparison \
   --chain-id "$CHAIN_ID"
   # --app-pk-path /app/app_pk \
 
 status=$?
+set -e
 
 end_ts_ms=$(date +%s%3N)
 duration_ms=$(( end_ts_ms - start_ts_ms ))
 echo "$duration_ms" > "$job_dir/latency_ms.txt"
 
 proof_b64=""
-if [[ -f "$PROOF_JSON" ]]; then
+if [[ -f "$ROOT_PROOF_BIN" ]]; then
+  proof_b64="$(base64 -w0 "$ROOT_PROOF_BIN" 2>/dev/null || base64 "$ROOT_PROOF_BIN" | tr -d '\n')" || proof_b64=""
+elif [[ -f "$PROOF_JSON" ]]; then
   proof_output_path="$job_dir/proofs/${BLOCK_NUMBER}.json"
   proof_b64="$(python3 - "$PROOF_JSON" "$proof_output_path" <<'PY'
 import json, sys, base64, pathlib
@@ -293,10 +294,18 @@ if [[ -f "$OUTPUT_PATH" ]]; then
 fi
 
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
-  read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${reported_duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+  if [[ $status -ne 0 ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proof command failed with status=$status" >&2
+  elif [[ -z "$proof_b64" ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proof output is missing" >&2
+  elif ! [[ "$proving_cycles" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proving_cycles is not a positive integer: ${proving_cycles:-<empty>}" >&2
+  else
+    read -r -d '' proved_payload <<EOF || true
+{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${reported_duration_ms},"proving_cycles":${proving_cycles},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
-  post_status "proofs/proved" "$proved_payload"
+    post_status "proofs/proved" "$proved_payload"
+  fi
 fi
 
 # Post-processing hook: customize as needed
@@ -310,7 +319,19 @@ if [[ -f "$PROOF_JSON" ]]; then
   fi
   set -e
 else
-  echo "[prove_block.sh] Warning: proof file not found at $PROOF_JSON" >&2
+  if [[ ! -f "$ROOT_PROOF_BIN" ]]; then
+    echo "[prove_block.sh] Warning: proof file not found at $PROOF_JSON" >&2
+  fi
+fi
+
+if [[ -f "$ROOT_PROOF_BIN" ]]; then
+  set +e
+  if ! s5cmd cp "$ROOT_PROOF_BIN" "$JOB_ROOT_PROOF_S3_URI"; then
+    echo "[prove_block.sh] Warning: failed to upload root proof file to ${JOB_ROOT_PROOF_S3_URI}" >&2
+  fi
+  set -e
+else
+  echo "[prove_block.sh] Warning: root proof file not found at $ROOT_PROOF_BIN" >&2
 fi
 
 if [[ -f "$OUTPUT_PATH" ]]; then

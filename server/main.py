@@ -14,6 +14,13 @@ from pydantic import BaseModel
 app = FastAPI()
 
 JOBS_ROOT = Path(os.environ.get("JOBS_DIR", "/app/jobs"))
+JOB_RETRY_DELAY_SEC = int(os.environ.get("JOB_RETRY_DELAY_SEC", "300"))
+JOB_SUCCESS_DELAY_SEC = int(os.environ.get("JOB_SUCCESS_DELAY_SEC", "1"))
+RECOVER_JOB_STATUSES = set(
+    os.environ.get("RECOVER_JOB_STATUSES", "pending,running,error,waiting")
+    .replace(" ", "")
+    .split(",")
+)
 
 
 def _now_iso() -> str:
@@ -80,7 +87,7 @@ def recover_jobs_from_disk() -> None:
         manifest = _read_manifest(manifest_path)
         proof_uuid = manifest.get("proof_uuid")
         status = manifest.get("status")
-        if not proof_uuid or status not in {"pending", "running"}:
+        if not proof_uuid or status not in RECOVER_JOB_STATUSES:
             continue
         if proof_uuid in JOBS:
             continue
@@ -172,20 +179,28 @@ class Job:
 
     def _run_loop(self) -> None:
         while not self.stop_event.is_set():
+            retry_delay = JOB_SUCCESS_DELAY_SEC
             try:
                 exit_code = self._run_once()
                 self.last_exit_code = exit_code
                 self.iteration += 1
                 status = "waiting" if exit_code == 0 else "error"
                 self._persist_status(status)
+                if exit_code != 0:
+                    retry_delay = JOB_RETRY_DELAY_SEC
             except Exception as exc:  # noqa: BLE001
                 self.last_error = str(exc)
                 self._persist_status("error")
-                # Avoid tight restart loops if spawning fails
-                time.sleep(5)
+                retry_delay = JOB_RETRY_DELAY_SEC
             finally:
                 self.current_proc = None
-            if self.stop_event.wait(timeout=1):
+            if retry_delay > 0:
+                print(
+                    f"[job:{self.proof_uuid}] next attempt in {retry_delay}s "
+                    f"(last_exit_code={self.last_exit_code})",
+                    flush=True,
+                )
+            if self.stop_event.wait(timeout=retry_delay):
                 break
 
     def is_active(self) -> bool:

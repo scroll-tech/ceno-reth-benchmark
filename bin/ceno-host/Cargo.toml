@@ -10,15 +10,13 @@ version.workspace = true
 clap_builder = "4.5.34"
 eyre.workspace = true
 openvm-reth-benchmark = { workspace = true, default-features = false }
-openvm-stark-sdk.workspace = true
-openvm-cuda-backend = { workspace = true, optional = true }
 tokio.workspace = true
 
 [lints]
 workspace = true
 
 [features]
-default = ["openvm-reth-benchmark/default"]
+default = ["jemalloc"]
 gpu = ["openvm-reth-benchmark/gpu"]
 metrics = ["openvm-reth-benchmark/metrics"]
 evm-verify = ["openvm-reth-benchmark/evm-verify"]

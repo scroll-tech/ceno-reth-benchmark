@@ -5,13 +5,10 @@ use alloy_provider::RootProvider;
 use alloy_rpc_client::RpcClient;
 use alloy_transport::layers::RetryBackoffLayer;
 use clap::Parser;
+#[cfg(feature = "openvm-backend")]
 use openvm_benchmarks_prove::util::BenchmarkCli;
-use openvm_circuit::{
-    arch::*,
-    openvm_stark_sdk::{
-        bench::run_with_metric_collection, openvm_stark_backend::p3_field::PrimeField32,
-    },
-};
+#[cfg(feature = "openvm-backend")]
+use openvm_circuit::{arch::*, openvm_stark_sdk::openvm_stark_backend::p3_field::PrimeField32};
 use openvm_client_executor::{
     io::{
         AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
@@ -21,19 +18,22 @@ use openvm_client_executor::{
     ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
 use openvm_host_executor::HostExecutor;
+#[cfg(feature = "openvm-backend")]
 pub use openvm_native_circuit::NativeConfig;
 
+#[cfg(feature = "openvm-backend")]
 use openvm_sdk::{
     config::{SdkVmBuilder, SdkVmConfig},
-    fs::read_object_from_file,
     keygen::{AggProvingKey, AppProvingKey},
     prover::verify_app_proof,
     types::VersionedVmStarkProof,
     DefaultStarkEngine, Sdk, StdIn,
 };
+#[cfg(feature = "openvm-backend")]
 use openvm_stark_sdk::{
     config::baby_bear_poseidon2::BabyBearPoseidon2Config, engine::StarkFriEngine,
 };
+#[cfg(feature = "openvm-backend")]
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
 pub use reth_primitives;
 use reth_trie::TrieAccount;
@@ -49,12 +49,118 @@ use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
-use ceno_recursion::aggregation::verify_e2e_stark_proof;
 use ceno_zkvm::e2e::{
     run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
     Preset,
 };
 use gkr_iop::cpu::default_backend_config;
+
+struct SpanTiming {
+    name: &'static str,
+    start: std::time::Instant,
+}
+
+struct SpanMetricsLayer;
+
+impl<S> tracing_subscriber::Layer<S> for SpanMetricsLayer
+where
+    S: tracing::Subscriber + for<'lookup> tracing_subscriber::registry::LookupSpan<'lookup>,
+{
+    fn on_new_span(
+        &self,
+        attrs: &tracing::span::Attributes<'_>,
+        id: &tracing::Id,
+        ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        if let Some(span) = ctx.span(id) {
+            span.extensions_mut().insert(SpanTiming {
+                name: attrs.metadata().name(),
+                start: std::time::Instant::now(),
+            });
+        }
+    }
+
+    fn on_close(&self, id: tracing::Id, ctx: tracing_subscriber::layer::Context<'_, S>) {
+        let Some(span) = ctx.span(&id) else {
+            return;
+        };
+        let extensions = span.extensions();
+        let Some(timing) = extensions.get::<SpanTiming>() else {
+            return;
+        };
+        let metric = format!("{}_time_ms", timing.name);
+        metrics::gauge!(metric).set(timing.start.elapsed().as_secs_f64() * 1000.0);
+    }
+}
+
+fn snapshot_to_json(snapshot: metrics_util::debugging::Snapshot) -> serde_json::Value {
+    use metrics_util::{debugging::DebugValue, MetricKind};
+    use serde_json::json;
+
+    let mut gauges = Vec::new();
+    let mut counters = Vec::new();
+    let mut histograms = Vec::new();
+
+    for (key, _, _, value) in snapshot.into_vec() {
+        let labels =
+            key.key().labels().map(|label| json!([label.key(), label.value()])).collect::<Vec<_>>();
+        let entry = match value {
+            DebugValue::Counter(value) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": value.to_string(),
+            }),
+            DebugValue::Gauge(value) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": value.into_inner().round().to_string(),
+            }),
+            DebugValue::Histogram(values) => json!({
+                "labels": labels,
+                "metric": key.key().name(),
+                "value": values
+                    .into_iter()
+                    .map(|value| value.into_inner().to_string())
+                    .collect::<Vec<_>>(),
+            }),
+        };
+        match key.kind() {
+            MetricKind::Counter => counters.push(entry),
+            MetricKind::Gauge => gauges.push(entry),
+            MetricKind::Histogram => histograms.push(entry),
+        }
+    }
+
+    json!({
+        "gauge": gauges,
+        "counter": counters,
+        "histogram": histograms,
+    })
+}
+
+fn run_with_metric_collection<F>(output_env: &str, f: F) -> eyre::Result<()>
+where
+    F: FnOnce() -> eyre::Result<()>,
+{
+    let output_path = std::env::var_os(output_env).map(PathBuf::from);
+    let recorder = metrics_util::debugging::DebuggingRecorder::new();
+    let snapshotter = recorder.snapshotter();
+    let _ = recorder.install();
+
+    let result = f();
+
+    if let Some(output_path) = output_path {
+        if let Some(parent) = output_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+        let value = snapshot_to_json(snapshotter.snapshot());
+        fs::write(output_path, serde_json::to_vec_pretty(&value)?)?;
+    }
+
+    result
+}
 
 fn write_raw_hint_bytes(hints: &mut CenoStdin, bytes: &[u8]) {
     let end_of_data = bytes.len();
@@ -167,7 +273,7 @@ fn write_ceno_client_input(
 
     Ok(())
 }
-use openvm_stark_sdk::{openvm_stark_backend::p3_field::FieldAlgebra, p3_bn254_fr::Bn254Fr};
+#[cfg(feature = "openvm-backend")]
 use serde_json::json;
 
 mod cli;
@@ -235,6 +341,7 @@ pub struct HostArgs {
     #[clap(long, default_value = "report.csv")]
     report_path: PathBuf,
 
+    #[cfg(feature = "openvm-backend")]
     #[clap(flatten)]
     benchmark: BenchmarkCli,
 
@@ -274,6 +381,7 @@ pub struct HostArgs {
     pub app_proofs: Option<PathBuf>,
 }
 
+#[cfg(feature = "openvm-backend")]
 fn write_versioned_proof(
     output_dir: &Path,
     block_number: u64,
@@ -286,6 +394,34 @@ fn write_versioned_proof(
     Ok(())
 }
 
+fn handle_ceno_root_proof(
+    output_dir: Option<&PathBuf>,
+    block_number: u64,
+    root_proof: &impl serde::Serialize,
+) -> eyre::Result<()> {
+    let proof_bytes = bincode::serde::encode_to_vec(root_proof, bincode::config::standard())?;
+    println!(
+        "ceno root proof size: {} bytes ({:.2} MiB)",
+        proof_bytes.len(),
+        proof_bytes.len() as f64 / (1024.0 * 1024.0)
+    );
+
+    if let Some(output_dir) = output_dir {
+        fs::create_dir_all(output_dir)?;
+        let proof_path = output_dir.join(format!("{}_root_proof.bin", block_number));
+        fs::write(&proof_path, proof_bytes)?;
+        println!("wrote ceno root proof to {}", proof_path.display());
+    }
+
+    Ok(())
+}
+
+fn read_object_from_file<T: serde::de::DeserializeOwned>(path: &Path) -> eyre::Result<T> {
+    let bytes = fs::read(path)?;
+    Ok(bitcode::deserialize(&bytes)?)
+}
+
+#[cfg(feature = "openvm-backend")]
 pub fn reth_vm_config(_app_log_blowup: usize) -> SdkVmConfig {
     unimplemented!("only for openvm logic")
     // let mut config = toml::from_str::<AppConfig<SdkVmConfig>>(include_str!(
@@ -301,7 +437,9 @@ pub fn reth_vm_config(_app_log_blowup: usize) -> SdkVmConfig {
     // config
 }
 
+#[cfg(feature = "openvm-backend")]
 pub const RETH_DEFAULT_APP_LOG_BLOWUP: usize = 1;
+#[cfg(feature = "openvm-backend")]
 pub const RETH_DEFAULT_LEAF_LOG_BLOWUP: usize = 1;
 
 fn discover_workspace_root() -> PathBuf {
@@ -357,6 +495,48 @@ fn setup() -> (Vec<u8>, Program, Platform) {
 }
 
 pub const MAX_CYCLE_PER_SHARD: u64 = 1 << 29;
+
+type CenoPcs = mpcs::Jagged<mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>>;
+type CenoBenchSdk = ceno_sdk::CenoSDK<ff_ext::BabyBearExt4, CenoPcs>;
+type CenoBenchProof = ceno_zkvm::scheme::ZKVMProof<ff_ext::BabyBearExt4, CenoPcs>;
+
+fn env_usize_or(name: &str, default: usize) -> usize {
+    std::env::var(name).ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(default)
+}
+
+fn ceno_recursion_backend_label() -> &'static str {
+    #[cfg(feature = "gpu")]
+    {
+        "gpu"
+    }
+    #[cfg(not(feature = "gpu"))]
+    {
+        "cpu"
+    }
+}
+
+fn env_flag_enabled(name: &str) -> bool {
+    matches!(
+        std::env::var(name).as_deref(),
+        Ok("1") | Ok("true") | Ok("TRUE") | Ok("yes") | Ok("YES")
+    )
+}
+
+fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecursionV2Prover> {
+    sdk.init_agg_prover().map_err(|err| eyre::eyre!("{err:?}"))
+}
+
+fn init_tracing() {
+    use tracing_forest::ForestLayer;
+    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+    let _ = tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(SpanMetricsLayer)
+        .with(ForestLayer::default())
+        .try_init();
+}
+
 pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     // Initialize the environment variables.
     dotenv::dotenv().ok();
@@ -364,6 +544,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
+    init_tracing();
 
     let client_input_from_path =
         args.input_path.as_ref().map(|path| try_load_input_from_path(path).unwrap());
@@ -462,57 +643,85 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
 
     let max_steps = usize::MAX;
 
-    let start = std::time::Instant::now();
     let max_cell_per_shard = std::env::var("CENO_MAX_CELL_PER_SHARD")
         .ok()
         .and_then(|value| value.parse::<u64>().ok())
         .unwrap_or((1 << 30) * 8 / 4 / 2);
+    println!("ceno max_cell_per_shard: {max_cell_per_shard}");
 
-    let mut ceno_sdk: ceno_sdk::CenoSDK<
-        ff_ext::BabyBearExt4,
-        mpcs::Jagged<mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>>,
-        BabyBearPoseidon2Config,
-        NativeConfig,
-    > = ceno_sdk::CenoSDK::new_with_app_config(
-        program.clone(),
-        platform.clone(),
-        MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
+    let default_l_skip = env_usize_or("CENO_REC_L_SKIP", ceno_sdk::DEFAULT_RECURSION_L_SKIP);
+    let default_k_whir = env_usize_or("CENO_REC_K_WHIR", ceno_sdk::DEFAULT_RECURSION_K_WHIR);
+    let leaf_l_skip = env_usize_or("CENO_REC_LEAF_L_SKIP", default_l_skip);
+    let internal_l_skip = env_usize_or("CENO_REC_INTERNAL_L_SKIP", default_l_skip);
+    let root_l_skip = env_usize_or("CENO_REC_ROOT_L_SKIP", default_l_skip);
+    let leaf_n_stack = env_usize_or("CENO_REC_LEAF_N_STACK", 18);
+    let internal_n_stack = env_usize_or("CENO_REC_INTERNAL_N_STACK", 18);
+    let root_n_stack = env_usize_or("CENO_REC_ROOT_N_STACK", ceno_sdk::DEFAULT_RECURSION_N_STACK);
+    let leaf_k_whir = env_usize_or("CENO_REC_LEAF_K_WHIR", default_k_whir);
+    let internal_k_whir = env_usize_or("CENO_REC_INTERNAL_K_WHIR", default_k_whir);
+    let root_k_whir = env_usize_or("CENO_REC_ROOT_K_WHIR", default_k_whir);
+    println!(
+        "ceno recursion params: leaf(l_skip={leaf_l_skip}, n_stack={leaf_n_stack}, k_whir={leaf_k_whir}), internal(l_skip={internal_l_skip}, n_stack={internal_n_stack}, k_whir={internal_k_whir}), root(l_skip={root_l_skip}, n_stack={root_n_stack}, k_whir={root_k_whir})"
+    );
+    let aggregation_options = ceno_sdk::recursion_aggregation_options(
+        ceno_sdk::recursion_system_params(leaf_l_skip, leaf_n_stack, leaf_k_whir),
+        ceno_sdk::recursion_system_params(internal_l_skip, internal_n_stack, internal_k_whir),
+        ceno_sdk::recursion_system_params(root_l_skip, root_n_stack, root_k_whir),
     );
 
-    let new_basefold_sdk = || -> eyre::Result<
-        ceno_sdk::CenoSDK<
-            ff_ext::BabyBearExt4,
-            mpcs::Basefold<ff_ext::BabyBearExt4, mpcs::BasefoldRSParams>,
-            BabyBearPoseidon2Config,
-            NativeConfig,
-        >,
-    > {
+    let new_jagged_sdk = || -> eyre::Result<CenoBenchSdk> {
+        let sdk_setup_start = std::time::Instant::now();
         let mut sdk = ceno_sdk::CenoSDK::new_with_app_config(
             program.clone(),
             platform.clone(),
-            MultiProver::new(0, 1, (1 << 30) * 8 / 4 / 2, MAX_CYCLE_PER_SHARD),
+            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
         );
+        sdk.set_aggregation_options(aggregation_options.clone());
+        let sdk_setup_elapsed = sdk_setup_start.elapsed();
+        println!("ceno prove-stark sdk setup time: {sdk_setup_elapsed:?}");
+
+        let base_prover_setup_start = std::time::Instant::now();
         sdk.init_base_prover(max_num_variables, security_level);
-        if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
-            let agg_pk = read_object_from_file(agg_pk_path)?;
-            sdk.set_agg_pk(agg_pk);
-        }
+        let base_prover_setup_elapsed = base_prover_setup_start.elapsed();
+        println!("ceno prove-stark base prover setup time: {base_prover_setup_elapsed:?}");
+        info!("setup ceno jagged sdk done in {:?}", sdk_setup_elapsed + base_prover_setup_elapsed);
         Ok(sdk)
     };
 
-    ceno_sdk.init_base_prover(max_num_variables, security_level);
-    info!("setup ceno sdk done in {:?}", start.elapsed());
-
-    // if args.app_pk_path.is_some() != args.agg_pk_path.is_some() {
-    //     eyre::bail!("app_pk_path and agg_pk_path must be provided together");
-    // }
-    if let Some(agg_pk_path) = args.agg_pk_path.as_ref() {
-        // let app_pk: AppProvingKey<SdkVmConfig> = read_object_from_file(app_pk_path)?;
-        let agg_pk = read_object_from_file(agg_pk_path)?;
-        ceno_sdk.set_agg_pk(agg_pk);
+    if args.agg_pk_path.is_some() {
+        eyre::bail!("--agg-pk-path is not supported by ceno recursion v2 prove-stark");
     }
 
     let program_name = format!("reth.{}.block_{}", args.mode, args.block_number);
+    let needs_ceno_sdk = matches!(
+        args.mode,
+        BenchMode::ProveApp |
+            BenchMode::ProveStark |
+            BenchMode::ProveStarkOnly |
+            BenchMode::GenerateFixtures
+    );
+    let needs_ceno_agg = matches!(
+        args.mode,
+        BenchMode::ProveStark | BenchMode::ProveStarkOnly | BenchMode::GenerateFixtures
+    );
+    let ceno_recursion_backend = ceno_recursion_backend_label();
+    let mut prebuilt_jagged_sdk = if needs_ceno_sdk { Some(new_jagged_sdk()?) } else { None };
+    let mut prebuilt_agg_prover = if needs_ceno_agg {
+        let recursion_setup_start = std::time::Instant::now();
+        let sdk = prebuilt_jagged_sdk
+            .as_ref()
+            .expect("ceno sdk should be initialized before recursion setup");
+        let agg_prover =
+            info_span!("recursion.init_agg_prover").in_scope(|| init_ceno_agg_prover(sdk))?;
+        let recursion_setup_elapsed = recursion_setup_start.elapsed();
+        println!(
+            "ceno prove-stark recursion setup time ({mode}): {recursion_setup_elapsed:?}",
+            mode = ceno_recursion_backend
+        );
+        Some(agg_prover)
+    } else {
+        None
+    };
 
     run_with_metric_collection("OUTPUT_PATH", || {
         info_span!("reth-block", block_number = args.block_number).in_scope(
@@ -568,6 +777,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
+                        let ceno_sdk = prebuilt_jagged_sdk
+                            .take()
+                            .expect("ceno sdk should be initialized before reth-block");
                         let mut hints = CenoStdin::default();
 
                         let pub_io_digest =
@@ -588,6 +800,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
 
                         if let Some(output_dir) = args.output_dir.as_ref() {
+                            fs::create_dir_all(output_dir)?;
                             let mut path = output_dir.clone();
                             path.push("app_proof.bitcode");
 
@@ -611,7 +824,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
-                        let mut basefold_sdk = new_basefold_sdk()?;
+                        let jagged_sdk = prebuilt_jagged_sdk
+                            .take()
+                            .expect("ceno sdk should be initialized before reth-block");
+                        let agg_prover = prebuilt_agg_prover
+                            .take()
+                            .expect("ceno agg prover should be initialized before reth-block");
                         let mut hints = CenoStdin::default();
 
                         let pub_io_digest =
@@ -622,56 +840,127 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 })
                             })?;
 
+                        let total_create_proof_start = std::time::Instant::now();
+                        let app_prove_start = std::time::Instant::now();
                         let proofs = info_span!("app.prove").in_scope(|| {
-                            basefold_sdk.generate_base_proof(
+                            jagged_sdk.generate_base_proof(
                                 hints,
                                 pub_io_digest,
                                 max_steps,
                                 args.shard_id.map(|v| v as usize),
                             )
                         });
+                        let app_prove_elapsed = app_prove_start.elapsed();
+                        println!("ceno prove-stark app create_proof time: {app_prove_elapsed:?}");
 
                         if let Some(output_dir) = args.output_dir.as_ref() {
+                            fs::create_dir_all(output_dir)?;
                             let mut path = output_dir.clone();
                             path.push("app_proof.bitcode");
                             fs::write(path, bitcode::serialize(&proofs)?)?;
                         };
 
-                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| basefold_sdk.compress_to_root_proof(proofs));
+                        let timed_root_output = info_span!("recursion.compress_to_root_proof")
+                            .in_scope(|| agg_prover.prove_with_root_vk_timed(&proofs))?;
+                        let root_output = timed_root_output.root_output;
+                        println!(
+                            "ceno prove-stark recursion leaf aggregation time ({mode}): {:?}",
+                            timed_root_output.timings.leaf_aggregation,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion internal aggregation time ({mode}): {:?}",
+                            timed_root_output.timings.internal_aggregation,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion root proving time ({mode}): {:?}",
+                            timed_root_output.timings.root_proving,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion total create_proof time ({mode}): {:?}",
+                            timed_root_output.timings.total_create_proof,
+                            mode = ceno_recursion_backend
+                        );
 
+                        let root_verify_start = std::time::Instant::now();
                         info_span!("recursion.verify").in_scope(|| {
-                            verify_e2e_stark_proof(
-                                &basefold_sdk.get_agg_verifier(),
-                                &vm_stark_proof,
-                                &Bn254Fr::ZERO,
-                                &Bn254Fr::ZERO,
-                            )
-                            .expect("root proof verification failed");
+                            agg_prover
+                                .verify_root_proof(&root_output.root_vk, &root_output.root_proof)
+                                .expect("root proof verification failed");
                         });
+                        let root_verify_elapsed = root_verify_start.elapsed();
+                        println!("ceno prove-stark root verify time: {root_verify_elapsed:?}");
 
-                        if let Some(output_dir) = args.output_dir.as_ref() {
-                            let versioned_proof = VersionedVmStarkProof::new(vm_stark_proof)?;
-                            write_versioned_proof(output_dir, args.block_number, versioned_proof)?;
-                        }
+                        handle_ceno_root_proof(
+                            args.output_dir.as_ref(),
+                            args.block_number,
+                            &root_output.root_proof,
+                        )?;
+
+                        let total_create_proof_elapsed = total_create_proof_start.elapsed();
+                        println!(
+                            "ceno prove-stark total create_proof time ({mode}): {total_create_proof_elapsed:?}",
+                            mode = ceno_recursion_backend
+                        );
                     }
                     BenchMode::ProveStarkOnly => {
-                        let mut basefold_sdk = new_basefold_sdk()?;
+                        let agg_prover = prebuilt_agg_prover
+                            .take()
+                            .expect("ceno agg prover should be initialized before reth-block");
                         let Some(app_proofs_path) = args.app_proofs.as_ref() else {
                             panic!("empty app_proofs_path")
                         };
-                        let proofs = read_object_from_file(app_proofs_path)?;
-                        let vm_stark_proof = info_span!("recursion.compress_to_root_proof")
-                            .in_scope(|| basefold_sdk.compress_to_root_proof(proofs));
+                        let proofs: Vec<CenoBenchProof> = read_object_from_file(app_proofs_path)?;
+                        if env_flag_enabled("CENO_VERIFY_APP_PROOF_BEFORE_RECURSION") {
+                            let sdk = prebuilt_jagged_sdk
+                                .as_ref()
+                                .expect("ceno sdk should be initialized before app proof verify");
+                            let verifier = sdk.create_zkvm_verifier();
+                            let verify_proofs = proofs.clone();
+                            info_span!("app.verify.loaded").in_scope(|| {
+                                run_e2e_full_trace_verify(
+                                    &verifier,
+                                    verify_proofs,
+                                    Some(0),
+                                    max_steps,
+                                )
+                            });
+                        }
+                        let timed_root_output = info_span!("recursion.compress_to_root_proof")
+                            .in_scope(|| agg_prover.prove_with_root_vk_timed(&proofs))?;
+                        let root_output = timed_root_output.root_output;
+                        println!(
+                            "ceno prove-stark recursion leaf aggregation time ({mode}): {:?}",
+                            timed_root_output.timings.leaf_aggregation,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion internal aggregation time ({mode}): {:?}",
+                            timed_root_output.timings.internal_aggregation,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion root proving time ({mode}): {:?}",
+                            timed_root_output.timings.root_proving,
+                            mode = ceno_recursion_backend
+                        );
+                        println!(
+                            "ceno prove-stark recursion total create_proof time ({mode}): {:?}",
+                            timed_root_output.timings.total_create_proof,
+                            mode = ceno_recursion_backend
+                        );
                         info_span!("recursion.verify").in_scope(|| {
-                            verify_e2e_stark_proof(
-                                &basefold_sdk.get_agg_verifier(),
-                                &vm_stark_proof,
-                                &Bn254Fr::ZERO,
-                                &Bn254Fr::ZERO,
-                            )
-                            .expect("root proof verification failed");
+                            agg_prover
+                                .verify_root_proof(&root_output.root_vk, &root_output.root_proof)
+                                .expect("root proof verification failed");
                         });
+                        handle_ceno_root_proof(
+                            args.output_dir.as_ref(),
+                            args.block_number,
+                            &root_output.root_proof,
+                        )?;
                     }
                     #[cfg(feature = "evm-verify")]
                     BenchMode::ProveEvm => {
@@ -690,15 +979,18 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         println!("block_hash (prove_evm): {}", ToHexExt::encode_hex(block_hash));
                     }
                     BenchMode::GenerateFixtures => {
-                        let mut basefold_sdk = new_basefold_sdk()?;
-                        let _app_pk = basefold_sdk.get_app_pk();
-                        let agg_pk = basefold_sdk.init_agg_pk();
+                        let jagged_sdk = prebuilt_jagged_sdk
+                            .take()
+                            .expect("ceno sdk should be initialized before reth-block");
+                        let _app_pk = jagged_sdk.get_app_pk();
+                        let agg_prover = prebuilt_agg_prover
+                            .take()
+                            .expect("ceno agg prover should be initialized before reth-block");
+                        let _agg_vk = agg_prover.leaf_vk();
 
-                        let fixture_path = args.fixtures_path.unwrap();
-
-                        let mut agg_pk_path = fixture_path.clone();
-                        agg_pk_path.push("agg_pk.bitcode");
-                        fs::write(agg_pk_path, bitcode::serialize(&agg_pk)?)?;
+                        tracing::info!(
+                            "ceno recursion v2 aggregation keys are initialized in-process"
+                        );
                     }
                     _ => {
                         // This case is handled earlier and should not reach here
@@ -713,6 +1005,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     Ok(())
 }
 
+#[cfg(feature = "openvm-backend")]
 pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) -> eyre::Result<()> {
     // Initialize the environment variables.
     dotenv::dotenv().ok();
@@ -720,6 +1013,7 @@ pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) ->
     if std::env::var("RUST_LOG").is_err() {
         std::env::set_var("RUST_LOG", "info");
     }
+    init_tracing();
 
     // Parse the command line arguments.
     let mut args = args;
@@ -1009,9 +1303,17 @@ fn try_load_input_from_path(path: &PathBuf) -> eyre::Result<ClientExecutorInput>
         if bytes.len() % 4 != 0 {
             eyre::bail!("input bytes length must be multiple of 4");
         }
-        let input: ClientExecutorInput = openvm::serde::from_slice(&bytes)
-            .map_err(|e| eyre::eyre!("failed to decode input words using openvm::serde: {e:?}"))?;
-        Ok(input)
+        #[cfg(feature = "openvm-backend")]
+        {
+            let input: ClientExecutorInput = openvm::serde::from_slice(&bytes).map_err(|e| {
+                eyre::eyre!("failed to decode input words using openvm::serde: {e:?}")
+            })?;
+            Ok(input)
+        }
+        #[cfg(not(feature = "openvm-backend"))]
+        {
+            eyre::bail!("JSON input decoding requires the openvm-backend feature")
+        }
     } else {
         let mut file = std::fs::File::open(path)?;
         let client_input: ClientExecutorInput =

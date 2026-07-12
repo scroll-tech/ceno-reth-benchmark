@@ -95,15 +95,15 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        description: "Value for CENO_MAX_CELL_PER_SHARD; 1207959552 = (1 << 30) * 9 / 4 / 2"
+        description: "Value for CENO_MAX_CELL_PER_SHARD; 1073741824 = (1 << 30) * 8 / 4 / 2"
         required: false
         type: string
-        default: "1207959552"
+        default: "1073741824"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
         type: string
-        default: "24"
+        default: "23"
 
 jobs:
   check-gpu-mem-estimation:
@@ -187,6 +187,27 @@ jobs:
 
           cd ../..
 
+          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
+          mkdir -p output/guest
+          cp "$GUEST_ELF" output/guest/ceno-client-eth
+          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
+          {
+            echo "guest_elf=$GUEST_ELF"
+            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
+            echo
+            echo "[cargo-ceno]"
+            cargo ceno --version
+            echo
+            echo "[rustc]"
+            rustc -Vv
+            echo
+            echo "[cargo]"
+            cargo -Vv
+            echo
+            echo "[guest ceno deps]"
+            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
+          } > output/guest/ceno-client-eth.metadata.txt
+
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
@@ -200,6 +221,7 @@ jobs:
 
           echo "Running GPU memory tracking benchmark for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          ulimit -s 1048576
           set +e
 
           # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
@@ -208,7 +230,7 @@ jobs:
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
-          RUST_MIN_STACK=16777216 \
+          RUST_MIN_STACK=536870912 \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
@@ -237,6 +259,14 @@ jobs:
           else
             echo "GPU memory tracking benchmark completed successfully"
           fi
+
+      - name: Upload guest program artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-program-gpu-mem-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/guest/
+          if-no-files-found: warn
 
   benchmark:
     if: ${{ inputs.run_gpu_benchmark }}
@@ -321,6 +351,27 @@ jobs:
 
           cd ../..
 
+          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
+          mkdir -p output/guest
+          cp "$GUEST_ELF" output/guest/ceno-client-eth
+          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
+          {
+            echo "guest_elf=$GUEST_ELF"
+            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
+            echo
+            echo "[cargo-ceno]"
+            cargo ceno --version
+            echo
+            echo "[rustc]"
+            rustc -Vv
+            echo
+            echo "[cargo]"
+            cargo -Vv
+            echo
+            echo "[guest ceno deps]"
+            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
+          } > output/guest/ceno-client-eth.metadata.txt
+
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
@@ -334,11 +385,12 @@ jobs:
 
           echo "Generating e2e proof for block $block_number..."
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
+          ulimit -s 1048576
           set +e
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
-          RUST_MIN_STACK=16777216 \
+          RUST_MIN_STACK=536870912 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
@@ -346,7 +398,7 @@ jobs:
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
-            --mode prove-app \
+            --mode prove-stark \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
@@ -367,8 +419,29 @@ jobs:
             fi
             echo "Continuing despite failure because ignore_failed=true"
           else
+            test -s output/app_proof.bitcode
+            test -s "output/${block_number}_root_proof.bin"
             echo "e2e proof generated successfully"
           fi
+
+      - name: Upload guest program artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guest-program-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
+          path: output/guest/
+          if-no-files-found: warn
+
+      - name: Upload benchmark debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-debug-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            output/app_proof.bitcode
+            output/*_root_proof.bin
+            ${{ env.LOG_FILE }}
+          if-no-files-found: warn
 
       - name: Profile trace from log file
         run: |
