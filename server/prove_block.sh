@@ -43,10 +43,12 @@ job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
 
 CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL%/}"
+POST_STATUS_HTTP_STATUS=""
 
 post_status() {
   local endpoint="$1"
   local payload="$2"
+  POST_STATUS_HTTP_STATUS=""
   if [[ -z "$CENO_STATUS_API_BASE_URL" ]]; then
     return
   fi
@@ -63,6 +65,7 @@ post_status() {
     --data-binary "@${payload_file}" \
     "${CENO_STATUS_API_BASE_URL}/${endpoint}")
   status="$response"
+  POST_STATUS_HTTP_STATUS="$status"
   echo "[post_status] status=${status}" >&2
   if [[ -s /tmp/post_status_resp.$$ ]]; then
     echo "[post_status] response=$(cat /tmp/post_status_resp.$$)" >&2
@@ -100,9 +103,18 @@ else
 fi
 
 PROOF_FILENAME="${BLOCK_NUMBER}_proof.json"
+ROOT_PROOF_FILENAME="${BLOCK_NUMBER}_root_proof.bin"
 JOB_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${PROOF_FILENAME}"
+JOB_ROOT_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${ROOT_PROOF_FILENAME}"
 
 if [[ -z "$BLOCK_NUMBER_OVERRIDE" ]]; then
+  echo "[prove_block.sh] Checking for existing root proof at ${JOB_ROOT_PROOF_S3_URI}" >&2
+  if s5cmd ls "$JOB_ROOT_PROOF_S3_URI" >/dev/null 2>&1; then
+    echo "[prove_block.sh] Found existing root proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
+
   echo "[prove_block.sh] Checking for existing proof at ${JOB_PROOF_S3_URI}" >&2
   if s5cmd ls "$JOB_PROOF_S3_URI" >/dev/null 2>&1; then
     echo "[prove_block.sh] Found existing proof for block ${BLOCK_NUMBER}; sleeping 300s then exiting" >&2
@@ -131,6 +143,11 @@ if [[ -n "$GENERATED_INPUT_PATH" ]]; then
 else
   if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
     post_status "proofs/queued" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
+    if [[ "$POST_STATUS_HTTP_STATUS" == "409" ]]; then
+      echo "[prove_block.sh] Status API reports block ${BLOCK_NUMBER} is already proved; sleeping 300s then exiting" >&2
+      sleep 300
+      exit 0
+    fi
   fi
   echo "[prove_block.sh] Generating input locally via --mode make-input" >&2
   "$BIN_PATH" \
@@ -168,12 +185,16 @@ METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
+  if [[ "$POST_STATUS_HTTP_STATUS" == "409" ]]; then
+    echo "[prove_block.sh] Status API reports block ${BLOCK_NUMBER} is already proved; sleeping 300s then exiting" >&2
+    sleep 300
+    exit 0
+  fi
 fi
 
 start_ts_ms=$(date +%s%3N)
 PROOF_JSON="$job_dir/${PROOF_FILENAME}"
-ROOT_PROOF_BIN="$job_dir/${BLOCK_NUMBER}_root_proof.bin"
-JOB_ROOT_PROOF_S3_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}_root_proof.bin"
+ROOT_PROOF_BIN="$job_dir/${ROOT_PROOF_FILENAME}"
 
 OUTPUT_PATH="$job_dir/metrics.json"
 
