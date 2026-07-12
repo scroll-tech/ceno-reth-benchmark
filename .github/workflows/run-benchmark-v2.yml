@@ -103,7 +103,7 @@ on:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
         type: string
-        default: "24"
+        default: "23"
 
 jobs:
   check-gpu-mem-estimation:
