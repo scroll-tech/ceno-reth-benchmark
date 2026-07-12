@@ -11,6 +11,9 @@ CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
 CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-none}"
 CHAIN_ID="${CHAIN_ID:-1}"
+CENO_REC_LEAF_K_WHIR="${CENO_REC_LEAF_K_WHIR:-1}"
+CENO_REC_INTERNAL_K_WHIR="${CENO_REC_INTERNAL_K_WHIR:-2}"
+CENO_REC_ROOT_K_WHIR="${CENO_REC_ROOT_K_WHIR:-3}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -18,14 +21,6 @@ CHAIN_ID="${CHAIN_ID:-1}"
 BIN_PATH="${OVM_BIN:-/usr/local/bin/ceno-reth-benchmark-bin}"
 JOBS_DIR="${JOBS_DIR:-/app/jobs}"
 MODE="${MODE:-prove-stark}"
-APP_LOG_BLOWUP="${APP_LOG_BLOWUP:-1}"
-LEAF_LOG_BLOWUP="${LEAF_LOG_BLOWUP:-1}"
-INTERNAL_LOG_BLOWUP="${INTERNAL_LOG_BLOWUP:-2}"
-ROOT_LOG_BLOWUP="${ROOT_LOG_BLOWUP:-3}"
-MAX_SEGMENT_LENGTH="${MAX_SEGMENT_LENGTH:-4194304}"
-SEGMENT_MAX_CELLS="${SEGMENT_MAX_CELLS:-1200000000}"
-VPMM_PAGE_SIZE=$((4 << 20))
-VPMM_PAGES=$((12 * $MAX_SEGMENT_LENGTH/ $VPMM_PAGE_SIZE))
 
 if [[ $# -lt 1 ]]; then
   echo "[prove_block.sh] Usage: $0 <proof_uuid>" >&2
@@ -165,32 +160,7 @@ fi
 INPUT_PATH="$GENERATED_INPUT_PATH"
 echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
 
-AGG_PK_PATH="$job_dir/agg_pk.bitcode"
 METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
-
-# Generate aggregation proving key if missing.
-if [[ ! -f "$AGG_PK_PATH" ]]; then
-  echo "[prove_block.sh] Generating aggregation proving key under $job_dir" >&2
-  "$BIN_PATH" \
-    --mode generate-fixtures \
-    --block-number "$BLOCK_NUMBER" \
-    --input-path "$INPUT_PATH" \
-    --cache-dir "$cache_root" \
-    --rpc-url "$ETH_RPC_URL" \
-    --fixtures-path "$job_dir" \
-    --app-log-blowup "$APP_LOG_BLOWUP" \
-    --leaf-log-blowup "$LEAF_LOG_BLOWUP" \
-    --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
-    --root-log-blowup "$ROOT_LOG_BLOWUP" \
-    --max-segment-length "$MAX_SEGMENT_LENGTH" \
-    --segment-max-cells "$SEGMENT_MAX_CELLS" \
-    --chain-id "$CHAIN_ID"
-fi
-
-if [[ ! -f "$AGG_PK_PATH" ]]; then
-  echo "[prove_block.sh] Error: agg_pk.bitcode not found after generation" >&2
-  exit 1
-fi
 
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
@@ -206,6 +176,9 @@ OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
 export OUTPUT_PATH
+export CENO_REC_LEAF_K_WHIR
+export CENO_REC_INTERNAL_K_WHIR
+export CENO_REC_ROOT_K_WHIR
 
 set +e
 "$BIN_PATH" \
@@ -214,13 +187,6 @@ set +e
   --input-path "$INPUT_PATH" \
   --cache-dir "$cache_root" \
   --rpc-url "$ETH_RPC_URL" \
-  --app-log-blowup "$APP_LOG_BLOWUP" \
-  --leaf-log-blowup "$LEAF_LOG_BLOWUP" \
-  --internal-log-blowup "$INTERNAL_LOG_BLOWUP" \
-  --root-log-blowup "$ROOT_LOG_BLOWUP" \
-  --max-segment-length "$MAX_SEGMENT_LENGTH" \
-  --segment-max-cells "$SEGMENT_MAX_CELLS" \
-  --agg-pk-path "$AGG_PK_PATH" \
   --output-dir "$job_dir" \
   --skip-comparison \
   --chain-id "$CHAIN_ID"
@@ -300,10 +266,18 @@ if [[ -f "$OUTPUT_PATH" ]]; then
 fi
 
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
-  read -r -d '' proved_payload <<EOF || true
-{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${reported_duration_ms},"proving_cycles":${proving_cycles:-0},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
+  if [[ $status -ne 0 ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proof command failed with status=$status" >&2
+  elif [[ -z "$proof_b64" ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proof output is missing" >&2
+  elif ! [[ "$proving_cycles" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[prove_block.sh] Skipping proofs/proved status because proving_cycles is not a positive integer: ${proving_cycles:-<empty>}" >&2
+  else
+    read -r -d '' proved_payload <<EOF || true
+{"block_number":${BLOCK_NUMBER},"cluster_id":${CENO_CLUSTER_ID},"proving_time":${reported_duration_ms},"proving_cycles":${proving_cycles},"proof":"${proof_b64}","verifier_id":"${VERIFIER_ID}"}
 EOF
-  post_status "proofs/proved" "$proved_payload"
+    post_status "proofs/proved" "$proved_payload"
+  fi
 fi
 
 # Post-processing hook: customize as needed
