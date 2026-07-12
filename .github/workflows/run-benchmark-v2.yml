@@ -95,10 +95,10 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        description: "Value for CENO_MAX_CELL_PER_SHARD; 1207959552 = (1 << 30) * 9 / 4 / 2"
+        description: "Value for CENO_MAX_CELL_PER_SHARD; 1073741824 = (1 << 30) * 8 / 4 / 2"
         required: false
         type: string
-        default: "1207959552"
+        default: "1073741824"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
