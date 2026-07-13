@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
-use alloy_consensus::{TxEnvelope, TxReceipt};
+use alloy_consensus::{Transaction, TxEnvelope, TxReceipt};
 use alloy_primitives::Bloom;
 use alloy_provider::{network::Ethereum, Provider};
 use eyre::{eyre, Ok};
+use futures::{stream, StreamExt, TryStreamExt};
 use openvm_client_executor::io::ClientExecutorInput;
 use openvm_mpt::from_proof::transition_proofs_to_tries;
 use openvm_primitives::account_proof::eip1186_proof_to_account_proof;
@@ -17,7 +18,7 @@ use reth_execution_types::ExecutionOutcome;
 use reth_primitives::Block;
 use reth_primitives_traits::block::Block as _;
 use revm::database::CacheDB;
-use revm_primitives::B256;
+use revm_primitives::{B256, U256};
 
 /// An executor that fetches data from a [Provider] to execute blocks in the [ClientExecutor].
 #[derive(Debug, Clone)]
@@ -58,6 +59,16 @@ impl<P: Provider<Ethereum> + Clone + std::fmt::Debug> HostExecutor<P> {
         // Setup the database for the block executor.
         tracing::info!("setting up the database for the block executor");
         let rpc_db = RpcDb::new(self.provider.clone(), block_number - 1);
+        let access_list_entries = collect_access_list_entries(&current_block);
+        if !access_list_entries.is_empty() {
+            let concurrency = rpc_concurrency("CENO_RPC_PREFETCH_CONCURRENCY", 32);
+            tracing::info!(
+                account_count = access_list_entries.len(),
+                concurrency,
+                "prefetching transaction access-list state"
+            );
+            rpc_db.prefetch_access_list(access_list_entries, concurrency).await?;
+        }
         let cache_db = CacheDB::new(&rpc_db);
 
         // Execute the block and fetch all the necessary data along the way.
@@ -106,43 +117,61 @@ impl<P: Provider<Ethereum> + Clone + std::fmt::Debug> HostExecutor<P> {
 
         // For every account we touched, fetch the storage proofs for all the slots we touched.
         tracing::info!("fetching storage proofs");
-        let mut before_storage_proofs = Vec::new();
-        let mut after_storage_proofs = Vec::new();
+        let proof_requests = state_requests
+            .iter()
+            .map(|(address, used_keys)| {
+                let modified_keys = executor_outcome
+                    .state()
+                    .state
+                    .get(address)
+                    .map(|account| {
+                        account.storage.keys().map(|key| B256::from(*key)).collect::<BTreeSet<_>>()
+                    })
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect::<Vec<_>>();
 
-        for (address, used_keys) in state_requests.iter() {
-            let modified_keys = executor_outcome
-                .state()
-                .state
-                .get(address)
-                .map(|account| {
-                    account.storage.keys().map(|key| B256::from(*key)).collect::<BTreeSet<_>>()
-                })
-                .unwrap_or_default()
-                .into_iter()
-                .collect::<Vec<_>>();
+                let keys = used_keys
+                    .iter()
+                    .map(|key| B256::from(*key))
+                    .chain(modified_keys.clone().into_iter())
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
 
-            let keys = used_keys
-                .iter()
-                .map(|key| B256::from(*key))
-                .chain(modified_keys.clone().into_iter())
-                .collect::<BTreeSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>();
+                (*address, keys, modified_keys)
+            })
+            .collect::<Vec<_>>();
 
-            let storage_proof = self
-                .provider
-                .get_proof(*address, keys.clone())
-                .block_id((block_number - 1).into())
-                .await?;
-            before_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
-
-            let storage_proof = self
-                .provider
-                .get_proof(*address, modified_keys)
-                .block_id((block_number).into())
-                .await?;
-            after_storage_proofs.push(eip1186_proof_to_account_proof(storage_proof));
-        }
+        let proof_concurrency = rpc_concurrency("CENO_RPC_PROOF_CONCURRENCY", 32);
+        tracing::info!(
+            account_count = proof_requests.len(),
+            concurrency = proof_concurrency,
+            "fetching storage proofs with bounded concurrency"
+        );
+        let proof_pairs = stream::iter(proof_requests)
+            .map(|(address, keys, modified_keys)| {
+                let provider = self.provider.clone();
+                async move {
+                    let before = provider
+                        .get_proof(address, keys)
+                        .block_id((block_number - 1).into())
+                        .await?;
+                    let after = provider
+                        .get_proof(address, modified_keys)
+                        .block_id(block_number.into())
+                        .await?;
+                    eyre::Ok((
+                        eip1186_proof_to_account_proof(before),
+                        eip1186_proof_to_account_proof(after),
+                    ))
+                }
+            })
+            .buffer_unordered(proof_concurrency)
+            .try_collect::<Vec<_>>()
+            .await?;
+        let (before_storage_proofs, after_storage_proofs): (Vec<_>, Vec<_>) =
+            proof_pairs.into_iter().unzip();
 
         let state = transition_proofs_to_tries(
             previous_block.state_root,
@@ -205,4 +234,27 @@ impl<P: Provider<Ethereum> + Clone + std::fmt::Debug> HostExecutor<P> {
 fn into_primitive_block(block: alloy_rpc_types::Block) -> Block {
     let block = block.map_transactions(|tx| TxEnvelope::from(tx).into());
     block.into_consensus()
+}
+
+fn rpc_concurrency(env_key: &str, default: usize) -> usize {
+    std::env::var(env_key)
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(default)
+}
+
+fn collect_access_list_entries(block: &Block) -> Vec<(alloy_primitives::Address, Vec<U256>)> {
+    let mut entries = std::collections::BTreeMap::<_, BTreeSet<_>>::new();
+    for tx in &block.body.transactions {
+        let Some(access_list) = tx.access_list() else {
+            continue;
+        };
+        for item in &access_list.0 {
+            let entry = entries.entry(item.address).or_default();
+            entry.extend(item.storage_keys.iter().map(|key| U256::from_be_slice(key.as_slice())));
+        }
+    }
+
+    entries.into_iter().map(|(address, keys)| (address, keys.into_iter().collect())).collect()
 }

@@ -5,6 +5,7 @@ use std::{
 
 use alloy_provider::{network::Ethereum, Provider};
 use alloy_rpc_types::BlockId;
+use futures::{stream, StreamExt, TryStreamExt};
 use reth_revm::{
     primitives::{Address, HashMap, B256, U256},
     state::{AccountInfo, Bytecode},
@@ -48,6 +49,67 @@ impl<P: Provider<Ethereum> + Clone> RpcDb<P> {
             storage: RefCell::new(HashMap::default()),
             oldest_ancestor: RefCell::new(block),
         }
+    }
+
+    /// Prefetch account and storage values from access-list entries.
+    pub async fn prefetch_access_list(
+        &self,
+        entries: Vec<(Address, Vec<U256>)>,
+        concurrency: usize,
+    ) -> Result<(), RpcDbError> {
+        let concurrency = concurrency.max(1);
+        let block = self.block;
+        let results = stream::iter(entries)
+            .map(|(address, storage_keys)| {
+                let provider = self.provider.clone();
+                async move {
+                    let proof_keys =
+                        storage_keys.iter().copied().map(B256::from).collect::<Vec<_>>();
+                    let proof = provider
+                        .get_proof(address, proof_keys)
+                        .block_id(block)
+                        .await
+                        .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+                    let code = provider
+                        .get_code_at(address)
+                        .block_id(block)
+                        .await
+                        .map_err(|e| RpcDbError::RpcError(e.to_string()))?;
+
+                    let bytecode = Bytecode::new_raw(code);
+                    let account_info = AccountInfo {
+                        nonce: proof.nonce,
+                        balance: proof.balance,
+                        code_hash: bytecode.hash_slow(),
+                        code: Some(bytecode),
+                    };
+                    let storage_values = proof
+                        .storage_proof
+                        .into_iter()
+                        .map(|storage_proof| {
+                            let key = U256::from_be_slice(storage_proof.key.as_b256().as_slice());
+                            (key, storage_proof.value)
+                        })
+                        .collect::<Vec<_>>();
+
+                    Ok((address, account_info, storage_values))
+                }
+            })
+            .buffer_unordered(concurrency)
+            .try_collect::<Vec<_>>()
+            .await?;
+
+        let mut accounts = self.accounts.borrow_mut();
+        let mut storage = self.storage.borrow_mut();
+        for (address, account_info, storage_values) in results {
+            accounts.insert(address, account_info);
+            let entry = storage.entry(address).or_default();
+            for (key, value) in storage_values {
+                entry.insert(key, value);
+            }
+        }
+
+        Ok(())
     }
 
     /// Fetch the [AccountInfo] for an [Address].
@@ -167,6 +229,13 @@ impl<P: Provider<Ethereum> + Clone> DatabaseRef for RpcDb<P> {
     type Error = ProviderError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
+        if let Some(account_info) = self.accounts.borrow().get(&address).cloned() {
+            if account_info.eq(&AccountInfo::default()) {
+                return Ok(None);
+            }
+            return Ok(Some(account_info));
+        }
+
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;
@@ -187,6 +256,12 @@ impl<P: Provider<Ethereum> + Clone> DatabaseRef for RpcDb<P> {
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+        if let Some(value) =
+            self.storage.borrow().get(&address).and_then(|storage| storage.get(&index)).cloned()
+        {
+            return Ok(value);
+        }
+
         let handle = tokio::runtime::Handle::try_current().map_err(|_| {
             ProviderError::Database(DatabaseError::Other("no tokio runtime found".to_string()))
         })?;

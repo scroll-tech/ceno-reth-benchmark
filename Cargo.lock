@@ -4576,6 +4576,7 @@ dependencies = [
  "bincode 2.0.1",
  "dotenv",
  "eyre",
+ "futures",
  "openvm-client-executor",
  "openvm-mpt",
  "openvm-primitives",
