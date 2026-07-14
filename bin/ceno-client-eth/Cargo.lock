@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#9b181c6584eb4f4ee339c81d786dd4e78a07b3a5"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#2bbf216624a88b8871292b40dfa3e1952624bfab"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#9b181c6584eb4f4ee339c81d786dd4e78a07b3a5"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#2bbf216624a88b8871292b40dfa3e1952624bfab"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -961,7 +961,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#9b181c6584eb4f4ee339c81d786dd4e78a07b3a5"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#2bbf216624a88b8871292b40dfa3e1952624bfab"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -974,7 +974,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#9b181c6584eb4f4ee339c81d786dd4e78a07b3a5"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#2bbf216624a88b8871292b40dfa3e1952624bfab"
 dependencies = [
  "bytemuck",
  "serde",
@@ -983,7 +983,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#9b181c6584eb4f4ee339c81d786dd4e78a07b3a5"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fpreflight-aot#2bbf216624a88b8871292b40dfa3e1952624bfab"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
