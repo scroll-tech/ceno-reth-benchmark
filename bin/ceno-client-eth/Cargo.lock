@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frecursion-v2#59f83f70daa95bc6c9001613e52c2f35a856007b"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#e2428402c23367db51528ecb9aeec7e0e2185024"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -952,7 +952,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frecursion-v2#59f83f70daa95bc6c9001613e52c2f35a856007b"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#e2428402c23367db51528ecb9aeec7e0e2185024"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -961,7 +961,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frecursion-v2#59f83f70daa95bc6c9001613e52c2f35a856007b"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#e2428402c23367db51528ecb9aeec7e0e2185024"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -974,7 +974,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frecursion-v2#59f83f70daa95bc6c9001613e52c2f35a856007b"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#e2428402c23367db51528ecb9aeec7e0e2185024"
 dependencies = [
  "bytemuck",
  "serde",
@@ -983,7 +983,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frecursion-v2#59f83f70daa95bc6c9001613e52c2f35a856007b"
+source = "git+https://github.com/scroll-tech/ceno?branch=master#e2428402c23367db51528ecb9aeec7e0e2185024"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",

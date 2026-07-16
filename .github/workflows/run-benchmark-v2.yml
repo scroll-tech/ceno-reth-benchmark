@@ -95,10 +95,14 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        description: "Value for CENO_MAX_CELL_PER_SHARD; 1073741824 = (1 << 30) * 8 / 4 / 2"
+        # Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
+        # Keccak preflight cost is now estimated with a 33/16 blowup instead of
+        # the old coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
+        # 1207959552 * 33 / 32 = 1245708288.
+        description: "Value for CENO_MAX_CELL_PER_SHARD; magic default 1245708288 = 1207959552 * 33 / 32"
         required: false
         type: string
-        default: "1073741824"
+        default: "1245708288"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
@@ -234,7 +238,7 @@ jobs:
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+          cargo run --features "jemalloc,gpu,aot" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
@@ -396,7 +400,7 @@ jobs:
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
+          cargo run --features "jemalloc,gpu,aot" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
