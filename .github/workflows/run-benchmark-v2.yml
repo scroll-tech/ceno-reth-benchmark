@@ -95,14 +95,12 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        # Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
-        # Keccak preflight cost is now estimated with a 33/16 blowup instead of
-        # the old coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
-        # 1207959552 * 33 / 32 = 1245708288.
-        description: "Value for CENO_MAX_CELL_PER_SHARD; magic default 1245708288 = 1207959552 * 33 / 32"
+        # Magic number for the shared 4090-safe shard cap:
+        # ((1 << 30) * 9 / 4 / 2) = 1207959552.
+        description: "Value for CENO_MAX_CELL_PER_SHARD; default 1207959552 = ((1 << 30) * 9 / 4 / 2)"
         required: false
         type: string
-        default: "1245708288"
+        default: "1207959552"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
