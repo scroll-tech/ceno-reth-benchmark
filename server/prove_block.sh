@@ -21,6 +21,8 @@ CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT="${CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT:-23}"
 CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB="${CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB:-3048}"
 RUST_MIN_STACK="${RUST_MIN_STACK:-536870912}"
 CHAIN_ID="${CHAIN_ID:-1}"
+GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
+PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -45,6 +47,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
+
+wait_for_gpu() {
+  if [[ "$PROVE_BLOCK_GPU_CHECK" != "1" ]]; then
+    return 0
+  fi
+
+  while true; do
+    if command -v nvidia-smi >/dev/null 2>&1 \
+      && nvidia-smi -L >/dev/null 2>&1 \
+      && nvidia-smi --query-gpu=uuid --format=csv,noheader >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "[prove_block.sh] GPU unavailable; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
+    sleep "${GPU_READY_POLL_INTERVAL_SEC}"
+  done
+}
 
 CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL%/}"
 POST_STATUS_HTTP_STATUS=""
@@ -80,6 +98,7 @@ post_status() {
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
 echo "[prove_block.sh] Job dir: $job_dir" >&2
+wait_for_gpu
 
 # Determine block number: either override or fetch latest via RPC.
 if [[ -n "$BLOCK_NUMBER_OVERRIDE" ]]; then
