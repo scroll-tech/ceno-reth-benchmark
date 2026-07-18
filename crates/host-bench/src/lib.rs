@@ -777,7 +777,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
-                        let mut ceno_sdk = prebuilt_jagged_sdk
+                        let ceno_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
                         let mut hints = CenoStdin::default();
@@ -790,6 +790,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 })
                             })?;
 
+                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+                        let mut ceno_sdk = ceno_sdk;
                         #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
                         info_span!("sdk.prepare_preflight_aot")
                             .in_scope(|| ceno_sdk.prepare_preflight_aot(&hints));
@@ -828,7 +830,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
-                        let mut jagged_sdk = prebuilt_jagged_sdk
+                        let jagged_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
                         let agg_prover = prebuilt_agg_prover
@@ -844,6 +846,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 })
                             })?;
 
+                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+                        let mut jagged_sdk = jagged_sdk;
                         #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
                         info_span!("sdk.prepare_preflight_aot")
                             .in_scope(|| jagged_sdk.prepare_preflight_aot(&hints));
