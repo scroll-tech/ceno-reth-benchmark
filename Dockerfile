@@ -70,7 +70,15 @@ RUN --mount=type=secret,id=sshkey \
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates python3 python3-venv curl tar gzip \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    gcc \
+    libc6-dev \
+    python3 \
+    python3-venv \
+    curl \
+    tar \
+    gzip \
    && rm -rf /var/lib/apt/lists/*
 RUN S5CMD_VER=$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest | \
     grep tag_name | cut -d '"' -f 4) && \
