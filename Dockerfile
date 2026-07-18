@@ -59,7 +59,7 @@ RUN --mount=type=secret,id=sshkey \
 # Build host binary
 WORKDIR /app
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
-ARG FEATURES="metrics,jemalloc,gpu"
+ARG FEATURES="metrics,jemalloc,gpu,aot,parallel"
 ARG PROFILE="release"
 ENV CUDA_ARCH="89"
 RUN --mount=type=secret,id=sshkey \
@@ -95,8 +95,7 @@ RUN python3 -m venv /opt/venv \
 ENV RUST_LOG="info,p3_=warn" \
     OUTPUT_PATH="metrics.json" \
     JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true" \
-    KZG_PARAMS_DIR="/root/.openvm/params" \
-    CENO_GPU_CACHE_LEVEL="none"
+    KZG_PARAMS_DIR="/root/.openvm/params"
 
 # Useful mounts for cache/params
 VOLUME ["/app/rpc-cache", "/root/.openvm/params"]
