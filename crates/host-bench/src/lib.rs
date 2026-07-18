@@ -777,7 +777,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
-                        let ceno_sdk = prebuilt_jagged_sdk
+                        let mut ceno_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
                         let mut hints = CenoStdin::default();
@@ -789,6 +789,10 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                     core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
                                 })
                             })?;
+
+                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+                        info_span!("sdk.prepare_preflight_aot")
+                            .in_scope(|| ceno_sdk.prepare_preflight_aot(&hints));
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(
@@ -824,7 +828,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
-                        let jagged_sdk = prebuilt_jagged_sdk
+                        let mut jagged_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
                         let agg_prover = prebuilt_agg_prover
@@ -840,6 +844,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 })
                             })?;
 
+                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+                        info_span!("sdk.prepare_preflight_aot")
+                            .in_scope(|| jagged_sdk.prepare_preflight_aot(&hints));
                         let total_create_proof_start = std::time::Instant::now();
                         let app_prove_start = std::time::Instant::now();
                         let proofs = info_span!("app.prove").in_scope(|| {
