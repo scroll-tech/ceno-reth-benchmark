@@ -722,6 +722,18 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     } else {
         None
     };
+    let needs_ceno_hints = matches!(args.mode, BenchMode::ProveApp | BenchMode::ProveStark);
+    let mut prebuilt_hints = if needs_ceno_hints {
+        let mut hints = CenoStdin::default();
+        info_span!("app.hints").in_scope(|| write_ceno_client_input(&mut hints, &client_input))?;
+        Some(hints)
+    } else {
+        None
+    };
+    #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+    if let (Some(ceno_sdk), Some(hints)) = (prebuilt_jagged_sdk.as_mut(), prebuilt_hints.as_ref()) {
+        info_span!("sdk.prepare_preflight_aot").in_scope(|| ceno_sdk.prepare_preflight_aot(hints));
+    }
 
     run_with_metric_collection("OUTPUT_PATH", || {
         info_span!("reth-block", block_number = args.block_number).in_scope(
@@ -780,21 +792,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let ceno_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
-                        let mut hints = CenoStdin::default();
-
-                        let pub_io_digest =
-                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input(&mut hints, &client_input)?;
-                                Ok(unsafe {
-                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                                })
-                            })?;
-
-                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-                        let mut ceno_sdk = ceno_sdk;
-                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-                        info_span!("sdk.prepare_preflight_aot")
-                            .in_scope(|| ceno_sdk.prepare_preflight_aot(&hints));
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before reth-block");
+                        let pub_io_digest = unsafe {
+                            core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                        };
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(
@@ -836,21 +839,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let agg_prover = prebuilt_agg_prover
                             .take()
                             .expect("ceno agg prover should be initialized before reth-block");
-                        let mut hints = CenoStdin::default();
-
-                        let pub_io_digest =
-                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input(&mut hints, &client_input)?;
-                                Ok(unsafe {
-                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                                })
-                            })?;
-
-                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-                        let mut jagged_sdk = jagged_sdk;
-                        #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-                        info_span!("sdk.prepare_preflight_aot")
-                            .in_scope(|| jagged_sdk.prepare_preflight_aot(&hints));
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before reth-block");
+                        let pub_io_digest = unsafe {
+                            core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                        };
                         let total_create_proof_start = std::time::Instant::now();
                         let app_prove_start = std::time::Instant::now();
                         let proofs = info_span!("app.prove").in_scope(|| {
