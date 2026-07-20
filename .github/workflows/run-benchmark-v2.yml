@@ -23,6 +23,37 @@ on:
         required: true
         type: string
         default: "23817600"
+      proof-uuid:
+        # PROOF_UUID is the S3 path segment written by server/prove_block.sh:
+        # s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin
+        description: "PROOF_UUID: S3 namespace for ready-to-use generated inputs, usually the prover cluster/job name"
+        required: false
+        type: string
+        default: "idc-us-2-9"
+      s3_bucket:
+        # S3_BUCKET is the bucket that stores generated inputs, proofs, and metrics from prove_block.sh.
+        description: "S3_BUCKET: bucket containing prove_block.sh generated inputs and proof artifacts"
+        required: false
+        type: string
+        default: "prover-stat-data"
+      s3_prefix:
+        # S3_PREFIX is the prefix before PROOF_UUID in the prove_block.sh S3 object layout.
+        description: "S3_PREFIX: prefix before PROOF_UUID in the generated-input S3 path"
+        required: false
+        type: string
+        default: "proofs/testing"
+      aws_region:
+        # AWS_REGION is exported for S3 tooling when checking/downloading generated inputs.
+        description: "AWS_REGION: AWS region used by S3 tooling for generated-input download"
+        required: false
+        type: string
+        default: "us-west-2"
+      chain_id:
+        # CHAIN_ID selects the local benchmark cache path rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin.
+        description: "CHAIN_ID: chain id used in the local rpc-cache input path"
+        required: false
+        type: string
+        default: "1"
       rerun_keygen:
         description: "Rerun keygen"
         required: false
@@ -213,6 +244,56 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+          export AWS_REGION
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            echo "Checking for ready-to-use generated input on S3..."
+            if ! command -v s5cmd >/dev/null 2>&1; then
+              echo "s5cmd not found; installing latest Linux amd64 release..."
+              set +e
+              S5CMD_VER="$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+              S5CMD_VER_TRIMMED="${S5CMD_VER#v}"
+              curl -fsSL -o /tmp/s5cmd.tar.gz "https://github.com/peak/s5cmd/releases/download/${S5CMD_VER}/s5cmd_${S5CMD_VER_TRIMMED}_Linux-64bit.tar.gz" \
+                && tar xzf /tmp/s5cmd.tar.gz -C /tmp s5cmd \
+                && sudo install -m 0755 /tmp/s5cmd /usr/local/bin/s5cmd
+              s5cmd_install_status=$?
+              rm -f /tmp/s5cmd /tmp/s5cmd.tar.gz
+              set -e
+            fi
+
+            if command -v s5cmd >/dev/null 2>&1; then
+              S3_INPUT_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+              LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+              mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+              echo "Looking for generated input at ${S3_INPUT_URI}"
+              set +e
+              s5cmd ls "$S3_INPUT_URI" >/dev/null 2>&1
+              s3_ls_status=$?
+              if [[ $s3_ls_status -eq 0 ]]; then
+                s5cmd cp "$S3_INPUT_URI" "$LOCAL_INPUT_PATH"
+                s3_cp_status=$?
+              else
+                s3_cp_status=$s3_ls_status
+              fi
+              set -e
+              if [[ $s3_cp_status -eq 0 && -s "$LOCAL_INPUT_PATH" ]]; then
+                echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+              else
+                rm -f "$LOCAL_INPUT_PATH"
+                echo "No ready-to-use generated input found on S3; benchmark will use RPC/cache generation"
+              fi
+            else
+              echo "s5cmd unavailable after install attempt (status=${s5cmd_install_status:-not-run}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
@@ -242,7 +323,8 @@ jobs:
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+            --cache-dir rpc-cache \
+            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
@@ -377,6 +459,56 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+          export AWS_REGION
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            echo "Checking for ready-to-use generated input on S3..."
+            if ! command -v s5cmd >/dev/null 2>&1; then
+              echo "s5cmd not found; installing latest Linux amd64 release..."
+              set +e
+              S5CMD_VER="$(curl -s https://api.github.com/repos/peak/s5cmd/releases/latest | grep -oP '"tag_name": "\K[^"]+')"
+              S5CMD_VER_TRIMMED="${S5CMD_VER#v}"
+              curl -fsSL -o /tmp/s5cmd.tar.gz "https://github.com/peak/s5cmd/releases/download/${S5CMD_VER}/s5cmd_${S5CMD_VER_TRIMMED}_Linux-64bit.tar.gz" \
+                && tar xzf /tmp/s5cmd.tar.gz -C /tmp s5cmd \
+                && sudo install -m 0755 /tmp/s5cmd /usr/local/bin/s5cmd
+              s5cmd_install_status=$?
+              rm -f /tmp/s5cmd /tmp/s5cmd.tar.gz
+              set -e
+            fi
+
+            if command -v s5cmd >/dev/null 2>&1; then
+              S3_INPUT_URI="s3://${S3_BUCKET}/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+              LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+              mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+              echo "Looking for generated input at ${S3_INPUT_URI}"
+              set +e
+              s5cmd ls "$S3_INPUT_URI" >/dev/null 2>&1
+              s3_ls_status=$?
+              if [[ $s3_ls_status -eq 0 ]]; then
+                s5cmd cp "$S3_INPUT_URI" "$LOCAL_INPUT_PATH"
+                s3_cp_status=$?
+              else
+                s3_cp_status=$s3_ls_status
+              fi
+              set -e
+              if [[ $s3_cp_status -eq 0 && -s "$LOCAL_INPUT_PATH" ]]; then
+                echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+              else
+                rm -f "$LOCAL_INPUT_PATH"
+                echo "No ready-to-use generated input found on S3; benchmark will use RPC/cache generation"
+              fi
+            else
+              echo "s5cmd unavailable after install attempt (status=${s5cmd_install_status:-not-run}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
@@ -404,7 +536,8 @@ jobs:
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+            --cache-dir rpc-cache \
+            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
