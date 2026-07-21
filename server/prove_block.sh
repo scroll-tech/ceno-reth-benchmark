@@ -13,11 +13,10 @@ CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-1}"
 CENO_GPU_ENABLE_WITGEN="${CENO_GPU_ENABLE_WITGEN:-0}"
 CENO_CONCURRENT_CHIP_PROVING="${CENO_CONCURRENT_CHIP_PROVING:-1}"
 CENO_GPU_MEM_TRACKING="${CENO_GPU_MEM_TRACKING:-0}"
-# Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
-# Keccak preflight cost is now estimated with a 33/16 blowup instead of the old
-# coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
-# 1207959552 * 33 / 32 = 1245708288.
-CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-1245708288}"
+# The adaptive estimator now counts summed batched-main first-fold buffers plus
+# the largest per-chip tower peak. A 24 GB GPU sweep found 5.0B keeps block
+# 23817600 at 11 shards and proves 25579700, while 5.2B OOMs.
+CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-5000000000}"
 CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT="${CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT:-23}"
 CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB="${CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB:-3048}"
 RUST_MIN_STACK="${RUST_MIN_STACK:-536870912}"
