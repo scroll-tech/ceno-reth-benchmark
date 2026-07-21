@@ -23,6 +23,37 @@ on:
         required: true
         type: string
         default: "23817600"
+      proof-uuid:
+        # PROOF_UUID is the S3/HTTPS path segment written by server/prove_block.sh:
+        # https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin
+        description: "PROOF_UUID: S3 namespace for ready-to-use generated inputs, usually the prover cluster/job name"
+        required: false
+        type: string
+        default: "idc-us-2-9"
+      s3_bucket:
+        # S3_BUCKET is the bucket that stores generated inputs, proofs, and metrics from prove_block.sh.
+        description: "S3_BUCKET: bucket containing prove_block.sh generated inputs and proof artifacts"
+        required: false
+        type: string
+        default: "prover-stat-data"
+      s3_prefix:
+        # S3_PREFIX is the prefix before PROOF_UUID in the prove_block.sh S3 object layout.
+        description: "S3_PREFIX: prefix before PROOF_UUID in the generated-input S3 path"
+        required: false
+        type: string
+        default: "proofs/testing"
+      aws_region:
+        # AWS_REGION selects the virtual-hosted S3 HTTPS endpoint for generated-input download.
+        description: "AWS_REGION: AWS region used in the generated-input HTTPS download URL"
+        required: false
+        type: string
+        default: "us-west-2"
+      chain_id:
+        # CHAIN_ID selects the local benchmark cache path rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin.
+        description: "CHAIN_ID: chain id used in the local rpc-cache input path"
+        required: false
+        type: string
+        default: "1"
       rerun_keygen:
         description: "Rerun keygen"
         required: false
@@ -215,6 +246,34 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
+            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
+            set +e
+            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
+              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
+            input_download_status=$?
+            set -e
+            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
+              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+            else
+              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
@@ -379,6 +438,34 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
+            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
+            set +e
+            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
+              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
+            input_download_status=$?
+            set -e
+            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
+              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+            else
+              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
