@@ -126,13 +126,14 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        # The adaptive estimator now counts summed batched-main first-fold buffers
-        # plus the largest per-chip tower peak. A 24 GB GPU sweep found 5.0B keeps
-        # block 23817600 at 11 shards and proves 25579700, while 5.2B OOMs.
-        description: "Value for CENO_MAX_CELL_PER_SHARD; empirically safe 24 GB default is 5000000000"
+        # Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
+        # Keccak preflight cost is now estimated with a 33/16 blowup instead of
+        # the old coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
+        # 1207959552 * 33 / 32 = 1245708288.
+        description: "Value for CENO_MAX_CELL_PER_SHARD; magic default 1245708288 = 1207959552 * 33 / 32"
         required: false
         type: string
-        default: "5000000000"
+        default: "1245708288"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
