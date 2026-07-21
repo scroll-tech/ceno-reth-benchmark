@@ -1363,7 +1363,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1495,7 +1495,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "glob",
 ]
@@ -1522,7 +1522,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1557,7 +1557,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1570,7 +1570,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion_v2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "bincode 1.3.3",
  "bincode 2.0.1",
@@ -1624,7 +1624,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1637,7 +1637,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1651,7 +1651,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#6e90bc85
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "arrayref",
  "base64",
@@ -2343,7 +2343,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3037,7 +3037,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#d8f3b0d538f5e922c9ff7fd26326d4805086d4bf"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fresolve_oom#3307a6e0992cf1cc7e0d336038ee0723203f8f65"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
