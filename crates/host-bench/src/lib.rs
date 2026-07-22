@@ -722,7 +722,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     } else {
         None
     };
-    let needs_ceno_hints = matches!(args.mode, BenchMode::ProveApp | BenchMode::ProveStark);
+    let needs_ceno_hints =
+        matches!(args.mode, BenchMode::Execute | BenchMode::ProveApp | BenchMode::ProveStark);
     let mut prebuilt_hints = if needs_ceno_hints {
         let mut hints = CenoStdin::default();
         info_span!("app.hints").in_scope(|| write_ceno_client_input(&mut hints, &client_input))?;
@@ -769,7 +770,22 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                 }
 
                 match args.mode {
-                    BenchMode::Execute => {}
+                    BenchMode::Execute => {
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before execute");
+                        let sdk = CenoBenchSdk::new_with_app_config(
+                            program.clone(),
+                            platform.clone(),
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
+                        );
+                        let report = info_span!("sdk.execute", group = program_name)
+                            .in_scope(|| sdk.execute(&hints, max_steps));
+                        println!("ceno executed instructions: {}", report.executed_steps);
+                        println!("ceno executed cycles: {}", report.cycles);
+                        println!("ceno opcode histogram: {:?}", report.opcode_histogram);
+                        println!("ceno ecall histogram: {:?}", report.ecall_histogram);
+                    }
                     BenchMode::ExecuteMetered => {
                         unimplemented!()
                         // let engine =
