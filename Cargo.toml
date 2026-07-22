@@ -176,19 +176,6 @@ openvm-pairing = { git = "https://github.com/scroll-tech/openvm.git", branch = "
 openvm-algebra-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
 openvm-ecc-guest = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
 
-[patch."https://github.com/scroll-tech/ceno"]
-ceno_emul = { path = "../ceno/ceno_emul" }
-ceno_host = { path = "../ceno/ceno_host" }
-ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-gkr_iop = { path = "../ceno/gkr_iop" }
-ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
-ceno_recursion = { path = "../ceno/ceno_recursion_v2", package = "ceno_recursion_v2" }
-ceno_rt = { path = "../ceno/ceno_rt" }
-ceno_crypto = { path = "../ceno/guest_libs/crypto" }
-ceno_keccak = { path = "../ceno/guest_libs/keccak" }
-ceno_sha2 = { path = "../ceno/guest_libs/sha2" }
-ceno_serde = { path = "../ceno/ceno_serde" }
-
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
 rust.unreachable_pub = "warn"
