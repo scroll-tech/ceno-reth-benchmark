@@ -569,9 +569,6 @@ impl StreamingEthereumState<'_> {
                         }
                     }
                     storage_trie.hash()
-                } else if let Some(storage_trie) = self.storage_tries.borrow().get(&hashed_address)
-                {
-                    storage_trie.hash()
                 } else {
                     self.expected_storage_root_from_state_trie(hashed_address)
                         .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?
