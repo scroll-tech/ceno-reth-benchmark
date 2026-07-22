@@ -25,6 +25,13 @@ use crate::{
     },
 };
 
+type LookupOrders<'a> = (
+    &'a RefCell<Vec<B256>>,
+    &'a RefCell<Vec<B256>>,
+    &'a RefCell<Vec<B256>>,
+    &'a RefCell<Vec<WitnessAccess>>,
+);
+
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
 
@@ -165,12 +172,7 @@ impl ClientExecutor {
         &self,
         chain_variant: ChainVariant,
         mut input: ClientExecutorInputWithState,
-        lookup_orders: Option<(
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<WitnessAccess>>,
-        )>,
+        lookup_orders: Option<LookupOrders<'_>>,
     ) -> Result<Header, ClientExecutionError> {
         // Initialize the witnessed database with verified storage proofs.
         let witness_db = match lookup_orders {
@@ -256,7 +258,7 @@ impl ClientExecutor {
                         .state
                         .storage_tries
                         .get(&hashed_address)
-                        .map_or(false, |storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
+                        .is_some_and(|storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
                 {
                     if !account_order.contains(&hashed_address) {
                         account_order.push(hashed_address);

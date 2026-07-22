@@ -41,17 +41,17 @@ use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
-    sync::LazyLock,
+    sync::{Arc, LazyLock},
 };
 use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
-use ceno_emul::{Platform, Program};
+use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_zkvm::e2e::{
-    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
-    Preset,
+    emulate_program, run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform,
+    setup_program, MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -236,10 +236,9 @@ fn write_ceno_client_input(
     for access in witness_order {
         match access {
             WitnessAccess::Account(hash) => {
-                let account = account_by_hash
-                    .get(&hash)
-                    .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
-                    .clone();
+                let account = account_by_hash.get(&hash).copied().ok_or_else(|| {
+                    eyre::eyre!("missing account for recorded lookup hash {hash}")
+                })?;
                 hints.write(&ClientWitnessInput::Account(AccountInput {
                     hashed_address: hash,
                     account,
@@ -774,17 +773,37 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let hints = prebuilt_hints
                             .take()
                             .expect("ceno hints should be initialized before execute");
-                        let sdk = CenoBenchSdk::new_with_app_config(
-                            program.clone(),
-                            platform.clone(),
-                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD),
-                        );
-                        let report = info_span!("sdk.execute", group = program_name)
-                            .in_scope(|| sdk.execute(&hints, max_steps));
+                        let multi_prover =
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                        let program_ctx =
+                            setup_program::<ff_ext::BabyBearExt4>(
+                                program.clone(),
+                                platform.clone(),
+                                multi_prover.clone(),
+                            );
+                        let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        let raw_step_cell_extractor =
+                            Arc::clone(&program_ctx.system_config.config);
+                        let step_cell_extractor: Arc<dyn StepCellExtractor> =
+                            raw_step_cell_extractor;
+                        let report = info_span!("sdk.execute", group = program_name).in_scope(|| {
+                            emulate_program(
+                                program_ctx.program.clone(),
+                                max_steps,
+                                &init_full_mem,
+                                [0; 8],
+                                &program_ctx.platform,
+                                &program_ctx.multi_prover,
+                                step_cell_extractor,
+                                #[cfg(all(
+                                    feature = "aot",
+                                    target_arch = "x86_64",
+                                    target_os = "linux"
+                                ))]
+                                program_ctx.preflight_aot_program.clone(),
+                            )
+                        });
                         println!("ceno executed instructions: {}", report.executed_steps);
-                        println!("ceno executed cycles: {}", report.cycles);
-                        println!("ceno opcode histogram: {:?}", report.opcode_histogram);
-                        println!("ceno ecall histogram: {:?}", report.ecall_histogram);
                     }
                     BenchMode::ExecuteMetered => {
                         unimplemented!()

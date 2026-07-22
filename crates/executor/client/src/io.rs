@@ -139,6 +139,13 @@ pub enum WitnessAccess {
     StateTrie,
 }
 
+pub type WitnessDbLookupOrders<'a> = (
+    &'a RefCell<Vec<B256>>,
+    &'a RefCell<Vec<B256>>,
+    &'a RefCell<Vec<B256>>,
+    Option<&'a RefCell<Vec<WitnessAccess>>>,
+);
+
 pub trait ClientInputReader {
     fn read_ancestor_headers(&mut self) -> AncestorHeadersInput;
 
@@ -346,7 +353,7 @@ impl StreamingEthereumState<'_> {
 
     pub fn read_account(&self, hashed_address: B256) -> Result<Option<TrieAccount>, ProviderError> {
         if let Some(account) = self.account_cache.borrow().get(&hashed_address) {
-            return Ok(account.clone());
+            return Ok(*account);
         }
 
         loop {
@@ -373,7 +380,7 @@ impl StreamingEthereumState<'_> {
             }
 
             let streamed_account = account_input.account;
-            self.account_cache.borrow_mut().insert(streamed_address, streamed_account.clone());
+            self.account_cache.borrow_mut().insert(streamed_address, streamed_account);
             if streamed_address == hashed_address {
                 return Ok(streamed_account);
             }
@@ -617,10 +624,7 @@ impl ClientExecutorInputWithState {
             &self.input.current_block.header,
             &self.input.ancestor_headers,
             &self.input.bytecodes,
-            account_lookup_order,
-            bytecode_lookup_order,
-            storage_lookup_order,
-            witness_order,
+            (account_lookup_order, bytecode_lookup_order, storage_lookup_order, witness_order),
         )
     }
 }
@@ -794,11 +798,14 @@ impl<'a> WitnessDb<'a, 'a> {
         current_header: &'a Header,
         ancestor_headers: &'a [Header],
         bytecodes: &'a [Bytecode],
-        account_lookup_order_input: &'a RefCell<Vec<B256>>,
-        bytecode_lookup_order: &'a RefCell<Vec<B256>>,
-        storage_lookup_order: &'a RefCell<Vec<B256>>,
-        witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
+        lookup_orders: WitnessDbLookupOrders<'a>,
     ) -> Result<Self, ClientExecutionError> {
+        let (
+            account_lookup_order_input,
+            bytecode_lookup_order,
+            storage_lookup_order,
+            witness_order,
+        ) = lookup_orders;
         let mut witness_db = Self::from_parts(state, current_header, ancestor_headers, bytecodes)?;
         if let BytecodeProvider::Eager {
             lookup_order: order,
@@ -861,10 +868,8 @@ impl DatabaseRef for WitnessDb<'_, '_> {
                         first_lookup = true;
                     }
                 }
-                if first_lookup {
-                    if let Some(witness_order) = witness_order {
-                        witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
-                    }
+                if first_lookup && let Some(witness_order) = witness_order {
+                    witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
                 }
                 state.state_trie.get_rlp::<TrieAccount>(hashed_address.as_slice()).unwrap()
             }
@@ -923,10 +928,8 @@ impl DatabaseRef for WitnessDb<'_, '_> {
                         first_account_lookup = true;
                     }
                 }
-                if first_account_lookup {
-                    if let Some(witness_order) = witness_order {
-                        witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
-                    }
+                if first_account_lookup && let Some(witness_order) = witness_order {
+                    witness_order.borrow_mut().push(WitnessAccess::Account(hashed_address));
                 }
 
                 let mut first_lookup = false;
@@ -937,10 +940,8 @@ impl DatabaseRef for WitnessDb<'_, '_> {
                         first_lookup = true;
                     }
                 }
-                if first_lookup {
-                    if let Some(witness_order) = witness_order {
-                        witness_order.borrow_mut().push(WitnessAccess::StorageTrie(hashed_address));
-                    }
+                if first_lookup && let Some(witness_order) = witness_order {
+                    witness_order.borrow_mut().push(WitnessAccess::StorageTrie(hashed_address));
                 }
                 let storage_trie = state
                     .storage_tries
