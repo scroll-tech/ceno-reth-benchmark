@@ -22,6 +22,7 @@ revm-primitives.workspace = true
 
 # alloy
 alloy-rlp.workspace = true
+alloy-trie.workspace = true
 
 [dev-dependencies]
 hex-literal.workspace = true

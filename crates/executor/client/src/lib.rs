@@ -1,23 +1,25 @@
+mod capacity;
 pub mod error;
 /// Client program input data types.
 pub mod io;
+mod trim;
 
 use std::{cell::RefCell, fmt::Debug, sync::Arc};
 
-use alloy_consensus::TxReceipt;
+use alloy_consensus::{Header, TxReceipt};
 use alloy_primitives::{keccak256, Bloom, B256};
+use alloy_trie::EMPTY_ROOT_HASH;
 use openvm_primitives::chain_spec::{dev, mainnet};
 use reth_consensus::{Consensus, HeaderValidator};
 use reth_ethereum_consensus::{validate_block_post_execution, EthBeaconConsensus};
-use reth_evm::execute::{BasicBlockExecutor, Executor};
+use reth_evm::execute::Executor;
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives::Header;
 use reth_primitives_traits::block::Block as _;
 use reth_revm::db::CacheDB;
-use reth_trie::EMPTY_ROOT_HASH;
 
 use crate::{
+    capacity::{revm_state_with_capacity, CapacityBlockExecutor},
     error::ClientExecutionError,
     io::{
         AncestorHeadersInput, ClientExecutorInput, ClientExecutorInputWithState, ClientInputReader,
@@ -114,21 +116,36 @@ impl ClientExecutor {
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
 
+        if trim::enabled("skip_block_execute") {
+            return Ok(header_from_known_block(
+                current_header,
+                &ancestor_headers,
+                current_ommers_hash,
+                current_state_root,
+                current_transactions_root,
+                current_withdrawals_root,
+                Bloom::default(),
+                current_requests_hash,
+            ));
+        }
+
         let mut state = io::build_streaming_state_from_input_reader(&ancestor_headers, input)?;
         let witness_db =
             io::WitnessDb::from_streaming_parts(&state, &current_header, &ancestor_headers)?;
         let cache_db = CacheDB::new(&witness_db);
-
-        let block_executor = BasicBlockExecutor::new(EthEvmConfig::new(spec.clone()), cache_db);
+        let revm_state = revm_state_with_capacity(
+            cache_db,
+            recovered_block.body().transactions.len(),
+            ancestor_headers.len(),
+        );
+        let block_executor =
+            CapacityBlockExecutor::new_with_state(EthEvmConfig::new(spec.clone()), revm_state);
         let executor_output = block_executor.execute(&recovered_block)?;
 
-        validate_block_post_execution(
-            &recovered_block,
-            &spec,
-            &executor_output.receipts,
-            &executor_output.requests,
-        )
-        .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
+        if !trim::enabled("skip_post_execution_validation") {
+            validate_block_post_execution(&recovered_block, &spec, &executor_output, None, None)
+                .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
+        }
 
         let mut logs_bloom = Bloom::default();
         executor_output.receipts.iter().for_each(|r| {
@@ -144,28 +161,30 @@ impl ClientExecutor {
 
         drop(witness_db);
 
-        let state_root = {
-            state.update_from_bundle_state(&executor_outcome.bundle)?;
-            state.state_root()
-        };
+        if !trim::enabled("skip_state_root_update") {
+            let state_root = {
+                state.update_from_bundle_state(&executor_outcome.bundle)?;
+                state.state_root()
+            };
 
-        if state_root != current_state_root {
-            return Err(ClientExecutionError::StateRootMismatch {
-                actual: state_root,
-                expected: current_state_root,
-            });
+            if state_root != current_state_root {
+                return Err(ClientExecutionError::StateRootMismatch {
+                    actual: state_root,
+                    expected: current_state_root,
+                });
+            }
         }
 
-        let mut header = current_header;
-        header.parent_hash = ancestor_headers[0].hash_slow();
-        header.ommers_hash = current_ommers_hash;
-        header.state_root = current_state_root;
-        header.transactions_root = current_transactions_root;
-        header.withdrawals_root = current_withdrawals_root;
-        header.logs_bloom = logs_bloom;
-        header.requests_hash = current_requests_hash;
-
-        Ok(header)
+        Ok(header_from_known_block(
+            current_header,
+            &ancestor_headers,
+            current_ommers_hash,
+            current_state_root,
+            current_transactions_root,
+            current_withdrawals_root,
+            logs_bloom,
+            current_requests_hash,
+        ))
     }
 
     fn execute_with_state(
@@ -217,17 +236,18 @@ impl ClientExecutor {
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
 
-        let block_executor = BasicBlockExecutor::new(EthEvmConfig::new(spec.clone()), cache_db);
+        let state = revm_state_with_capacity(
+            cache_db,
+            current_block.body().transactions.len(),
+            input.input.ancestor_headers.len(),
+        );
+        let block_executor =
+            CapacityBlockExecutor::new_with_state(EthEvmConfig::new(spec.clone()), state);
         let executor_output = block_executor.execute(&current_block)?;
 
         // Validate the block post execution.
-        validate_block_post_execution(
-            &current_block,
-            &spec,
-            &executor_output.receipts,
-            &executor_output.requests,
-        )
-        .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
+        validate_block_post_execution(&current_block, &spec, &executor_output, None, None)
+            .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
@@ -300,4 +320,24 @@ impl ClientExecutor {
 
         Ok(header)
     }
+}
+
+fn header_from_known_block(
+    mut header: Header,
+    ancestor_headers: &[Header],
+    ommers_hash: B256,
+    state_root: B256,
+    transactions_root: B256,
+    withdrawals_root: Option<B256>,
+    logs_bloom: Bloom,
+    requests_hash: Option<B256>,
+) -> Header {
+    header.parent_hash = ancestor_headers[0].hash_slow();
+    header.ommers_hash = ommers_hash;
+    header.state_root = state_root;
+    header.transactions_root = transactions_root;
+    header.withdrawals_root = withdrawals_root;
+    header.logs_bloom = logs_bloom;
+    header.requests_hash = requests_hash;
+    header
 }

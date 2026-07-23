@@ -151,7 +151,7 @@ fn resolve_nodes_internal(
 
 fn node_from_digest(digest: B256) -> MptOwned {
     match digest {
-        reth_trie::EMPTY_ROOT_HASH | B256::ZERO => MptOwned::default(),
+        alloy_trie::EMPTY_ROOT_HASH | B256::ZERO => MptOwned::default(),
         _ => {
             let mut trie = MptOwned::default();
             trie.set_node(trie.root_id(), &NodeData::Digest(digest.as_slice()));

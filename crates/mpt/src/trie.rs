@@ -471,7 +471,7 @@ impl<'a> Mpt<'a> {
     #[inline]
     pub fn hash(&self) -> B256 {
         match self.nodes[self.root_id as usize] {
-            NodeData::Null => reth_trie::EMPTY_ROOT_HASH,
+            NodeData::Null => alloy_trie::EMPTY_ROOT_HASH,
             _ => match self.cached_references[self.root_id as usize]
                 .borrow_mut()
                 .get_or_insert_with(|| self.calc_reference(self.root_id))

@@ -21,6 +21,7 @@ use openvm_host_executor::HostExecutor;
 #[cfg(feature = "openvm-backend")]
 pub use openvm_native_circuit::NativeConfig;
 
+use alloy_trie::TrieAccount;
 #[cfg(feature = "openvm-backend")]
 use openvm_sdk::{
     config::{SdkVmBuilder, SdkVmConfig},
@@ -35,8 +36,7 @@ use openvm_stark_sdk::{
 };
 #[cfg(feature = "openvm-backend")]
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
-pub use reth_primitives;
-use reth_trie::TrieAccount;
+pub use reth_ethereum_primitives as reth_primitives;
 use std::{
     collections::BTreeMap,
     env, fs,
@@ -50,8 +50,8 @@ use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_zkvm::e2e::{
-    emulate_program, run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform,
-    setup_program, MultiProver, Preset,
+    analyze_shard_ram_light, emulate_program, run_e2e_full_trace_verify,
+    run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -287,6 +287,8 @@ pub enum BenchMode {
     Execute,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
+    /// Replay shards and count ShardRAM records without building proof witnesses.
+    AnalyzeShardRam,
     /// Generate sequence of app proofs for continuation segments.
     ProveApp,
     /// Generate a full end-to-end STARK proof with aggregation.
@@ -308,6 +310,7 @@ impl std::fmt::Display for BenchMode {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
+            Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
             Self::ProveApp => write!(f, "prove_app"),
             Self::ProveStark => write!(f, "prove_stark"),
             #[cfg(feature = "evm-verify")]
@@ -721,8 +724,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     } else {
         None
     };
-    let needs_ceno_hints =
-        matches!(args.mode, BenchMode::Execute | BenchMode::ProveApp | BenchMode::ProveStark);
+    let needs_ceno_hints = matches!(
+        args.mode,
+        BenchMode::Execute |
+            BenchMode::AnalyzeShardRam |
+            BenchMode::ProveApp |
+            BenchMode::ProveStark
+    );
     let mut prebuilt_hints = if needs_ceno_hints {
         let mut hints = CenoStdin::default();
         info_span!("app.hints").in_scope(|| write_ceno_client_input(&mut hints, &client_input))?;
@@ -804,6 +812,59 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             )
                         });
                         println!("ceno executed instructions: {}", report.executed_steps);
+                    }
+                    BenchMode::AnalyzeShardRam => {
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before analyze-shard-ram");
+                        let multi_prover =
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                        let program_ctx = setup_program::<ff_ext::BabyBearExt4>(
+                            program.clone(),
+                            platform.clone(),
+                            multi_prover,
+                        );
+                        let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        let reports = info_span!("sdk.analyze_shard_ram", group = program_name)
+                            .in_scope(|| {
+                                analyze_shard_ram_light(
+                                    &program_ctx,
+                                    &init_full_mem,
+                                    [0; 8],
+                                    max_steps,
+                                    args.shard_id.map(|v| v as usize),
+                                    40,
+                                    #[cfg(all(
+                                        feature = "aot",
+                                        target_arch = "x86_64",
+                                        target_os = "linux"
+                                    ))]
+                                    program_ctx.preflight_aot_program.clone(),
+                                )
+                            });
+                        for report in reports {
+                            println!(
+                                "shard_ram_light shard_id={} total={} read={} write={} first_access_later={} current_access_later={}",
+                                report.shard_id,
+                                report.total_records,
+                                report.read_records,
+                                report.write_records,
+                                report.first_shard_access_later_records,
+                                report.current_shard_access_later_records,
+                            );
+                            for (rank, stat) in report.top_pcs.iter().take(10).enumerate() {
+                                println!(
+                                    "shard_ram_light_top_pc shard_id={} rank={} pc=0x{:08x} kind={} read={} write={} total={}",
+                                    report.shard_id,
+                                    rank + 1,
+                                    stat.pc,
+                                    stat.kind,
+                                    stat.read_records,
+                                    stat.write_records,
+                                    stat.read_records + stat.write_records,
+                                );
+                            }
+                        }
                     }
                     BenchMode::ExecuteMetered => {
                         unimplemented!()
@@ -1211,6 +1272,9 @@ pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) ->
 
                 match args.mode {
                     BenchMode::Execute => {}
+                    BenchMode::AnalyzeShardRam => {
+                        eyre::bail!("analyze-shard-ram mode is only implemented for ceno backend");
+                    }
                     BenchMode::ExecuteMetered => {
                         let engine = DefaultStarkEngine::new(app_config.app_fri_params.fri_params);
                         let (vm, _) = VirtualMachine::new_with_keygen(
