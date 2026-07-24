@@ -163,7 +163,7 @@ impl ClientExecutor {
 
         if !trim::enabled("skip_state_root_update") {
             let state_root = {
-                state.update_from_bundle_state(&executor_outcome.bundle)?;
+                state.update_from_bundle_state(executor_outcome.bundle)?;
                 state.state_root()
             };
 
@@ -271,6 +271,8 @@ impl ClientExecutor {
             witness_order.push(WitnessAccess::StateTrie);
             for (address, account) in &executor_outcome.bundle.state {
                 let hashed_address = keccak256(address);
+                witness_order
+                    .push(WitnessAccess::ModifiedAccount(hashed_address, account.storage.len()));
                 if account.info.is_some() &&
                     !account.storage.is_empty() &&
                     !storage_order.contains(&hashed_address) &&

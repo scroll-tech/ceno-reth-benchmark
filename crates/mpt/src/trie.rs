@@ -44,6 +44,39 @@ pub enum Error {
     /// Occurs when a value is unexpectedly found in a branch node.
     #[error("branch node with value")]
     ValueInBranch,
+    /// The requested frontier boundary does not identify a trie node or empty branch slot.
+    #[error("invalid frontier prefix")]
+    InvalidFrontierPrefix,
+    /// A chunk root became an inline MPT reference and therefore cannot be represented by a
+    /// digest-only frontier slot.
+    #[error("frontier chunk root is not hash-addressed")]
+    InlineFrontierChunk,
+}
+
+/// Cheap host-side limits used when partitioning modified state into authenticated chunks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FrontierLimits {
+    pub max_nodes: usize,
+    pub max_bytes: usize,
+    pub max_keys: usize,
+}
+
+/// One independently authenticated subtree of an MPT frontier.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FrontierChunk {
+    /// Absolute nibble prefix locating the subtree (or empty branch slot) in the frontier.
+    pub prefix: Vec<u8>,
+    pub expected_root: B256,
+    pub num_nodes: usize,
+    pub bytes: Vec<u8>,
+}
+
+/// Encoded digest frontier and its ordered subtree chunks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MptFrontier {
+    pub num_nodes: usize,
+    pub bytes: Vec<u8>,
+    pub chunks: Vec<FrontierChunk>,
 }
 
 /// Arena-based implementation that stores all nodes in a flat vector and uses indices for better
@@ -68,6 +101,164 @@ pub struct Mpt<'a> {
 }
 
 impl<'a> Mpt<'a> {
+    #[cfg(feature = "host")]
+    fn collect_frontier_boundaries(
+        &self,
+        node_id: NodeId,
+        prefix: &mut Vec<u8>,
+        keys: &[(Vec<u8>, usize)],
+        limits: FrontierLimits,
+        out: &mut Vec<(Vec<u8>, Option<NodeId>)>,
+    ) {
+        let encoded_len = self.encoded_subtrie(node_id).len();
+        let node_count = self.subtree_num_nodes(node_id);
+        let over_limit = node_count > limits.max_nodes ||
+            encoded_len > limits.max_bytes ||
+            keys.iter().map(|(_, weight)| *weight).sum::<usize>() > limits.max_keys;
+
+        if over_limit {
+            match self.nodes[node_id as usize] {
+                NodeData::Branch(children) => {
+                    let out_start = out.len();
+                    for nibble in 0..16u8 {
+                        let mut child_keys = Vec::new();
+                        for key in keys {
+                            if key.0.get(prefix.len()) == Some(&nibble) {
+                                child_keys.push(key.clone());
+                            }
+                        }
+                        if child_keys.is_empty() {
+                            continue;
+                        }
+                        prefix.push(nibble);
+                        if let Some(child) = children[nibble as usize] {
+                            self.collect_frontier_boundaries(
+                                child,
+                                prefix,
+                                &child_keys,
+                                limits,
+                                out,
+                            );
+                        } else {
+                            out.push((prefix.clone(), None));
+                        }
+                        prefix.pop();
+                    }
+                    // Inline child references cannot be replaced by digests. Fall back to the
+                    // hash-addressed parent as one conservative chunk.
+                    if out[out_start..].iter().any(|(_, child)| {
+                        child.is_some_and(|id| {
+                            !matches!(self.calc_reference(id), NodeRef::Digest(_))
+                        })
+                    }) {
+                        out.truncate(out_start);
+                    } else if out.len() > out_start {
+                        return;
+                    }
+                }
+                NodeData::Extension(path, child) => {
+                    let path_nibs = prefix_to_nibs(path);
+                    let old_len = prefix.len();
+                    prefix.extend_from_slice(&path_nibs);
+                    let out_start = out.len();
+                    self.collect_frontier_boundaries(child, prefix, keys, limits, out);
+                    if out[out_start..].iter().all(|(_, child)| {
+                        child.is_none_or(|id| matches!(self.calc_reference(id), NodeRef::Digest(_)))
+                    }) && out.len() > out_start
+                    {
+                        prefix.truncate(old_len);
+                        return;
+                    }
+                    out.truncate(out_start);
+                    prefix.truncate(old_len);
+                }
+                _ => {}
+            }
+        }
+        out.push((prefix.clone(), Some(node_id)));
+    }
+
+    /// Builds a digest frontier around the subtrees containing `keys`.
+    #[cfg(feature = "host")]
+    pub fn build_frontier(
+        &self,
+        keys: impl IntoIterator<Item = B256>,
+        limits: FrontierLimits,
+    ) -> Result<MptFrontier, Error> {
+        self.build_frontier_weighted(keys.into_iter().map(|key| (key, 1)), limits)
+    }
+
+    /// Builds a frontier while bounding the sum of per-key update weights (normally one account
+    /// plus its modified storage-slot count).
+    #[cfg(feature = "host")]
+    pub fn build_frontier_weighted(
+        &self,
+        keys: impl IntoIterator<Item = (B256, usize)>,
+        limits: FrontierLimits,
+    ) -> Result<MptFrontier, Error> {
+        let mut keys = keys
+            .into_iter()
+            .map(|(key, weight)| (to_nibs(key.as_slice()).to_vec(), weight))
+            .collect::<Vec<_>>();
+        keys.sort_by(|a, b| a.0.cmp(&b.0));
+        keys.dedup_by(|a, b| {
+            if a.0 == b.0 {
+                b.1 += a.1;
+                true
+            } else {
+                false
+            }
+        });
+        if keys.is_empty() {
+            return Ok(MptFrontier {
+                num_nodes: self.num_nodes(),
+                bytes: self.encode_trie(),
+                chunks: Vec::new(),
+            });
+        }
+
+        let mut boundaries = Vec::new();
+        self.collect_frontier_boundaries(
+            self.root_id,
+            &mut Vec::new(),
+            &keys,
+            limits,
+            &mut boundaries,
+        );
+        boundaries.sort_by(|a, b| a.0.cmp(&b.0));
+
+        let mut frontier = self.clone();
+        let mut chunks = Vec::with_capacity(boundaries.len());
+        for (prefix, node) in boundaries {
+            let (expected_root, num_nodes, bytes) = match node {
+                Some(node_id) => {
+                    if !matches!(self.calc_reference(node_id), NodeRef::Digest(_)) &&
+                        node_id != self.root_id
+                    {
+                        return Err(Error::InlineFrontierChunk);
+                    }
+                    (
+                        self.subtree_hash(node_id),
+                        self.subtree_num_nodes(node_id),
+                        self.encoded_subtrie(node_id),
+                    )
+                }
+                None => {
+                    (alloy_trie::EMPTY_ROOT_HASH, 1, vec![alloy_rlp::EMPTY_STRING_CODE, 0, 0, 0])
+                }
+            };
+            frontier.replace_frontier_slot(&prefix, expected_root, expected_root)?;
+            chunks.push(FrontierChunk { prefix, expected_root, num_nodes, bytes });
+        }
+        let original_root = self.hash();
+        debug_assert_eq!(frontier.hash(), original_root);
+        Ok(MptFrontier {
+            num_nodes: frontier.subtree_num_nodes(frontier.root_id),
+            bytes: frontier.encode_trie(),
+            chunks,
+        })
+    }
+
     pub fn new(bump: &'a Bump) -> Self {
         Self::with_capacity(bump, 1)
     }
@@ -136,6 +327,28 @@ impl<'a> Mpt<'a> {
                 self.encode_trie_internal(ext_id, out);
             }
             _ => {}
+        }
+    }
+
+    #[cfg(feature = "host")]
+    fn encoded_subtrie(&self, node_id: NodeId) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        self.encode_trie_internal(node_id, &mut encoded);
+        encoded
+    }
+
+    #[cfg(feature = "host")]
+    fn subtree_num_nodes(&self, node_id: NodeId) -> usize {
+        match &self.nodes[node_id as usize] {
+            NodeData::Branch(children) => {
+                1 + children
+                    .iter()
+                    .flatten()
+                    .map(|child| self.subtree_num_nodes(*child))
+                    .sum::<usize>()
+            }
+            NodeData::Extension(_, child) => 1 + self.subtree_num_nodes(*child),
+            _ => 1,
         }
     }
 
@@ -529,6 +742,52 @@ impl<'a> Mpt<'a> {
         self.delete_internal(self.root_id, key_nibs)
     }
 
+    /// Retrieves a value using an already-expanded nibble key.
+    #[inline]
+    pub fn get_nibbles(&self, key_nibs: &[u8]) -> Result<Option<&'a [u8]>, Error> {
+        self.get_internal(self.root_id, key_nibs)
+    }
+
+    /// Retrieves and RLP-decodes a value using an already-expanded nibble key.
+    #[inline]
+    pub fn get_rlp_nibbles<T: alloy_rlp::Decodable>(
+        &self,
+        key_nibs: &[u8],
+    ) -> Result<Option<T>, Error> {
+        self.get_nibbles(key_nibs)?
+            .map(|mut value| T::decode(&mut value).map_err(Error::from))
+            .transpose()
+    }
+
+    /// Inserts a value using an already-expanded nibble key.
+    #[inline]
+    pub fn insert_nibbles(&mut self, key_nibs: &[u8], value: &'a [u8]) -> Result<bool, Error> {
+        self.insert_internal(self.root_id, key_nibs, value)
+    }
+
+    /// Inserts an RLP value using an already-expanded nibble key.
+    #[inline]
+    pub fn insert_rlp_nibbles(
+        &mut self,
+        key_nibs: &[u8],
+        value: impl alloy_rlp::Encodable,
+    ) -> Result<bool, Error> {
+        let mut rlp_bytes = BumpBytesMut::with_capacity_in(VALUE_RLP_BUFFER_CAPACITY, self.bump);
+        value.encode(&mut rlp_bytes);
+        self.insert_nibbles(key_nibs, rlp_bytes.into_inner().into_bump_slice())
+    }
+
+    /// Removes a value using an already-expanded nibble key.
+    #[inline]
+    pub fn delete_nibbles(&mut self, key_nibs: &[u8]) -> Result<bool, Error> {
+        self.delete_internal(self.root_id, key_nibs)
+    }
+
+    /// Whether this root can safely escape a chunk arena as a digest reference.
+    pub fn root_is_hash_addressed(&self) -> bool {
+        matches!(self.calc_reference(self.root_id), NodeRef::Digest(_))
+    }
+
     #[inline]
     pub fn is_empty(&self) -> bool {
         matches!(&self.nodes[self.root_id as usize], NodeData::Null)
@@ -539,6 +798,80 @@ impl<'a> Mpt<'a> {
     pub fn reserve(&mut self, additional: usize) {
         self.nodes.reserve(additional);
         self.cached_references.reserve(additional);
+    }
+}
+
+impl<'a> Mpt<'a> {
+    fn replace_frontier_slot_internal(
+        &mut self,
+        node_id: NodeId,
+        prefix: &[u8],
+        expected_root: B256,
+        new_root: B256,
+    ) -> Result<(), Error> {
+        if prefix.is_empty() {
+            if self.subtree_hash(node_id) != expected_root {
+                return Err(Error::NodeRefMismatch);
+            }
+            self.nodes[node_id as usize] = if new_root == alloy_trie::EMPTY_ROOT_HASH {
+                NodeData::Null
+            } else {
+                NodeData::Digest(self.bump.alloc_slice_copy(new_root.as_slice()))
+            };
+            self.invalidate_ref_cache(node_id);
+            return Ok(());
+        }
+
+        match self.nodes[node_id as usize] {
+            NodeData::Branch(mut children) => {
+                let (head, tail) = prefix.split_first().unwrap();
+                if tail.is_empty() && children[*head as usize].is_none() {
+                    if expected_root != alloy_trie::EMPTY_ROOT_HASH {
+                        return Err(Error::NodeRefMismatch);
+                    }
+                    if new_root != alloy_trie::EMPTY_ROOT_HASH {
+                        let digest = self.bump.alloc_slice_copy(new_root.as_slice());
+                        children[*head as usize] =
+                            Some(self.add_node(NodeData::Digest(digest), None));
+                        self.nodes[node_id as usize] = NodeData::Branch(children);
+                    }
+                } else {
+                    let child = children[*head as usize].ok_or(Error::InvalidFrontierPrefix)?;
+                    self.replace_frontier_slot_internal(child, tail, expected_root, new_root)?;
+                }
+                self.invalidate_ref_cache(node_id);
+                Ok(())
+            }
+            NodeData::Extension(path, child) => {
+                let path = prefix_to_nibs(path);
+                let tail =
+                    prefix.strip_prefix(path.as_slice()).ok_or(Error::InvalidFrontierPrefix)?;
+                self.replace_frontier_slot_internal(child, tail, expected_root, new_root)?;
+                self.invalidate_ref_cache(node_id);
+                Ok(())
+            }
+            _ => Err(Error::InvalidFrontierPrefix),
+        }
+    }
+
+    /// Replaces an authenticated digest/empty frontier slot after its chunk was updated.
+    pub fn replace_frontier_slot(
+        &mut self,
+        prefix: &[u8],
+        expected_root: B256,
+        new_root: B256,
+    ) -> Result<(), Error> {
+        self.replace_frontier_slot_internal(self.root_id, prefix, expected_root, new_root)
+    }
+
+    fn subtree_hash(&self, node_id: NodeId) -> B256 {
+        match self.nodes[node_id as usize] {
+            NodeData::Null => alloy_trie::EMPTY_ROOT_HASH,
+            _ => match self.calc_reference(node_id) {
+                NodeRef::Digest(digest) => B256::from_slice(digest),
+                NodeRef::Bytes(bytes) => keccak256(bytes),
+            },
+        }
     }
 }
 

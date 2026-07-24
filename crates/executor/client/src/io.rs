@@ -10,7 +10,7 @@ use openvm_mpt::{EthereumState, EthereumStateBytes, Mpt};
 use reth_ethereum_primitives::Block;
 use reth_evm::execute::ProviderError;
 use revm::{
-    database::BundleState,
+    database::{states::StorageSlot, BundleState},
     state::{AccountInfo, Bytecode},
     DatabaseRef,
 };
@@ -20,6 +20,31 @@ use serde_with::serde_as;
 
 /// Bump area size in bytes.
 const BUMP_AREA_SIZE: usize = 1000 * 1000;
+
+fn update_storage_trie<'s>(
+    storage_trie: &mut Mpt<'_>,
+    storage: impl IntoIterator<Item = (&'s U256, &'s StorageSlot)>,
+) -> Result<B256, openvm_mpt::Error> {
+    for (slot, value) in storage {
+        let hashed_slot = keccak256(slot.to_be_bytes::<32>());
+        if value.present_value.is_zero() {
+            storage_trie.delete(hashed_slot.as_slice())?;
+        } else {
+            storage_trie.insert_rlp(hashed_slot.as_slice(), value.present_value)?;
+        }
+    }
+    Ok(storage_trie.hash())
+}
+
+#[inline]
+fn b256_nibbles(value: B256) -> [u8; 64] {
+    let mut nibs = [0u8; 64];
+    for (i, byte) in value.as_slice().iter().enumerate() {
+        nibs[2 * i] = byte >> 4;
+        nibs[2 * i + 1] = byte & 0x0f;
+    }
+    nibs
+}
 
 /// Validates a chain of consecutive headers and builds a block-number → hash map.
 ///
@@ -124,8 +149,18 @@ pub struct StateTrieInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StateTrieHeader {
+    pub version: u8,
     pub num_nodes: usize,
-    pub post_update_witness_count: usize,
+    pub chunk_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateChunkHeader {
+    /// Absolute nibble prefix of this chunk in the state trie.
+    pub prefix: Vec<u8>,
+    pub expected_root: B256,
+    pub num_nodes: usize,
+    pub witness_count: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,6 +197,7 @@ pub enum ClientWitnessInput {
     Account(AccountInput),
     StorageTrie(StorageTrieHeader),
     Bytecode(BytecodeInput),
+    StateChunk(StateChunkHeader),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -170,6 +206,8 @@ pub enum WitnessAccess {
     StorageTrie(B256),
     Bytecode(B256),
     StateTrie,
+    /// Host-only marker used to partition all bundle entries into state chunks.
+    ModifiedAccount(B256, usize),
 }
 
 pub type WitnessDbLookupOrders<'a> = (
@@ -364,26 +402,6 @@ impl StreamingEthereumState<'_> {
         Ok(())
     }
 
-    fn account_from_state_trie(
-        &self,
-        hashed_address: B256,
-    ) -> Result<Option<TrieAccount>, ProviderError> {
-        self.state_trie
-            .as_ref()
-            .expect("state trie was loaded")
-            .get_rlp::<TrieAccount>(hashed_address.as_slice())
-            .map_err(|err| Self::provider_error(err.to_string()))
-    }
-
-    fn expected_storage_root_from_state_trie(
-        &self,
-        hashed_address: B256,
-    ) -> Result<B256, ProviderError> {
-        Ok(self
-            .account_from_state_trie(hashed_address)?
-            .map_or(EMPTY_ROOT_HASH, |account| account.storage_root))
-    }
-
     pub fn read_account(&self, hashed_address: B256) -> Result<Option<TrieAccount>, ProviderError> {
         if let Some(account) = self.account_cache.borrow().get(&hashed_address) {
             return Ok(*account);
@@ -401,6 +419,11 @@ impl StreamingEthereumState<'_> {
                 ClientWitnessInput::Bytecode(_) => {
                     return Err(Self::provider_error(format!(
                         "expected account for {hashed_address}, got bytecode"
+                    )));
+                }
+                ClientWitnessInput::StateChunk(_) => {
+                    return Err(Self::provider_error(format!(
+                        "expected account for {hashed_address}, got state chunk"
                     )));
                 }
             };
@@ -425,77 +448,6 @@ impl StreamingEthereumState<'_> {
         Ok(account_in_trie.map_or(EMPTY_ROOT_HASH, |account| account.storage_root))
     }
 
-    fn cache_post_update_account(&self, account_input: AccountInput) -> Result<(), ProviderError> {
-        let hashed_address = account_input.hashed_address;
-        if self.account_cache.borrow().contains_key(&hashed_address) {
-            return Err(Self::provider_error(format!(
-                "duplicate streamed post-update account {hashed_address}"
-            )));
-        }
-
-        let trie_account = self.account_from_state_trie(hashed_address)?;
-        if trie_account != account_input.account {
-            return Err(Self::provider_error(format!(
-                "streamed post-update account mismatch for {hashed_address}: streamed {:?}, trie {:?}",
-                account_input.account, trie_account
-            )));
-        }
-
-        self.account_cache.borrow_mut().insert(hashed_address, account_input.account);
-        Ok(())
-    }
-
-    fn cache_post_update_storage_trie(
-        &self,
-        storage_trie_header: StorageTrieHeader,
-    ) -> Result<(), ProviderError> {
-        let hashed_address = storage_trie_header.hashed_address;
-        if self.storage_tries.borrow().contains_key(&hashed_address) {
-            return Err(Self::provider_error(format!(
-                "duplicate streamed post-update storage trie {hashed_address}"
-            )));
-        }
-
-        let expected_storage_root = self.expected_storage_root_from_state_trie(hashed_address)?;
-        let mut storage_trie_bytes = self.input.borrow_mut().read_raw_bytes();
-        let storage_trie =
-            Mpt::decode_trie(self.bump, &mut storage_trie_bytes, storage_trie_header.num_nodes)
-                .map_err(|err| Self::provider_error(err.to_string()))?;
-        if storage_trie.hash() != expected_storage_root {
-            return Err(Self::provider_error(format!(
-                "parent storage root mismatch for {hashed_address}: actual {}, expected {}",
-                storage_trie.hash(),
-                expected_storage_root
-            )));
-        }
-
-        self.storage_tries.borrow_mut().insert(hashed_address, storage_trie);
-        Ok(())
-    }
-
-    fn materialize_post_update_witnesses(&self) -> Result<(), ClientExecutionError> {
-        if trim::enabled("skip_post_update_witnesses") {
-            return Ok(());
-        }
-
-        for _ in 0..self.state_trie_header.post_update_witness_count {
-            match self.input.borrow_mut().read_witness_input() {
-                ClientWitnessInput::Account(account_input) => self
-                    .cache_post_update_account(account_input)
-                    .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
-                ClientWitnessInput::StorageTrie(storage_trie_header) => self
-                    .cache_post_update_storage_trie(storage_trie_header)
-                    .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?,
-                ClientWitnessInput::Bytecode(_) => {
-                    return Err(ClientExecutionError::TrieWitnessError(
-                        "expected post-update account or storage trie, got bytecode".to_string(),
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub fn load_storage_trie(&self, hashed_address: B256) -> Result<(), ProviderError> {
         if self.storage_tries.borrow().contains_key(&hashed_address) {
             return Ok(());
@@ -517,6 +469,11 @@ impl StreamingEthereumState<'_> {
             ClientWitnessInput::Bytecode(_) => {
                 return Err(Self::provider_error(format!(
                     "expected storage trie for {hashed_address}, got bytecode"
+                )));
+            }
+            ClientWitnessInput::StateChunk(_) => {
+                return Err(Self::provider_error(format!(
+                    "expected storage trie for {hashed_address}, got state chunk"
                 )));
             }
         };
@@ -559,6 +516,11 @@ impl StreamingEthereumState<'_> {
                     storage_trie_input.hashed_address
                 )));
             }
+            ClientWitnessInput::StateChunk(_) => {
+                return Err(Self::provider_error(format!(
+                    "expected bytecode for {hash}, got state chunk"
+                )));
+            }
         };
         if bytecode.hash_slow() != hash {
             return Err(Self::provider_error(format!(
@@ -571,70 +533,231 @@ impl StreamingEthereumState<'_> {
 
     pub fn update_from_bundle_state(
         &mut self,
-        bundle_state: &BundleState,
+        bundle_state: BundleState,
     ) -> Result<(), ClientExecutionError> {
         self.ensure_state_trie_loaded()?;
-        self.validate_account_cache()?;
-        self.materialize_post_update_witnesses()?;
-
-        for (address, account) in &bundle_state.state {
-            let hashed_address = keccak256(address);
-
-            if let Some(info) = &account.info {
-                let storage_root = if account.status.was_destroyed() || !account.storage.is_empty()
-                {
-                    if !self.storage_tries.borrow().contains_key(&hashed_address) &&
-                        self.expected_storage_root_from_state_trie(hashed_address).map_err(
-                            |err| ClientExecutionError::TrieWitnessError(err.to_string()),
-                        )? != EMPTY_ROOT_HASH &&
-                        !account.status.was_destroyed()
-                    {
-                        return Err(ClientExecutionError::TrieWitnessError(format!(
-                            "missing materialized post-update storage trie for {hashed_address}"
-                        )));
-                    }
-
-                    let mut storage_tries = self.storage_tries.borrow_mut();
-                    let storage_trie =
-                        storage_tries.entry(hashed_address).or_insert(Mpt::new(self.bump));
-
-                    if account.status.was_destroyed() {
-                        *storage_trie = Mpt::new(self.bump);
-                    }
-
-                    for (slot, value) in &account.storage {
-                        let hashed_slot = keccak256(slot.to_be_bytes::<32>());
-                        if value.present_value.is_zero() {
-                            storage_trie.delete(hashed_slot.as_slice())?;
-                        } else {
-                            storage_trie.insert_rlp(hashed_slot.as_slice(), value.present_value)?;
-                        }
-                    }
-                    storage_trie.hash()
-                } else {
-                    self.expected_storage_root_from_state_trie(hashed_address)
-                        .map_err(|err| ClientExecutionError::TrieWitnessError(err.to_string()))?
-                };
-                let state_account = TrieAccount {
-                    nonce: info.nonce,
-                    balance: info.balance,
-                    storage_root,
-                    code_hash: info.code_hash,
-                };
-                self.state_trie
-                    .as_mut()
-                    .expect("state trie was loaded")
-                    .insert_rlp(hashed_address.as_slice(), state_account)?;
-            } else {
-                self.state_trie
-                    .as_mut()
-                    .expect("state trie was loaded")
-                    .delete(hashed_address.as_slice())
-                    .unwrap();
-                self.storage_tries.borrow_mut().remove(&hashed_address);
-            }
+        if self.state_trie_header.version != 2 {
+            return Err(ClientExecutionError::TrieWitnessError(format!(
+                "unsupported state witness version {}",
+                self.state_trie_header.version
+            )));
         }
 
+        let mut bundle_accounts = bundle_state
+            .state
+            .into_iter()
+            .map(|(address, account)| {
+                let hashed_address = keccak256(address);
+                (hashed_address, b256_nibbles(hashed_address), account)
+            })
+            .collect::<Vec<_>>();
+        bundle_accounts.sort_by_key(|(hashed_address, _, _)| *hashed_address);
+        let mut bundle_cursor = 0usize;
+        for _ in 0..self.state_trie_header.chunk_count {
+            let chunk_header = match self.input.borrow_mut().read_witness_input() {
+                ClientWitnessInput::StateChunk(header) => header,
+                other => {
+                    return Err(ClientExecutionError::TrieWitnessError(format!(
+                        "expected state chunk header, got {other:?}"
+                    )));
+                }
+            };
+            // Chunk arenas are intentionally lazy: preallocating the long-lived state's 1 MiB
+            // capacity for every chunk exhausts the zkVM heap before those allocations can be
+            // reused.
+            let chunk_bump = Bump::new();
+            let mut chunk_bytes = self.input.borrow_mut().read_raw_bytes();
+            let mut chunk =
+                Mpt::decode_trie(&chunk_bump, &mut chunk_bytes, chunk_header.num_nodes)?;
+            if chunk.hash() != chunk_header.expected_root {
+                return Err(ClientExecutionError::TrieWitnessError(format!(
+                    "state chunk root mismatch at {:?}: actual {}, expected {}",
+                    chunk_header.prefix,
+                    chunk.hash(),
+                    chunk_header.expected_root
+                )));
+            }
+
+            let in_chunk = |hashed_address: B256| {
+                b256_nibbles(hashed_address).starts_with(&chunk_header.prefix)
+            };
+
+            // Authenticate and consume execution-time cached accounts before the chunk dies.
+            let cached_keys = self
+                .account_cache
+                .borrow()
+                .keys()
+                .copied()
+                .filter(|key| in_chunk(*key))
+                .collect::<Vec<_>>();
+            for hashed_address in cached_keys {
+                let streamed_account = self.account_cache.borrow_mut().remove(&hashed_address);
+                let nibs = b256_nibbles(hashed_address);
+                let trie_account = chunk.get_rlp_nibbles(&nibs[chunk_header.prefix.len()..])?;
+                if streamed_account != Some(trie_account) {
+                    return Err(ClientExecutionError::TrieWitnessError(format!(
+                        "streamed account mismatch for {hashed_address}: streamed {streamed_account:?}, trie {trie_account:?}"
+                    )));
+                }
+            }
+
+            let mut post_storage_tries = HashMap::with_capacity_and_hasher(
+                chunk_header.witness_count,
+                DefaultHashBuilder::default(),
+            );
+            for _ in 0..chunk_header.witness_count {
+                match self.input.borrow_mut().read_witness_input() {
+                    ClientWitnessInput::Account(account_input) => {
+                        if !in_chunk(account_input.hashed_address) {
+                            return Err(ClientExecutionError::TrieWitnessError(format!(
+                                "account witness {} is outside chunk {:?}",
+                                account_input.hashed_address, chunk_header.prefix
+                            )));
+                        }
+                        let nibs = b256_nibbles(account_input.hashed_address);
+                        let trie_account =
+                            chunk.get_rlp_nibbles(&nibs[chunk_header.prefix.len()..])?;
+                        if trie_account != account_input.account {
+                            return Err(ClientExecutionError::TrieWitnessError(format!(
+                                "post-update account witness mismatch for {}",
+                                account_input.hashed_address
+                            )));
+                        }
+                    }
+                    ClientWitnessInput::StorageTrie(storage_header) => {
+                        if !in_chunk(storage_header.hashed_address) ||
+                            post_storage_tries.contains_key(&storage_header.hashed_address)
+                        {
+                            return Err(ClientExecutionError::TrieWitnessError(format!(
+                                "invalid or duplicate storage witness {} in chunk {:?}",
+                                storage_header.hashed_address, chunk_header.prefix
+                            )));
+                        }
+                        let nibs = b256_nibbles(storage_header.hashed_address);
+                        let expected_root = chunk
+                            .get_rlp_nibbles::<TrieAccount>(&nibs[chunk_header.prefix.len()..])?
+                            .map_or(EMPTY_ROOT_HASH, |account| account.storage_root);
+                        let mut bytes = self.input.borrow_mut().read_raw_bytes();
+                        let storage =
+                            Mpt::decode_trie(&chunk_bump, &mut bytes, storage_header.num_nodes)?;
+                        if storage.hash() != expected_root {
+                            return Err(ClientExecutionError::ParentStorageRootMismatch {
+                                hashed_account: storage_header.hashed_address,
+                                actual: storage.hash(),
+                                expected: expected_root,
+                            });
+                        }
+                        post_storage_tries.insert(storage_header.hashed_address, storage);
+                    }
+                    other => {
+                        return Err(ClientExecutionError::TrieWitnessError(format!(
+                            "unexpected chunk witness {other:?}"
+                        )));
+                    }
+                }
+            }
+
+            let chunk_start = bundle_cursor;
+            while bundle_cursor < bundle_accounts.len() &&
+                bundle_accounts[bundle_cursor].1.starts_with(&chunk_header.prefix)
+            {
+                bundle_cursor += 1;
+            }
+            if chunk_start == bundle_cursor {
+                return Err(ClientExecutionError::TrieWitnessError(format!(
+                    "state chunk {:?} contains no bundle accounts",
+                    chunk_header.prefix
+                )));
+            }
+            for (hashed_address, nibs, account) in &bundle_accounts[chunk_start..bundle_cursor] {
+                let suffix = &nibs[chunk_header.prefix.len()..];
+                let old_account = chunk.get_rlp_nibbles::<TrieAccount>(suffix)?;
+
+                if let Some(info) = &account.info {
+                    let storage_root = if account.status.was_destroyed() ||
+                        !account.storage.is_empty()
+                    {
+                        if account.status.was_destroyed() {
+                            let mut storage_trie = Mpt::new(&chunk_bump);
+                            update_storage_trie(&mut storage_trie, &account.storage)?
+                        } else if let Some(storage) =
+                            self.storage_tries.borrow_mut().remove(hashed_address)
+                        {
+                            let mut storage = storage;
+                            update_storage_trie(&mut storage, &account.storage)?
+                        } else if let Some(storage) = post_storage_tries.remove(hashed_address) {
+                            let mut storage = storage;
+                            update_storage_trie(&mut storage, &account.storage)?
+                        } else if old_account
+                            .as_ref()
+                            .is_none_or(|account| account.storage_root == EMPTY_ROOT_HASH)
+                        {
+                            let mut storage = Mpt::new(&chunk_bump);
+                            update_storage_trie(&mut storage, &account.storage)?
+                        } else {
+                            return Err(ClientExecutionError::TrieWitnessError(format!(
+                                "missing storage trie for {hashed_address}"
+                            )));
+                        }
+                    } else {
+                        let expected_root =
+                            old_account.map_or(EMPTY_ROOT_HASH, |account| account.storage_root);
+                        if let Some(storage) =
+                            self.storage_tries.borrow_mut().remove(hashed_address)
+                        {
+                            if storage.hash() != expected_root {
+                                return Err(ClientExecutionError::ParentStorageRootMismatch {
+                                    hashed_account: *hashed_address,
+                                    actual: storage.hash(),
+                                    expected: expected_root,
+                                });
+                            }
+                        }
+                        expected_root
+                    };
+                    chunk.insert_rlp_nibbles(
+                        suffix,
+                        TrieAccount {
+                            nonce: info.nonce,
+                            balance: info.balance,
+                            storage_root,
+                            code_hash: info.code_hash,
+                        },
+                    )?;
+                } else {
+                    chunk.delete_nibbles(suffix)?;
+                    self.storage_tries.borrow_mut().remove(hashed_address);
+                }
+            }
+            if !post_storage_tries.is_empty() {
+                return Err(ClientExecutionError::TrieWitnessError(
+                    "unused storage witnesses in state chunk".to_string(),
+                ));
+            }
+            let new_root = chunk.hash();
+            if !chunk_header.prefix.is_empty() &&
+                new_root != EMPTY_ROOT_HASH &&
+                !chunk.root_is_hash_addressed()
+            {
+                return Err(ClientExecutionError::MptError(openvm_mpt::Error::InlineFrontierChunk));
+            }
+            self.state_trie.as_mut().expect("state frontier was loaded").replace_frontier_slot(
+                &chunk_header.prefix,
+                chunk_header.expected_root,
+                new_root,
+            )?;
+            // `chunk`, its storage tries, and all cached references are dropped here.
+        }
+
+        if bundle_cursor != bundle_accounts.len() {
+            return Err(ClientExecutionError::TrieWitnessError(format!(
+                "state chunks consumed {bundle_cursor} of {} bundle accounts",
+                bundle_accounts.len()
+            )));
+        }
+        self.validate_account_cache()?;
+        // Read-only storage witnesses were authenticated when loaded and have no state update.
+        self.storage_tries.borrow_mut().clear();
         Ok(())
     }
 }

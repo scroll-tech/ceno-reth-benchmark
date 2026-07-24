@@ -1,6 +1,6 @@
 use revm_primitives::{b256, keccak256};
 
-use crate::{Error, Mpt};
+use crate::{Error, FrontierLimits, Mpt};
 
 trait RlpBytes {
     /// Returns the RLP-encoding.
@@ -226,5 +226,97 @@ fn test_serde_keccak_trie() -> Result<(), Error> {
         assert_eq!(value, Some(i));
     }
 
+    Ok(())
+}
+
+#[cfg(feature = "host")]
+#[test]
+fn test_frontier_chunks_match_full_trie_updates() -> Result<(), Error> {
+    let bump = bumpalo::Bump::new();
+    let mut original = Mpt::new(&bump);
+    let keys = (0u64..64).map(|i| keccak256(i.to_be_bytes())).collect::<Vec<_>>();
+    for (i, key) in keys.iter().enumerate() {
+        original.insert_rlp(key.as_slice(), [i as u8; 64])?;
+    }
+
+    let changed = vec![keys[3], keys[17], keys[41]];
+    let bundle = original.build_frontier(
+        changed.clone(),
+        FrontierLimits { max_nodes: 8, max_bytes: 1024, max_keys: 1 },
+    )?;
+    assert!(bundle.chunks.len() >= 2);
+
+    let frontier_bump = bumpalo::Bump::new();
+    let mut frontier_bytes = bundle.bytes.as_slice();
+    let mut frontier = Mpt::decode_trie(&frontier_bump, &mut frontier_bytes, bundle.num_nodes)?;
+    assert_eq!(frontier.hash(), original.hash());
+
+    for chunk in &bundle.chunks {
+        let chunk_bump = bumpalo::Bump::new();
+        let mut bytes = chunk.bytes.as_slice();
+        let mut trie = Mpt::decode_trie(&chunk_bump, &mut bytes, chunk.num_nodes)?;
+        assert_eq!(trie.hash(), chunk.expected_root);
+        for key in changed.iter().filter(|key| {
+            let nibs = crate::hp::to_nibs(key.as_slice());
+            nibs.starts_with(&chunk.prefix)
+        }) {
+            let nibs = crate::hp::to_nibs(key.as_slice());
+            if *key == changed[0] {
+                trie.delete_nibbles(&nibs[chunk.prefix.len()..])?;
+            } else {
+                trie.insert_rlp_nibbles(&nibs[chunk.prefix.len()..], [0xcdu8; 64])?;
+            }
+        }
+        assert!(trie.root_is_hash_addressed());
+        frontier.replace_frontier_slot(&chunk.prefix, chunk.expected_root, trie.hash())?;
+    }
+
+    original.delete(changed[0].as_slice())?;
+    for key in changed.into_iter().skip(1) {
+        original.insert_rlp(key.as_slice(), [0xcdu8; 64])?;
+    }
+    assert_eq!(frontier.hash(), original.hash());
+    Ok(())
+}
+
+#[cfg(feature = "host")]
+#[test]
+fn test_frontier_supports_empty_slots_and_rejects_wrong_digest() -> Result<(), Error> {
+    let bump = bumpalo::Bump::new();
+    let mut original = Mpt::new(&bump);
+    let existing =
+        revm_primitives::b256!("1000000000000000000000000000000000000000000000000000000000000000");
+    let existing_two =
+        revm_primitives::b256!("2000000000000000000000000000000000000000000000000000000000000000");
+    let inserted =
+        revm_primitives::b256!("f000000000000000000000000000000000000000000000000000000000000000");
+    original.insert_rlp(existing.as_slice(), [7u8; 64])?;
+    original.insert_rlp(existing_two.as_slice(), [8u8; 64])?;
+
+    let bundle = original
+        .build_frontier([inserted], FrontierLimits { max_nodes: 0, max_bytes: 0, max_keys: 0 })?;
+    assert_eq!(bundle.chunks.len(), 1);
+    let chunk = &bundle.chunks[0];
+    assert_eq!(chunk.expected_root, alloy_trie::EMPTY_ROOT_HASH);
+
+    let frontier_bump = bumpalo::Bump::new();
+    let mut frontier_bytes = bundle.bytes.as_slice();
+    let mut frontier = Mpt::decode_trie(&frontier_bump, &mut frontier_bytes, bundle.num_nodes)?;
+    assert!(matches!(
+        frontier.replace_frontier_slot(
+            &chunk.prefix,
+            revm_primitives::B256::ZERO,
+            revm_primitives::B256::ZERO
+        ),
+        Err(Error::NodeRefMismatch)
+    ));
+
+    let chunk_bump = bumpalo::Bump::new();
+    let mut trie = Mpt::new(&chunk_bump);
+    let nibs = crate::hp::to_nibs(inserted.as_slice());
+    trie.insert_rlp_nibbles(&nibs[chunk.prefix.len()..], [9u8; 64])?;
+    frontier.replace_frontier_slot(&chunk.prefix, chunk.expected_root, trie.hash())?;
+    original.insert_rlp(inserted.as_slice(), [9u8; 64])?;
+    assert_eq!(frontier.hash(), original.hash());
     Ok(())
 }

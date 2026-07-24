@@ -12,12 +12,13 @@ use openvm_circuit::{arch::*, openvm_stark_sdk::openvm_stark_backend::p3_field::
 use openvm_client_executor::{
     io::{
         AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
-        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateTrieHeader,
-        StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
+        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateChunkHeader,
+        StateTrieHeader, StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
     },
     ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
 use openvm_host_executor::HostExecutor;
+use openvm_mpt::FrontierLimits;
 #[cfg(feature = "openvm-backend")]
 pub use openvm_native_circuit::NativeConfig;
 
@@ -176,7 +177,7 @@ fn write_ceno_client_input(
     let (
         current_block_input,
         ancestor_headers_input,
-        state_trie_input,
+        _state_trie_input,
         storage_trie_inputs,
         bytecodes_input,
     ): (
@@ -199,17 +200,48 @@ fn write_ceno_client_input(
     let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
     let (_, witness_order) = ClientExecutor
         .execute_recording_witness_order(ChainVariant::Mainnet, client_input.clone())?;
-    let mut post_update_witness_count = 0;
-    let mut after_state_trie = false;
-    for access in &witness_order {
-        match access {
-            WitnessAccess::StateTrie => after_state_trie = true,
-            WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_) if after_state_trie => {
-                post_update_witness_count += 1;
+    const FRONTIER_LIMITS: FrontierLimits =
+        FrontierLimits { max_nodes: 2048, max_bytes: 256 * 1024, max_keys: 256 };
+    let modified_accounts = witness_order
+        .iter()
+        .filter_map(|access| match access {
+            WitnessAccess::ModifiedAccount(hash, storage_slots) => {
+                Some((*hash, 1 + *storage_slots))
             }
-            _ => {}
-        }
-    }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let frontier = input_with_state
+        .state
+        .state_trie
+        .build_frontier_weighted(modified_accounts, FRONTIER_LIMITS)?;
+    let state_root = input_with_state.state.state_trie.hash();
+    let frontier_root = {
+        let bump = bumpalo::Bump::new();
+        let mut bytes = frontier.bytes.as_slice();
+        openvm_mpt::Mpt::decode_trie(&bump, &mut bytes, frontier.num_nodes)?.hash()
+    };
+    eyre::ensure!(frontier_root == state_root, "state frontier changed parent root");
+    info!(
+        chunks = frontier.chunks.len(),
+        frontier_nodes = frontier.num_nodes,
+        frontier_bytes = frontier.bytes.len(),
+        max_chunk_nodes = frontier.chunks.iter().map(|chunk| chunk.num_nodes).max().unwrap_or(0),
+        max_chunk_bytes = frontier.chunks.iter().map(|chunk| chunk.bytes.len()).max().unwrap_or(0),
+        "built authenticated state frontier"
+    );
+
+    let state_marker = witness_order
+        .iter()
+        .position(|access| matches!(access, WitnessAccess::StateTrie))
+        .ok_or_else(|| eyre::eyre!("recorded witness order has no state trie marker"))?;
+    let post_accesses = witness_order[state_marker + 1..]
+        .iter()
+        .filter(|access| {
+            matches!(access, WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_))
+        })
+        .copied()
+        .collect::<Vec<_>>();
     let account_by_hash = witness_order
         .iter()
         .filter_map(|a| match a {
@@ -229,11 +261,12 @@ fn write_ceno_client_input(
     hints.write(&ancestor_headers_input)?;
     hints.write(&current_block_input)?;
     hints.write(&StateTrieHeader {
-        num_nodes: state_trie_input.num_nodes,
-        post_update_witness_count,
+        version: 2,
+        num_nodes: frontier.num_nodes,
+        chunk_count: frontier.chunks.len(),
     })?;
 
-    for access in witness_order {
+    for access in witness_order[..=state_marker].iter().copied() {
         match access {
             WitnessAccess::Account(hash) => {
                 let account = account_by_hash.get(&hash).copied().ok_or_else(|| {
@@ -265,7 +298,63 @@ fn write_ceno_client_input(
                 hints.write(&ClientWitnessInput::Bytecode(BytecodeInput { bytecode }))?;
             }
             WitnessAccess::StateTrie => {
-                write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
+                write_raw_hint_bytes(hints, &frontier.bytes);
+            }
+            WitnessAccess::ModifiedAccount(_, _) => {
+                unreachable!("modified marker precedes state")
+            }
+        }
+    }
+
+    for chunk in frontier.chunks {
+        let chunk_accesses = post_accesses
+            .iter()
+            .filter(|access| {
+                let hash = match access {
+                    WitnessAccess::Account(hash) | WitnessAccess::StorageTrie(hash) => *hash,
+                    _ => unreachable!(),
+                };
+                let mut nibs = [0u8; 64];
+                for (i, byte) in hash.as_slice().iter().enumerate() {
+                    nibs[2 * i] = byte >> 4;
+                    nibs[2 * i + 1] = byte & 0x0f;
+                }
+                nibs.starts_with(&chunk.prefix)
+            })
+            .copied()
+            .collect::<Vec<_>>();
+        hints.write(&ClientWitnessInput::StateChunk(StateChunkHeader {
+            prefix: chunk.prefix,
+            expected_root: chunk.expected_root,
+            num_nodes: chunk.num_nodes,
+            witness_count: chunk_accesses.len(),
+        }))?;
+        write_raw_hint_bytes(hints, &chunk.bytes);
+        for access in chunk_accesses {
+            match access {
+                WitnessAccess::Account(hash) => {
+                    let account = account_by_hash.get(&hash).copied().ok_or_else(|| {
+                        eyre::eyre!("missing account for recorded lookup hash {hash}")
+                    })?;
+                    hints.write(&ClientWitnessInput::Account(AccountInput {
+                        hashed_address: hash,
+                        account,
+                    }))?;
+                }
+                WitnessAccess::StorageTrie(hash) => {
+                    let storage_trie = storage_trie_by_hash
+                        .get(&hash)
+                        .ok_or_else(|| {
+                            eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
+                        })?
+                        .clone();
+                    hints.write(&ClientWitnessInput::StorageTrie(StorageTrieHeader {
+                        hashed_address: storage_trie.hashed_address,
+                        num_nodes: storage_trie.num_nodes,
+                    }))?;
+                    write_raw_hint_bytes(hints, storage_trie.bytes.as_ref());
+                }
+                _ => unreachable!(),
             }
         }
     }
