@@ -1,10 +1,5 @@
 name: "Ceno Benchmark v2"
 
-# This workflow targets the self-hosted RTX 4090 runner. Avoid relying on NVML
-# during CUDA compilation because the runner can temporarily deny NVML access.
-env:
-  CUDA_ARCH: "89"
-
 on:
   workflow_dispatch:
     inputs:
