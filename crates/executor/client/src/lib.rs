@@ -2,7 +2,6 @@ mod capacity;
 pub mod error;
 /// Client program input data types.
 pub mod io;
-mod trim;
 
 use std::{cell::RefCell, fmt::Debug, sync::Arc};
 
@@ -116,19 +115,6 @@ impl ClientExecutor {
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
 
-        if trim::enabled("skip_block_execute") {
-            return Ok(header_from_known_block(
-                current_header,
-                &ancestor_headers,
-                current_ommers_hash,
-                current_state_root,
-                current_transactions_root,
-                current_withdrawals_root,
-                Bloom::default(),
-                current_requests_hash,
-            ));
-        }
-
         let mut state = io::build_streaming_state_from_input_reader(&ancestor_headers, input)?;
         let witness_db =
             io::WitnessDb::from_streaming_parts(&state, &current_header, &ancestor_headers)?;
@@ -142,10 +128,8 @@ impl ClientExecutor {
             CapacityBlockExecutor::new_with_state(EthEvmConfig::new(spec.clone()), revm_state);
         let executor_output = block_executor.execute(&recovered_block)?;
 
-        if !trim::enabled("skip_post_execution_validation") {
-            validate_block_post_execution(&recovered_block, &spec, &executor_output, None, None)
-                .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
-        }
+        validate_block_post_execution(&recovered_block, &spec, &executor_output, None, None)
+            .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
 
         let mut logs_bloom = Bloom::default();
         executor_output.receipts.iter().for_each(|r| {
@@ -161,18 +145,16 @@ impl ClientExecutor {
 
         drop(witness_db);
 
-        if !trim::enabled("skip_state_root_update") {
-            let state_root = {
-                state.update_from_bundle_state(executor_outcome.bundle)?;
-                state.state_root()
-            };
+        let state_root = {
+            state.update_from_bundle_state(executor_outcome.bundle)?;
+            state.state_root()
+        };
 
-            if state_root != current_state_root {
-                return Err(ClientExecutionError::StateRootMismatch {
-                    actual: state_root,
-                    expected: current_state_root,
-                });
-            }
+        if state_root != current_state_root {
+            return Err(ClientExecutionError::StateRootMismatch {
+                actual: state_root,
+                expected: current_state_root,
+            });
         }
 
         Ok(header_from_known_block(

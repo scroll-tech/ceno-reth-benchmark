@@ -1,6 +1,6 @@
 use std::{cell::RefCell, iter::once};
 
-use crate::{error::ClientExecutionError, trim};
+use crate::error::ClientExecutionError;
 use alloy_consensus::Header;
 use alloy_rlp::{Decodable, Encodable};
 use alloy_trie::{TrieAccount, EMPTY_ROOT_HASH};
@@ -450,11 +450,6 @@ impl StreamingEthereumState<'_> {
 
     pub fn load_storage_trie(&self, hashed_address: B256) -> Result<(), ProviderError> {
         if self.storage_tries.borrow().contains_key(&hashed_address) {
-            return Ok(());
-        }
-
-        if trim::enabled("skip_storage_trie_decode") {
-            self.storage_tries.borrow_mut().insert(hashed_address, Mpt::new(self.bump));
             return Ok(());
         }
 
@@ -1073,10 +1068,6 @@ impl DatabaseRef for WitnessDb<'_, '_> {
 
     /// Get storage value of address at index.
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        if trim::enabled("zero_storage_reads") {
-            return Ok(U256::ZERO);
-        }
-
         let hashed_address = keccak256(address);
 
         let hashed_slot = keccak256(index.to_be_bytes::<32>());
