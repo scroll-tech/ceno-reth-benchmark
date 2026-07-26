@@ -292,7 +292,9 @@ pub fn build_streaming_state_from_input_reader<'a>(
     ancestor_headers: &[Header],
     input: &'a mut dyn ClientInputReader,
 ) -> Result<StreamingEthereumState<'a>, ClientExecutionError> {
-    let bump = Box::leak(Box::new(Bump::with_capacity(BUMP_AREA_SIZE)));
+    // Keep streaming allocation close to first use. Eagerly reserving this arena makes untouched
+    // capacity cross a shard boundary before storage tries are decoded.
+    let bump = Box::leak(Box::new(Bump::new()));
 
     let state_trie_header = input.read_state_trie_header();
 
@@ -1129,5 +1131,44 @@ impl DatabaseRef for WitnessDb<'_, '_> {
             .block_hashes
             .get(&number)
             .expect("A block hash must be provided for each block number"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct HeaderOnlyReader;
+
+    impl ClientInputReader for HeaderOnlyReader {
+        fn read_ancestor_headers(&mut self) -> AncestorHeadersInput {
+            panic!("not needed")
+        }
+
+        fn read_state_trie_header(&mut self) -> StateTrieHeader {
+            StateTrieHeader { version: 2, num_nodes: 0, chunk_count: 0 }
+        }
+
+        fn read_current_block(&mut self) -> CurrentBlockInput {
+            panic!("not needed")
+        }
+
+        fn read_witness_input(&mut self) -> ClientWitnessInput {
+            panic!("not needed")
+        }
+
+        fn read_raw_bytes(&mut self) -> &'static [u8] {
+            panic!("not needed")
+        }
+    }
+
+    #[test]
+    fn streaming_state_does_not_preallocate_bump_storage() {
+        let ancestor_headers = [Header::default()];
+        let mut reader = HeaderOnlyReader;
+        let state =
+            build_streaming_state_from_input_reader(&ancestor_headers, &mut reader).unwrap();
+
+        assert_eq!(state.bump.allocated_bytes(), 0);
     }
 }
