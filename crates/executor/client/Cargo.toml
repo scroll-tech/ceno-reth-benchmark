@@ -23,12 +23,9 @@ openvm-mpt.workspace = true
 
 # reth
 reth-consensus.workspace = true
-reth-ethereum-primitives = { workspace = true, features = [
-    "serde-bincode-compat",
-] }
+reth-ethereum-primitives = { workspace = true, features = ["serde"] }
 reth-ethereum-consensus.workspace = true
 reth-execution-types.workspace = true
-reth-primitives = { workspace = true }
 reth-primitives-traits.workspace = true
 reth-trie.workspace = true
 reth-evm.workspace = true
@@ -42,6 +39,9 @@ revm-primitives.workspace = true
 # alloy
 alloy-primitives = { workspace = true, features = ["rayon", "map-foldhash"] }
 alloy-consensus = { workspace = true, features = ["crypto-backend"] }
+alloy-eip7928.workspace = true
+alloy-rlp.workspace = true
+alloy-trie.workspace = true
 
 [target.'cfg(target_os = "zkvm")'.dependencies]
 revm-primitives = { workspace = true, features = ["hashbrown"] }

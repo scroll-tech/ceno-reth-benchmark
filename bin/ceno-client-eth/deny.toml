@@ -1,6 +1,14 @@
 [bans]
 multiple-versions = "deny"
 skip = [
+    { name = "alloy-eip7928" },
+    { name = "block-buffer" },
+    { name = "cpufeatures" },
+    { name = "crypto-common" },
+    { name = "darling" },
+    { name = "darling_core" },
+    { name = "darling_macro" },
+    { name = "digest" },
     { name = "hashbrown" },
     { name = "getrandom" },
     { name = "rfc6979" },
