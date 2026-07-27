@@ -108,7 +108,8 @@ jobs:
       - name: "Run e2e test"
         run: |
           mkdir -p output
-          RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 RUSTFLAGS="-C target-feature=+avx2" \
+          RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=23 \
+          RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --bin ceno-reth-benchmark-bin --profile release -- --block-number $BLOCK_NUM \

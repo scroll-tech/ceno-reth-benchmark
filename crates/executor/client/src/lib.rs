@@ -5,7 +5,7 @@ pub mod io;
 use std::{cell::RefCell, fmt::Debug, sync::Arc};
 
 use alloy_consensus::TxReceipt;
-use alloy_primitives::{keccak256, Bloom, B256};
+use alloy_primitives::{keccak256, Bloom};
 use openvm_primitives::chain_spec::{dev, mainnet};
 use reth_consensus::{Consensus, HeaderValidator};
 use reth_ethereum_consensus::{validate_block_post_execution, EthBeaconConsensus};
@@ -21,7 +21,7 @@ use crate::{
     error::ClientExecutionError,
     io::{
         AncestorHeadersInput, ClientExecutorInput, ClientExecutorInputWithState, ClientInputReader,
-        WitnessAccess,
+        WitnessAccess, WitnessRecording,
     },
 };
 
@@ -62,12 +62,12 @@ impl ClientExecutor {
         let header = self.execute_with_state(
             chain_variant,
             input,
-            Some((
-                &account_lookup_order,
-                &storage_lookup_order,
-                &bytecode_lookup_order,
-                &witness_order,
-            )),
+            Some(WitnessRecording {
+                account_lookup_order: &account_lookup_order,
+                bytecode_lookup_order: &bytecode_lookup_order,
+                storage_lookup_order: &storage_lookup_order,
+                witness_order: Some(&witness_order),
+            }),
         )?;
         Ok((header, witness_order.into_inner()))
     }
@@ -165,26 +165,11 @@ impl ClientExecutor {
         &self,
         chain_variant: ChainVariant,
         mut input: ClientExecutorInputWithState,
-        lookup_orders: Option<(
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<WitnessAccess>>,
-        )>,
+        recording: Option<WitnessRecording<'_>>,
     ) -> Result<Header, ClientExecutionError> {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = match lookup_orders {
-            Some((
-                account_lookup_order,
-                storage_lookup_order,
-                bytecode_lookup_order,
-                witness_order,
-            )) => input.witness_db_recording(
-                account_lookup_order,
-                bytecode_lookup_order,
-                storage_lookup_order,
-                Some(witness_order),
-            )?,
+        let witness_db = match recording {
+            Some(recording) => input.witness_db_recording(recording)?,
             None => input.witness_db()?,
         };
         let cache_db = CacheDB::new(&witness_db);
@@ -241,7 +226,12 @@ impl ClientExecutor {
             vec![executor_output.result.requests],
         );
 
-        if let Some((account_lookup_order, storage_lookup_order, _, witness_order)) = lookup_orders
+        if let Some(WitnessRecording {
+            account_lookup_order,
+            storage_lookup_order,
+            witness_order: Some(witness_order),
+            ..
+        }) = recording
         {
             let mut account_order = account_lookup_order.borrow_mut();
             let mut storage_order = storage_lookup_order.borrow_mut();
@@ -256,7 +246,7 @@ impl ClientExecutor {
                         .state
                         .storage_tries
                         .get(&hashed_address)
-                        .map_or(false, |storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
+                        .is_some_and(|storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
                 {
                     if !account_order.contains(&hashed_address) {
                         account_order.push(hashed_address);

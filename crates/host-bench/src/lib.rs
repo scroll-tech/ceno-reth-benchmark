@@ -236,10 +236,9 @@ fn write_ceno_client_input(
     for access in witness_order {
         match access {
             WitnessAccess::Account(hash) => {
-                let account = account_by_hash
-                    .get(&hash)
-                    .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
-                    .clone();
+                let account = *account_by_hash.get(&hash).ok_or_else(|| {
+                    eyre::eyre!("missing account for recorded lookup hash {hash}")
+                })?;
                 hints.write(&ClientWitnessInput::Account(AccountInput {
                     hashed_address: hash,
                     account,
