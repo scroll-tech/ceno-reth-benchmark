@@ -23,6 +23,11 @@ on:
         required: true
         type: string
         default: "23817600"
+      aot_block_number:
+        description: "Block number used to prepare a missing AOT program artifact"
+        required: false
+        type: string
+        default: "25607900"
       proof-uuid:
         # PROOF_UUID is the S3/HTTPS path segment written by server/prove_block.sh:
         # https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin
@@ -298,6 +303,7 @@ jobs:
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
+            --aot-block-number ${{ inputs.aot_block_number }} \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache \
@@ -489,6 +495,7 @@ jobs:
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
+            --aot-block-number ${{ inputs.aot_block_number }} \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache \

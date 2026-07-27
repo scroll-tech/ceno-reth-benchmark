@@ -44,6 +44,8 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, LazyLock},
 };
+#[cfg(any(test, all(feature = "aot", target_arch = "x86_64", target_os = "linux")))]
+use tracing::warn;
 use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
@@ -367,6 +369,8 @@ use serde_json::json;
 mod cli;
 use cli::ProviderArgs;
 
+const DEFAULT_AOT_BLOCK_NUMBER: u64 = 25_607_900;
+
 /// Enum representing the execution mode of the host executable.
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum BenchMode {
@@ -417,6 +421,11 @@ pub struct HostArgs {
     /// The block number of the block to execute.
     #[clap(long)]
     block_number: u64,
+
+    /// The block whose input is used to prepare a missing AOT program artifact.
+    #[clap(long, default_value_t = DEFAULT_AOT_BLOCK_NUMBER)]
+    aot_block_number: u64,
+
     #[clap(flatten)]
     provider: ProviderArgs,
 
@@ -651,54 +660,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                 eyre::bail!("unknown chain ID: {}", provider_config.chain_id);
             }
         };
-        let client_input_from_cache = try_load_input_from_cache(
+        load_or_generate_client_input(
             args.cache_dir.as_ref(),
             provider_config.chain_id,
+            provider_config.rpc_url,
             args.block_number,
-        )?;
-
-        match (client_input_from_cache, provider_config.rpc_url) {
-            (Some(client_input_from_cache), _) => client_input_from_cache,
-            (None, Some(rpc_url)) => {
-                info!("calling rpc");
-                // Cache not found but we have RPC
-                // Setup the provider.
-                let client =
-                    RpcClient::builder().layer(RetryBackoffLayer::new(5, 1000, 100)).http(rpc_url);
-                let provider = RootProvider::new(client);
-
-                // Setup the host executor.
-                let host_executor = HostExecutor::new(provider);
-
-                info!("start host_executor");
-                // Execute the host.
-                let client_input =
-                    host_executor.execute(args.block_number).await.expect("failed to execute host");
-                info!("finish host_executor");
-
-                if let Some(cache_dir) = args.cache_dir.as_ref() {
-                    let input_folder =
-                        cache_dir.join(format!("input/{}", provider_config.chain_id));
-                    if !input_folder.exists() {
-                        std::fs::create_dir_all(&input_folder)?;
-                    }
-
-                    let input_path = input_folder.join(format!("{}.bin", args.block_number));
-                    let mut cache_file = std::fs::File::create(input_path)?;
-
-                    bincode::serde::encode_into_std_write(
-                        &client_input,
-                        &mut cache_file,
-                        bincode::config::standard(),
-                    )?;
-                }
-
-                client_input
-            }
-            (None, None) => {
-                eyre::bail!("cache not found and RPC URL not provided")
-            }
-        }
+        )
+        .await?
     };
 
     let (_, security_level) = default_backend_config();
@@ -828,7 +796,45 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         None
     };
     #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-    if let (Some(ceno_sdk), Some(hints)) = (prebuilt_jagged_sdk.as_mut(), prebuilt_hints.as_ref()) {
+    if matches!(args.mode, BenchMode::ProveApp | BenchMode::ProveStark) {
+        let aot_client_input =
+            try_load_distinct_aot_input(args.block_number, args.aot_block_number, || async {
+                let provider_config = args.provider.clone().into_provider().await?;
+                eyre::ensure!(
+                    provider_config.chain_id == CHAIN_ID_ETH_MAINNET,
+                    "unknown chain ID: {}",
+                    provider_config.chain_id
+                );
+                load_or_generate_client_input(
+                    args.cache_dir.as_ref(),
+                    provider_config.chain_id,
+                    provider_config.rpc_url,
+                    args.aot_block_number,
+                )
+                .await
+            })
+            .await;
+        let mut aot_hints = None;
+        if let Some(aot_client_input) = aot_client_input.as_ref() {
+            let mut hints = CenoStdin::default();
+            match info_span!("app.aot_hints")
+                .in_scope(|| write_ceno_client_input(&mut hints, aot_client_input))
+            {
+                Ok(()) => aot_hints = Some(hints),
+                Err(error) => warn!(
+                    aot_block_number = args.aot_block_number,
+                    workload_block_number = args.block_number,
+                    ?error,
+                    "failed to build AOT training hints; falling back to workload input"
+                ),
+            }
+        }
+        let hints = aot_hints.as_ref().or(prebuilt_hints.as_ref()).expect(
+            "ceno hints should be initialized before AOT preparation for proving workloads",
+        );
+        let ceno_sdk = prebuilt_jagged_sdk
+            .as_mut()
+            .expect("ceno sdk should be initialized before AOT preparation");
         info_span!("sdk.prepare_preflight_aot").in_scope(|| ceno_sdk.prepare_preflight_aot(hints));
     }
 
@@ -1475,6 +1481,92 @@ fn try_load_input_from_cache(
     })
 }
 
+async fn load_or_generate_client_input(
+    cache_dir: Option<&PathBuf>,
+    chain_id: u64,
+    rpc_url: Option<url::Url>,
+    block_number: u64,
+) -> eyre::Result<ClientExecutorInput> {
+    load_or_generate_client_input_with(
+        cache_dir,
+        chain_id,
+        rpc_url,
+        block_number,
+        |rpc_url| async move {
+            info!("calling rpc");
+            let client =
+                RpcClient::builder().layer(RetryBackoffLayer::new(5, 1000, 100)).http(rpc_url);
+            let provider = RootProvider::new(client);
+            let host_executor = HostExecutor::new(provider);
+
+            info!("start host_executor");
+            let client_input = host_executor.execute(block_number).await?;
+            info!("finish host_executor");
+            Ok(client_input)
+        },
+    )
+    .await
+}
+
+async fn load_or_generate_client_input_with<F, Fut>(
+    cache_dir: Option<&PathBuf>,
+    chain_id: u64,
+    rpc_url: Option<url::Url>,
+    block_number: u64,
+    fetch: F,
+) -> eyre::Result<ClientExecutorInput>
+where
+    F: FnOnce(url::Url) -> Fut,
+    Fut: std::future::Future<Output = eyre::Result<ClientExecutorInput>>,
+{
+    if let Some(client_input) = try_load_input_from_cache(cache_dir, chain_id, block_number)? {
+        return Ok(client_input);
+    }
+
+    let rpc_url = rpc_url.ok_or_else(|| eyre::eyre!("cache not found and RPC URL not provided"))?;
+    let client_input = fetch(rpc_url).await?;
+    if let Some(cache_dir) = cache_dir {
+        let input_folder = cache_dir.join(format!("input/{chain_id}"));
+        std::fs::create_dir_all(&input_folder)?;
+        let input_path = input_folder.join(format!("{block_number}.bin"));
+        let mut cache_file = std::fs::File::create(input_path)?;
+        bincode::serde::encode_into_std_write(
+            &client_input,
+            &mut cache_file,
+            bincode::config::standard(),
+        )?;
+    }
+    Ok(client_input)
+}
+
+#[cfg(any(test, all(feature = "aot", target_arch = "x86_64", target_os = "linux")))]
+async fn try_load_distinct_aot_input<F, Fut>(
+    workload_block_number: u64,
+    aot_block_number: u64,
+    load: F,
+) -> Option<ClientExecutorInput>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = eyre::Result<ClientExecutorInput>>,
+{
+    if workload_block_number == aot_block_number {
+        return None;
+    }
+
+    match load().await {
+        Ok(client_input) => Some(client_input),
+        Err(error) => {
+            warn!(
+                aot_block_number,
+                workload_block_number,
+                ?error,
+                "failed to load AOT training input; falling back to workload input"
+            );
+            None
+        }
+    }
+}
+
 fn try_load_input_from_path(path: &PathBuf) -> eyre::Result<ClientExecutorInput> {
     let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
     if ext.eq_ignore_ascii_case("json") {
@@ -1512,5 +1604,128 @@ fn try_load_input_from_path(path: &PathBuf) -> eyre::Result<ClientExecutorInput>
         let client_input: ClientExecutorInput =
             bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())?;
         Ok(client_input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use openvm_mpt::EthereumStateBytes;
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    };
+
+    fn test_client_input(block_number: u64) -> ClientExecutorInput {
+        let mut current_block = reth_primitives::Block::default();
+        current_block.header.number = block_number;
+        ClientExecutorInput {
+            current_block,
+            ancestor_headers: Vec::new(),
+            parent_state_bytes: EthereumStateBytes {
+                state_trie: (0, Default::default()),
+                storage_tries: Vec::new(),
+            },
+            bytecodes: Vec::new(),
+        }
+    }
+
+    fn parse_args(extra: &[&str]) -> HostArgs {
+        let mut args = vec![
+            "ceno-reth-benchmark-bin",
+            "--block-number",
+            "123",
+            "--mode",
+            "execute-host",
+            "--chain-id",
+            "1",
+        ];
+        args.extend_from_slice(extra);
+        HostArgs::try_parse_from(args).expect("arguments should parse")
+    }
+
+    #[test]
+    fn aot_block_number_has_expected_default() {
+        assert_eq!(parse_args(&[]).aot_block_number, DEFAULT_AOT_BLOCK_NUMBER);
+    }
+
+    #[test]
+    fn aot_block_number_honors_override() {
+        assert_eq!(parse_args(&["--aot-block-number", "42"]).aot_block_number, 42);
+    }
+
+    #[tokio::test]
+    async fn equal_aot_block_reuses_workload_input() {
+        let load_called = Arc::new(AtomicBool::new(false));
+        let load_called_in_closure = Arc::clone(&load_called);
+        let input = try_load_distinct_aot_input(123, 123, || async move {
+            load_called_in_closure.store(true, Ordering::Relaxed);
+            Ok(test_client_input(123))
+        })
+        .await;
+
+        assert!(input.is_none());
+        assert!(!load_called.load(Ordering::Relaxed));
+    }
+
+    #[tokio::test]
+    async fn missing_aot_input_is_generated_in_normal_cache() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+        let cache_dir = temp_dir.path().to_path_buf();
+        let rpc_url = url::Url::parse("http://localhost:8545").unwrap();
+        let expected = test_client_input(DEFAULT_AOT_BLOCK_NUMBER);
+
+        let loaded = load_or_generate_client_input_with(
+            Some(&cache_dir),
+            CHAIN_ID_ETH_MAINNET,
+            Some(rpc_url),
+            DEFAULT_AOT_BLOCK_NUMBER,
+            |_| async { Ok(expected) },
+        )
+        .await
+        .expect("missing input should be generated");
+
+        assert_eq!(loaded.current_block.header.number, DEFAULT_AOT_BLOCK_NUMBER);
+        assert!(cache_dir
+            .join(format!("input/{CHAIN_ID_ETH_MAINNET}/{DEFAULT_AOT_BLOCK_NUMBER}.bin"))
+            .is_file());
+    }
+
+    #[tokio::test]
+    async fn aot_input_failure_falls_back_to_workload_training() {
+        let input = try_load_distinct_aot_input(123, DEFAULT_AOT_BLOCK_NUMBER, || async {
+            eyre::bail!("test load failure")
+        })
+        .await;
+
+        assert!(input.is_none());
+    }
+
+    #[tokio::test]
+    async fn cached_aot_input_does_not_fetch_again() {
+        let temp_dir = tempfile::tempdir().expect("temp dir should be created");
+        let cache_dir = temp_dir.path().to_path_buf();
+        let input_dir = cache_dir.join(format!("input/{CHAIN_ID_ETH_MAINNET}"));
+        std::fs::create_dir_all(&input_dir).unwrap();
+        let cache_path = input_dir.join(format!("{DEFAULT_AOT_BLOCK_NUMBER}.bin"));
+        let mut cache_file = std::fs::File::create(cache_path).unwrap();
+        bincode::serde::encode_into_std_write(
+            test_client_input(DEFAULT_AOT_BLOCK_NUMBER),
+            &mut cache_file,
+            bincode::config::standard(),
+        )
+        .unwrap();
+
+        let loaded = load_or_generate_client_input_with(
+            Some(&cache_dir),
+            CHAIN_ID_ETH_MAINNET,
+            None,
+            DEFAULT_AOT_BLOCK_NUMBER,
+            |_| async { eyre::bail!("cache hit must not fetch") },
+        )
+        .await
+        .expect("cached input should load");
+
+        assert_eq!(loaded.current_block.header.number, DEFAULT_AOT_BLOCK_NUMBER);
     }
 }

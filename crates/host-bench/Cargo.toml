@@ -73,3 +73,7 @@ nightly-features = []
 halo2-asm = ["halo2-axiom?/asm"]
 cuda = []
 unprotected = []
+
+[dev-dependencies]
+tempfile = "3"
+tokio.workspace = true

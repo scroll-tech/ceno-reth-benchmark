@@ -5,6 +5,7 @@ S3_BUCKET="${S3_BUCKET:-cloud-proving-staging-data}"
 S3_PREFIX="${S3_PREFIX:-proofs/testing}"
 ETH_RPC_URL="${ETH_RPC_URL:-}"
 BLOCK_NUMBER_OVERRIDE="${BLOCK_NUMBER:-}"
+AOT_BLOCK_NUMBER="${AOT_BLOCK_NUMBER:-25607900}"
 CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL:-}"
 CENO_STATUS_API_KEY="${CENO_STATUS_API_KEY:-}"
 CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
@@ -204,6 +205,7 @@ echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
 METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
 
 echo "[prove_block.sh] Starting proof with --mode $MODE for block $BLOCK_NUMBER" >&2
+echo "[prove_block.sh] Using AOT training block $AOT_BLOCK_NUMBER" >&2
 if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   post_status "proofs/proving" "{\"block_number\":${BLOCK_NUMBER},\"cluster_id\":${CENO_CLUSTER_ID}}"
   if [[ "$POST_STATUS_HTTP_STATUS" == "409" ]]; then
@@ -234,6 +236,7 @@ set +e
 "$BIN_PATH" \
   --mode "$MODE" \
   --block-number "$BLOCK_NUMBER" \
+  --aot-block-number "$AOT_BLOCK_NUMBER" \
   --input-path "$INPUT_PATH" \
   --cache-dir "$cache_root" \
   --rpc-url "$ETH_RPC_URL" \
