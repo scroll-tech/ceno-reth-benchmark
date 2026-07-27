@@ -47,17 +47,33 @@ job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
 
 wait_for_gpu() {
+  local gpu_check_error gpu_check_status gpu_count gpu_uuids
   if [[ "$PROVE_BLOCK_GPU_CHECK" != "1" ]]; then
     return 0
   fi
 
   while true; do
-    if command -v nvidia-smi >/dev/null 2>&1 \
-      && nvidia-smi -L >/dev/null 2>&1 \
-      && nvidia-smi --query-gpu=uuid --format=csv,noheader >/dev/null 2>&1; then
-      return 0
+    gpu_check_error=""
+    if ! command -v nvidia-smi >/dev/null 2>&1; then
+      gpu_check_error="nvidia-smi is not installed or not in PATH"
+    else
+      if gpu_uuids="$(nvidia-smi --query-gpu=uuid --format=csv,noheader 2>&1)"; then
+        gpu_check_status=0
+      else
+        gpu_check_status=$?
+      fi
+      if [[ $gpu_check_status -eq 0 && -n "${gpu_uuids//[[:space:]]/}" ]]; then
+        gpu_count="$(printf '%s\n' "$gpu_uuids" | sed '/^[[:space:]]*$/d' | wc -l | tr -d '[:space:]')"
+        echo "[prove_block.sh] GPU ready (${gpu_count} device(s))" >&2
+        return 0
+      fi
+      if [[ $gpu_check_status -ne 0 ]]; then
+        gpu_check_error="nvidia-smi UUID query failed (status=${gpu_check_status}): ${gpu_uuids%%$'\n'*}"
+      else
+        gpu_check_error="nvidia-smi UUID query returned no devices"
+      fi
     fi
-    echo "[prove_block.sh] GPU unavailable; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
+    echo "[prove_block.sh] GPU unavailable: ${gpu_check_error}; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
     sleep "${GPU_READY_POLL_INTERVAL_SEC}"
   done
 }
