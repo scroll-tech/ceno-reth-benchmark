@@ -6,7 +6,7 @@ pub mod io;
 use std::{cell::RefCell, fmt::Debug, sync::Arc};
 
 use alloy_consensus::{Header, TxReceipt};
-use alloy_primitives::{keccak256, Bloom, B256};
+use alloy_primitives::{keccak256, Bloom};
 use alloy_trie::EMPTY_ROOT_HASH;
 use openvm_primitives::chain_spec::{dev, mainnet};
 use reth_consensus::{Consensus, HeaderValidator};
@@ -22,16 +22,9 @@ use crate::{
     error::ClientExecutionError,
     io::{
         AncestorHeadersInput, ClientExecutorInput, ClientExecutorInputWithState, ClientInputReader,
-        WitnessAccess,
+        WitnessAccess, WitnessRecording,
     },
 };
-
-type LookupOrders<'a> = (
-    &'a RefCell<Vec<B256>>,
-    &'a RefCell<Vec<B256>>,
-    &'a RefCell<Vec<B256>>,
-    &'a RefCell<Vec<WitnessAccess>>,
-);
 
 /// Chain ID for Ethereum Mainnet.
 pub const CHAIN_ID_ETH_MAINNET: u64 = 0x1;
@@ -70,12 +63,12 @@ impl ClientExecutor {
         let header = self.execute_with_state(
             chain_variant,
             input,
-            Some((
-                &account_lookup_order,
-                &storage_lookup_order,
-                &bytecode_lookup_order,
-                &witness_order,
-            )),
+            Some(WitnessRecording {
+                account_lookup_order: &account_lookup_order,
+                bytecode_lookup_order: &bytecode_lookup_order,
+                storage_lookup_order: &storage_lookup_order,
+                witness_order: Some(&witness_order),
+            }),
         )?;
         Ok((header, witness_order.into_inner()))
     }
@@ -157,37 +150,26 @@ impl ClientExecutor {
             });
         }
 
-        Ok(header_from_known_block(
-            current_header,
-            &ancestor_headers,
-            current_ommers_hash,
-            current_state_root,
-            current_transactions_root,
-            current_withdrawals_root,
-            logs_bloom,
-            current_requests_hash,
-        ))
+        let mut header = current_header;
+        header.parent_hash = ancestor_headers[0].hash_slow();
+        header.ommers_hash = current_ommers_hash;
+        header.state_root = current_state_root;
+        header.transactions_root = current_transactions_root;
+        header.withdrawals_root = current_withdrawals_root;
+        header.logs_bloom = logs_bloom;
+        header.requests_hash = current_requests_hash;
+        Ok(header)
     }
 
     fn execute_with_state(
         &self,
         chain_variant: ChainVariant,
         mut input: ClientExecutorInputWithState,
-        lookup_orders: Option<LookupOrders<'_>>,
+        recording: Option<WitnessRecording<'_>>,
     ) -> Result<Header, ClientExecutionError> {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = match lookup_orders {
-            Some((
-                account_lookup_order,
-                storage_lookup_order,
-                bytecode_lookup_order,
-                witness_order,
-            )) => input.witness_db_recording(
-                account_lookup_order,
-                bytecode_lookup_order,
-                storage_lookup_order,
-                Some(witness_order),
-            )?,
+        let witness_db = match recording {
+            Some(recording) => input.witness_db_recording(recording)?,
             None => input.witness_db()?,
         };
         let cache_db = CacheDB::new(&witness_db);
@@ -245,7 +227,12 @@ impl ClientExecutor {
             vec![executor_output.result.requests],
         );
 
-        if let Some((account_lookup_order, storage_lookup_order, _, witness_order)) = lookup_orders
+        if let Some(WitnessRecording {
+            account_lookup_order,
+            storage_lookup_order,
+            witness_order: Some(witness_order),
+            ..
+        }) = recording
         {
             let mut account_order = account_lookup_order.borrow_mut();
             let mut storage_order = storage_lookup_order.borrow_mut();
@@ -304,24 +291,4 @@ impl ClientExecutor {
 
         Ok(header)
     }
-}
-
-fn header_from_known_block(
-    mut header: Header,
-    ancestor_headers: &[Header],
-    ommers_hash: B256,
-    state_root: B256,
-    transactions_root: B256,
-    withdrawals_root: Option<B256>,
-    logs_bloom: Bloom,
-    requests_hash: Option<B256>,
-) -> Header {
-    header.parent_hash = ancestor_headers[0].hash_slow();
-    header.ommers_hash = ommers_hash;
-    header.state_root = state_root;
-    header.transactions_root = transactions_root;
-    header.withdrawals_root = withdrawals_root;
-    header.logs_bloom = logs_bloom;
-    header.requests_hash = requests_hash;
-    header
 }

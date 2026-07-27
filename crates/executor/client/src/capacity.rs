@@ -76,31 +76,6 @@ impl<F, DB> CapacityBlockExecutor<F, DB> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn capacity_hints_are_bounded_and_overflow_safe() {
-        assert_eq!(
-            capacity_hints(0, 0),
-            CapacityHints { accounts: 4_096, contracts: 256, block_hashes: 0 }
-        );
-        assert_eq!(
-            capacity_hints(896, 3),
-            CapacityHints { accounts: 7_680, contracts: 1_152, block_hashes: 3 }
-        );
-        assert_eq!(
-            capacity_hints(usize::MAX, usize::MAX),
-            CapacityHints {
-                accounts: MAX_ACCOUNT_CAPACITY,
-                contracts: MAX_CONTRACT_CAPACITY,
-                block_hashes: MAX_BLOCK_HASH_CAPACITY,
-            }
-        );
-    }
-}
-
 impl<F, DB> Executor<DB> for CapacityBlockExecutor<F, DB>
 where
     F: ConfigureEvm,
@@ -170,5 +145,30 @@ where
 
     fn take_bal(&mut self) -> Option<BlockAccessList> {
         self.db.take_built_alloy_bal()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capacity_hints_are_bounded_and_overflow_safe() {
+        assert_eq!(
+            capacity_hints(0, 0),
+            CapacityHints { accounts: 4_096, contracts: 256, block_hashes: 0 }
+        );
+        assert_eq!(
+            capacity_hints(896, 3),
+            CapacityHints { accounts: 7_680, contracts: 1_152, block_hashes: 3 }
+        );
+        assert_eq!(
+            capacity_hints(usize::MAX, usize::MAX),
+            CapacityHints {
+                accounts: MAX_ACCOUNT_CAPACITY,
+                contracts: MAX_CONTRACT_CAPACITY,
+                block_hashes: MAX_BLOCK_HASH_CAPACITY,
+            }
+        );
     }
 }

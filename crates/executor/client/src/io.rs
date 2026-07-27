@@ -210,12 +210,13 @@ pub enum WitnessAccess {
     ModifiedAccount(B256, usize),
 }
 
-pub type WitnessDbLookupOrders<'a> = (
-    &'a RefCell<Vec<B256>>,
-    &'a RefCell<Vec<B256>>,
-    &'a RefCell<Vec<B256>>,
-    Option<&'a RefCell<Vec<WitnessAccess>>>,
-);
+#[derive(Debug, Clone, Copy)]
+pub struct WitnessRecording<'a> {
+    pub account_lookup_order: &'a RefCell<Vec<B256>>,
+    pub bytecode_lookup_order: &'a RefCell<Vec<B256>>,
+    pub storage_lookup_order: &'a RefCell<Vec<B256>>,
+    pub witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
+}
 
 pub trait ClientInputReader {
     fn read_ancestor_headers(&mut self) -> AncestorHeadersInput;
@@ -700,15 +701,14 @@ impl StreamingEthereumState<'_> {
                         let expected_root =
                             old_account.map_or(EMPTY_ROOT_HASH, |account| account.storage_root);
                         if let Some(storage) =
-                            self.storage_tries.borrow_mut().remove(hashed_address)
+                            self.storage_tries.borrow_mut().remove(hashed_address) &&
+                            storage.hash() != expected_root
                         {
-                            if storage.hash() != expected_root {
-                                return Err(ClientExecutionError::ParentStorageRootMismatch {
-                                    hashed_account: *hashed_address,
-                                    actual: storage.hash(),
-                                    expected: expected_root,
-                                });
-                            }
+                            return Err(ClientExecutionError::ParentStorageRootMismatch {
+                                hashed_account: *hashed_address,
+                                actual: storage.hash(),
+                                expected: expected_root,
+                            });
                         }
                         expected_root
                     };
@@ -773,17 +773,14 @@ impl ClientExecutorInputWithState {
 
     pub fn witness_db_recording<'a>(
         &'a self,
-        account_lookup_order: &'a RefCell<Vec<B256>>,
-        bytecode_lookup_order: &'a RefCell<Vec<B256>>,
-        storage_lookup_order: &'a RefCell<Vec<B256>>,
-        witness_order: Option<&'a RefCell<Vec<WitnessAccess>>>,
+        recording: WitnessRecording<'a>,
     ) -> Result<WitnessDb<'a, 'a>, ClientExecutionError> {
         WitnessDb::from_parts_recording(
             &self.state,
             &self.input.current_block.header,
             &self.input.ancestor_headers,
             &self.input.bytecodes,
-            (account_lookup_order, bytecode_lookup_order, storage_lookup_order, witness_order),
+            recording,
         )
     }
 }
@@ -957,14 +954,14 @@ impl<'a> WitnessDb<'a, 'a> {
         current_header: &'a Header,
         ancestor_headers: &'a [Header],
         bytecodes: &'a [Bytecode],
-        lookup_orders: WitnessDbLookupOrders<'a>,
+        recording: WitnessRecording<'a>,
     ) -> Result<Self, ClientExecutionError> {
-        let (
-            account_lookup_order_input,
+        let WitnessRecording {
+            account_lookup_order,
             bytecode_lookup_order,
             storage_lookup_order,
             witness_order,
-        ) = lookup_orders;
+        } = recording;
         let mut witness_db = Self::from_parts(state, current_header, ancestor_headers, bytecodes)?;
         if let BytecodeProvider::Eager {
             lookup_order: order,
@@ -982,7 +979,7 @@ impl<'a> WitnessDb<'a, 'a> {
             ..
         } = &mut witness_db.state
         {
-            *account_order = Some(account_lookup_order_input);
+            *account_order = Some(account_lookup_order);
             *storage_order = Some(storage_lookup_order);
             *storage_witness_order = witness_order;
         }
