@@ -9,39 +9,55 @@ fi
 
 GPU_UNAVAILABLE_RESTART_DELAY_SEC="${GPU_UNAVAILABLE_RESTART_DELAY_SEC:-60}"
 STARTUP_GPU_CHECK="${STARTUP_GPU_CHECK:-1}"
+GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
 
-if [[ "$STARTUP_GPU_CHECK" == "1" ]]; then
-    if ! command -v nvidia-smi >/dev/null 2>&1 || ! nvidia-smi -L >/dev/null 2>&1; then
-        echo "[entrypoint] GPU unavailable at startup; waiting ${GPU_UNAVAILABLE_RESTART_DELAY_SEC}s before container restart" >&2
-        sleep "${GPU_UNAVAILABLE_RESTART_DELAY_SEC}"
-        exit 1
+wait_for_gpu() {
+    if [[ "$STARTUP_GPU_CHECK" != "1" ]]; then
+        return 0
     fi
-fi
 
-/app/server/check_gpu.sh &
-CHECK_PID=$!
+    while true; do
+        if command -v nvidia-smi >/dev/null 2>&1 \
+            && nvidia-smi -L >/dev/null 2>&1 \
+            && nvidia-smi --query-gpu=uuid --format=csv,noheader >/dev/null 2>&1; then
+            return 0
+        fi
+        echo "[entrypoint] GPU unavailable; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
+        sleep "${GPU_READY_POLL_INTERVAL_SEC}"
+    done
+}
 
-cleanup() {
-    kill "${CHECK_PID}" 2>/dev/null || true
+terminate_current_stack() {
+    if [[ -n "${CHECK_PID:-}" ]]; then
+        kill "${CHECK_PID}" 2>/dev/null || true
+    fi
     if [[ -n "${UVICORN_PID:-}" ]]; then
+        kill -- "-${UVICORN_PID}" 2>/dev/null || true
         kill "${UVICORN_PID}" 2>/dev/null || true
     fi
 }
-trap cleanup EXIT INT TERM
+trap 'terminate_current_stack; exit 0' INT TERM
 
-"${CMD[@]}" &
-UVICORN_PID=$!
+while true; do
+    wait_for_gpu
 
-set +e
-wait -n "${UVICORN_PID}" "${CHECK_PID}"
-status=$?
-set -e
+    /app/server/check_gpu.sh &
+    CHECK_PID=$!
 
-cleanup
-wait "${UVICORN_PID}" 2>/dev/null || true
-wait "${CHECK_PID}" 2>/dev/null || true
-if [[ "$status" -ne 0 ]]; then
-    echo "[entrypoint] server stack exited with status=${status}; waiting ${GPU_UNAVAILABLE_RESTART_DELAY_SEC}s before container restart" >&2
+    setsid "${CMD[@]}" &
+    UVICORN_PID=$!
+
+    set +e
+    wait -n "${UVICORN_PID}" "${CHECK_PID}"
+    status=$?
+    set -e
+
+    terminate_current_stack
+    wait "${UVICORN_PID}" 2>/dev/null || true
+    wait "${CHECK_PID}" 2>/dev/null || true
+    CHECK_PID=""
+    UVICORN_PID=""
+
+    echo "[entrypoint] server stack exited with status=${status}; restarting after ${GPU_UNAVAILABLE_RESTART_DELAY_SEC}s" >&2
     sleep "${GPU_UNAVAILABLE_RESTART_DELAY_SEC}"
-fi
-exit $status
+done

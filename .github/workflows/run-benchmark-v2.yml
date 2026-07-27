@@ -23,6 +23,37 @@ on:
         required: true
         type: string
         default: "23817600"
+      proof-uuid:
+        # PROOF_UUID is the S3/HTTPS path segment written by server/prove_block.sh:
+        # https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin
+        description: "PROOF_UUID: S3 namespace for ready-to-use generated inputs, usually the prover cluster/job name"
+        required: false
+        type: string
+        default: "idc-us-2-9"
+      s3_bucket:
+        # S3_BUCKET is the bucket that stores generated inputs, proofs, and metrics from prove_block.sh.
+        description: "S3_BUCKET: bucket containing prove_block.sh generated inputs and proof artifacts"
+        required: false
+        type: string
+        default: "prover-stat-data"
+      s3_prefix:
+        # S3_PREFIX is the prefix before PROOF_UUID in the prove_block.sh S3 object layout.
+        description: "S3_PREFIX: prefix before PROOF_UUID in the generated-input S3 path"
+        required: false
+        type: string
+        default: "proofs/testing"
+      aws_region:
+        # AWS_REGION selects the virtual-hosted S3 HTTPS endpoint for generated-input download.
+        description: "AWS_REGION: AWS region used in the generated-input HTTPS download URL"
+        required: false
+        type: string
+        default: "us-west-2"
+      chain_id:
+        # CHAIN_ID selects the local benchmark cache path rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin.
+        description: "CHAIN_ID: chain id used in the local rpc-cache input path"
+        required: false
+        type: string
+        default: "1"
       rerun_keygen:
         description: "Rerun keygen"
         required: false
@@ -95,14 +126,11 @@ on:
           - "1"
           - "2"
       max_cell_per_shard:
-        # Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
-        # Keccak preflight cost is now estimated with a 33/16 blowup instead of
-        # the old coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
-        # 1207959552 * 33 / 32 = 1245708288.
-        description: "Value for CENO_MAX_CELL_PER_SHARD; magic default 1245708288 = 1207959552 * 33 / 32"
+        # Validated on blocks 23817600, 25580200, 25586000, and 25586200 on a 24GB RTX 4090.
+        description: "Value for CENO_MAX_CELL_PER_SHARD; validated default 4500000000"
         required: false
         type: string
-        default: "1245708288"
+        default: "4500000000"
       gpu_jagged_reshape_log_height:
         description: "Value for CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT; 25 probably OOMs on RTX 4090"
         required: false
@@ -215,6 +243,34 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
+            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
+            set +e
+            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
+              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
+            input_download_status=$?
+            set -e
+            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
+              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+            else
+              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
@@ -238,13 +294,14 @@ jobs:
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu,aot" --config net.git-fetch-with-cli=true \
+          cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+            --cache-dir rpc-cache \
+            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
@@ -379,6 +436,34 @@ jobs:
           # Create necessary directories
           mkdir -p output
           mkdir -p rpc-cache
+          S3_BUCKET="${{ inputs.s3_bucket }}"
+          S3_PREFIX="${{ inputs.s3_prefix }}"
+          AWS_REGION="${{ inputs.aws_region }}"
+          PROOF_UUID="${{ inputs['proof-uuid'] }}"
+          CHAIN_ID="${{ inputs.chain_id }}"
+          BLOCK_NUMBER="$block_number"
+
+          if [[ -n "$PROOF_UUID" ]]; then
+            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
+            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
+            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
+            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
+            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
+            set +e
+            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
+              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
+            input_download_status=$?
+            set -e
+            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
+              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+            else
+              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
+            fi
+          else
+            echo "PROOF_UUID is empty; skipping S3 generated-input download"
+          fi
 
           # LOG_NAME with Block number and Timestamp(UTC+8)
           TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
@@ -400,13 +485,14 @@ jobs:
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu,aot" --config net.git-fetch-with-cli=true \
+          cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
             --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
-            --cache-dir rpc-cache > "$LOG_FILE" 2>&1
+            --cache-dir rpc-cache \
+            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
           grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs

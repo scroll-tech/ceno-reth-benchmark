@@ -3,9 +3,11 @@ set -euo pipefail
 
 JOBS_DIR=${JOBS_DIR:-/app/jobs}
 ERROR_PATTERN=${GPU_ERROR_PATTERN:-"no CUDA-capable device"}
+ERROR_PATTERNS=${GPU_ERROR_PATTERNS:-"no CUDA-capable device|openvm_cuda_common::memory_manager::init|panic_cannot_unwind|thread caused non-unwinding panic|core dumped"}
 LOG_GLOB=${GPU_ERROR_LOG_GLOB:-"${JOBS_DIR}"/*/stderr.log}
 SCAN_INTERVAL_SEC=${GPU_WATCH_SCAN_INTERVAL_SEC:-5}
-LOWER_PATTERN=$(printf '%s' "${ERROR_PATTERN}" | tr '[:upper:]' '[:lower:]')
+LOWER_PATTERNS=$(printf '%s' "${ERROR_PATTERNS:-$ERROR_PATTERN}" | tr '[:upper:]' '[:lower:]')
+IFS='|' read -r -a CUDA_ERROR_PATTERNS <<<"$LOWER_PATTERNS"
 
 declare -A WATCHERS=()
 PARENT_PID=$$
@@ -24,6 +26,18 @@ handle_usr1() {
     exit 1
 }
 
+matches_cuda_error() {
+    local line="$1"
+    local pattern
+    for pattern in "${CUDA_ERROR_PATTERNS[@]}"; do
+        [[ -z "$pattern" ]] && continue
+        if [[ "$line" == *"$pattern"* ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 trap terminate_children EXIT
 trap handle_usr1 USR1
 trap 'terminate_children; exit 0' TERM INT
@@ -34,7 +48,7 @@ start_watcher() {
         tail -n 0 -F "$log_path" | while IFS= read -r line; do
             local lower_line
             lower_line=$(printf '%s' "$line" | tr '[:upper:]' '[:lower:]')
-            if [[ "$lower_line" == *"${LOWER_PATTERN}"* ]]; then
+            if matches_cuda_error "$lower_line"; then
                 echo "[check_gpu] detected CUDA error pattern in ${log_path}: $line" >&2
                 kill -s USR1 "${PARENT_PID}"
                 exit 0
@@ -57,7 +71,7 @@ discover_logs() {
     shopt -u nullglob
 }
 
-echo "[check_gpu] starting persistent GPU log watcher (pattern='${ERROR_PATTERN}')" >&2
+echo "[check_gpu] starting persistent GPU log watcher (patterns='${ERROR_PATTERNS:-$ERROR_PATTERN}')" >&2
 
 while true; do
     discover_logs

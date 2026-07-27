@@ -17,6 +17,7 @@ clap = { version = "4.5.7", features = ["derive", "env"] }
 serde.workspace = true
 bincode = { workspace = true, features = ["std"] }
 bitcode.workspace = true
+bumpalo.workspace = true
 metrics = "0.23.0"
 metrics-util = "0.17.0"
 hex = "0.4.3"
@@ -25,6 +26,7 @@ serde_json.workspace = true
 # workspace
 openvm-host-executor.workspace = true
 openvm-client-executor.workspace = true
+openvm-mpt.workspace = true
 
 # ceno workspace
 ceno_zkvm.workspace = true
@@ -41,9 +43,10 @@ alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-client.workspace = true
 alloy-transport.workspace = true
+alloy-trie.workspace = true
 
 # reth
-reth-primitives.workspace = true
+reth-ethereum-primitives.workspace = true
 reth-trie.workspace = true
 
 derive_more.workspace = true
@@ -58,7 +61,8 @@ openvm-backend = []
 gpu = ["ceno_cli/gpu"]
 metrics = []
 tco = []
-aot = ["ceno_zkvm/aot-x86_64"]
+aot = ["ceno_cli/aot-x86_64", "ceno_zkvm/aot-x86_64"]
+parallel = ["ceno_zkvm/parallel"]
 evm-prove = ["halo2-axiom"]
 evm-verify = ["evm-prove", "halo2-axiom"]
 perf-metrics = []

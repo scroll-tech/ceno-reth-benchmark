@@ -12,15 +12,15 @@ VERIFIER_ID="${VERIFIER_ID:-0.1}"
 CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-1}"
 CENO_GPU_ENABLE_WITGEN="${CENO_GPU_ENABLE_WITGEN:-0}"
 CENO_CONCURRENT_CHIP_PROVING="${CENO_CONCURRENT_CHIP_PROVING:-1}"
-# Magic number: the old shard cap was 1207959552 = ((1 << 30) * 9 / 4 / 2).
-# Keccak preflight cost is now estimated with a 33/16 blowup instead of the old
-# coarse 2x factor, so raise the shard cap by (33/16) / 2 = 33/32:
-# 1207959552 * 33 / 32 = 1245708288.
-CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-1245708288}"
+CENO_GPU_MEM_TRACKING="${CENO_GPU_MEM_TRACKING:-0}"
+# Validated on blocks 23817600, 25580200, 25586000, and 25586200 on a 24GB RTX 4090.
+CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-4500000000}"
 CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT="${CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT:-23}"
 CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB="${CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB:-3048}"
 RUST_MIN_STACK="${RUST_MIN_STACK:-536870912}"
 CHAIN_ID="${CHAIN_ID:-1}"
+GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
+PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -45,6 +45,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
+
+wait_for_gpu() {
+  if [[ "$PROVE_BLOCK_GPU_CHECK" != "1" ]]; then
+    return 0
+  fi
+
+  while true; do
+    if command -v nvidia-smi >/dev/null 2>&1 \
+      && nvidia-smi -L >/dev/null 2>&1 \
+      && nvidia-smi --query-gpu=uuid --format=csv,noheader >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "[prove_block.sh] GPU unavailable; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
+    sleep "${GPU_READY_POLL_INTERVAL_SEC}"
+  done
+}
 
 CENO_STATUS_API_BASE_URL="${CENO_STATUS_API_BASE_URL%/}"
 POST_STATUS_HTTP_STATUS=""
@@ -80,6 +96,7 @@ post_status() {
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
 echo "[prove_block.sh] Job dir: $job_dir" >&2
+wait_for_gpu
 
 # Determine block number: either override or fetch latest via RPC.
 if [[ -n "$BLOCK_NUMBER_OVERRIDE" ]]; then
@@ -205,6 +222,7 @@ OUTPUT_PATH="$job_dir/metrics.json"
 export CENO_GPU_CACHE_LEVEL
 export CENO_GPU_ENABLE_WITGEN
 export CENO_CONCURRENT_CHIP_PROVING
+export CENO_GPU_MEM_TRACKING
 export CENO_MAX_CELL_PER_SHARD
 export CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT
 export CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB

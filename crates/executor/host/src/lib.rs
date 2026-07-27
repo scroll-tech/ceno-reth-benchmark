@@ -11,10 +11,10 @@ use openvm_rpc_db::RpcDb;
 use reth_chainspec::MAINNET;
 use reth_consensus::{Consensus, HeaderValidator};
 use reth_ethereum_consensus::{validate_block_post_execution, EthBeaconConsensus};
+use reth_ethereum_primitives::Block;
 use reth_evm::execute::{BasicBlockExecutor, Executor};
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives::Block;
 use reth_primitives_traits::block::Block as _;
 use revm::database::CacheDB;
 use revm_primitives::B256;
@@ -80,12 +80,7 @@ impl<P: Provider<Ethereum> + Clone + std::fmt::Debug> HostExecutor<P> {
 
         // Validate the block post execution.
         tracing::info!("validating the block post execution");
-        validate_block_post_execution(
-            &block,
-            &spec,
-            &executor_output.receipts,
-            &executor_output.requests,
-        )?;
+        validate_block_post_execution(&block, &spec, &executor_output, None, None)?;
 
         // Accumulate the logs bloom.
         tracing::info!("accumulating the logs bloom");

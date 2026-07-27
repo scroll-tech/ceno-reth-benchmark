@@ -17,7 +17,7 @@ DOCKER_BUILDKIT=1 docker build \
 
 Select features via `--build-arg FEATURES=...`:
 
-- GPU build (default): `--build-arg FEATURES="metrics,jemalloc,gpu"`
+- GPU build (default): `--build-arg FEATURES="metrics,jemalloc,gpu,aot,parallel"`
 - CPU-only build: `--build-arg FEATURES="metrics,jemalloc"` (omit GPU extras)
 
 ### Run

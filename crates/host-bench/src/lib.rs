@@ -12,15 +12,17 @@ use openvm_circuit::{arch::*, openvm_stark_sdk::openvm_stark_backend::p3_field::
 use openvm_client_executor::{
     io::{
         AccountInput, AncestorHeadersInput, BytecodeInput, BytecodesInput, ClientExecutorInput,
-        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateTrieHeader,
-        StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
+        ClientExecutorInputWithState, ClientWitnessInput, CurrentBlockInput, StateChunkHeader,
+        StateTrieHeader, StateTrieInput, StorageTrieHeader, StorageTrieInput, WitnessAccess,
     },
     ChainVariant, ClientExecutor, CHAIN_ID_ETH_MAINNET,
 };
 use openvm_host_executor::HostExecutor;
+use openvm_mpt::FrontierLimits;
 #[cfg(feature = "openvm-backend")]
 pub use openvm_native_circuit::NativeConfig;
 
+use alloy_trie::TrieAccount;
 #[cfg(feature = "openvm-backend")]
 use openvm_sdk::{
     config::{SdkVmBuilder, SdkVmConfig},
@@ -35,23 +37,22 @@ use openvm_stark_sdk::{
 };
 #[cfg(feature = "openvm-backend")]
 use openvm_transpiler::{elf::Elf, openvm_platform::memory::MEM_SIZE};
-pub use reth_primitives;
-use reth_trie::TrieAccount;
+pub use reth_ethereum_primitives as reth_primitives;
 use std::{
     collections::BTreeMap,
     env, fs,
     path::{Path, PathBuf},
-    sync::LazyLock,
+    sync::{Arc, LazyLock},
 };
 use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
-use ceno_emul::{Platform, Program};
+use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 use ceno_zkvm::e2e::{
-    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, MultiProver,
-    Preset,
+    analyze_shard_ram_light, emulate_program, run_e2e_full_trace_verify,
+    run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -176,7 +177,7 @@ fn write_ceno_client_input(
     let (
         current_block_input,
         ancestor_headers_input,
-        state_trie_input,
+        _state_trie_input,
         storage_trie_inputs,
         bytecodes_input,
     ): (
@@ -199,17 +200,48 @@ fn write_ceno_client_input(
     let input_with_state = ClientExecutorInputWithState::build(client_input.clone())?;
     let (_, witness_order) = ClientExecutor
         .execute_recording_witness_order(ChainVariant::Mainnet, client_input.clone())?;
-    let mut post_update_witness_count = 0;
-    let mut after_state_trie = false;
-    for access in &witness_order {
-        match access {
-            WitnessAccess::StateTrie => after_state_trie = true,
-            WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_) if after_state_trie => {
-                post_update_witness_count += 1;
+    const FRONTIER_LIMITS: FrontierLimits =
+        FrontierLimits { max_nodes: 2048, max_bytes: 256 * 1024, max_keys: 256 };
+    let modified_accounts = witness_order
+        .iter()
+        .filter_map(|access| match access {
+            WitnessAccess::ModifiedAccount(hash, storage_slots) => {
+                Some((*hash, 1 + *storage_slots))
             }
-            _ => {}
-        }
-    }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let frontier = input_with_state
+        .state
+        .state_trie
+        .build_frontier_weighted(modified_accounts, FRONTIER_LIMITS)?;
+    let state_root = input_with_state.state.state_trie.hash();
+    let frontier_root = {
+        let bump = bumpalo::Bump::new();
+        let mut bytes = frontier.bytes.as_slice();
+        openvm_mpt::Mpt::decode_trie(&bump, &mut bytes, frontier.num_nodes)?.hash()
+    };
+    eyre::ensure!(frontier_root == state_root, "state frontier changed parent root");
+    info!(
+        chunks = frontier.chunks.len(),
+        frontier_nodes = frontier.num_nodes,
+        frontier_bytes = frontier.bytes.len(),
+        max_chunk_nodes = frontier.chunks.iter().map(|chunk| chunk.num_nodes).max().unwrap_or(0),
+        max_chunk_bytes = frontier.chunks.iter().map(|chunk| chunk.bytes.len()).max().unwrap_or(0),
+        "built authenticated state frontier"
+    );
+
+    let state_marker = witness_order
+        .iter()
+        .position(|access| matches!(access, WitnessAccess::StateTrie))
+        .ok_or_else(|| eyre::eyre!("recorded witness order has no state trie marker"))?;
+    let post_accesses = witness_order[state_marker + 1..]
+        .iter()
+        .filter(|access| {
+            matches!(access, WitnessAccess::Account(_) | WitnessAccess::StorageTrie(_))
+        })
+        .copied()
+        .collect::<Vec<_>>();
     let account_by_hash = witness_order
         .iter()
         .filter_map(|a| match a {
@@ -229,17 +261,17 @@ fn write_ceno_client_input(
     hints.write(&ancestor_headers_input)?;
     hints.write(&current_block_input)?;
     hints.write(&StateTrieHeader {
-        num_nodes: state_trie_input.num_nodes,
-        post_update_witness_count,
+        version: 2,
+        num_nodes: frontier.num_nodes,
+        chunk_count: frontier.chunks.len(),
     })?;
 
-    for access in witness_order {
+    for access in witness_order[..=state_marker].iter().copied() {
         match access {
             WitnessAccess::Account(hash) => {
-                let account = account_by_hash
-                    .get(&hash)
-                    .ok_or_else(|| eyre::eyre!("missing account for recorded lookup hash {hash}"))?
-                    .clone();
+                let account = account_by_hash.get(&hash).copied().ok_or_else(|| {
+                    eyre::eyre!("missing account for recorded lookup hash {hash}")
+                })?;
                 hints.write(&ClientWitnessInput::Account(AccountInput {
                     hashed_address: hash,
                     account,
@@ -266,7 +298,63 @@ fn write_ceno_client_input(
                 hints.write(&ClientWitnessInput::Bytecode(BytecodeInput { bytecode }))?;
             }
             WitnessAccess::StateTrie => {
-                write_raw_hint_bytes(hints, state_trie_input.bytes.as_ref());
+                write_raw_hint_bytes(hints, &frontier.bytes);
+            }
+            WitnessAccess::ModifiedAccount(_, _) => {
+                unreachable!("modified marker precedes state")
+            }
+        }
+    }
+
+    for chunk in frontier.chunks {
+        let chunk_accesses = post_accesses
+            .iter()
+            .filter(|access| {
+                let hash = match access {
+                    WitnessAccess::Account(hash) | WitnessAccess::StorageTrie(hash) => *hash,
+                    _ => unreachable!(),
+                };
+                let mut nibs = [0u8; 64];
+                for (i, byte) in hash.as_slice().iter().enumerate() {
+                    nibs[2 * i] = byte >> 4;
+                    nibs[2 * i + 1] = byte & 0x0f;
+                }
+                nibs.starts_with(&chunk.prefix)
+            })
+            .copied()
+            .collect::<Vec<_>>();
+        hints.write(&ClientWitnessInput::StateChunk(StateChunkHeader {
+            prefix: chunk.prefix,
+            expected_root: chunk.expected_root,
+            num_nodes: chunk.num_nodes,
+            witness_count: chunk_accesses.len(),
+        }))?;
+        write_raw_hint_bytes(hints, &chunk.bytes);
+        for access in chunk_accesses {
+            match access {
+                WitnessAccess::Account(hash) => {
+                    let account = account_by_hash.get(&hash).copied().ok_or_else(|| {
+                        eyre::eyre!("missing account for recorded lookup hash {hash}")
+                    })?;
+                    hints.write(&ClientWitnessInput::Account(AccountInput {
+                        hashed_address: hash,
+                        account,
+                    }))?;
+                }
+                WitnessAccess::StorageTrie(hash) => {
+                    let storage_trie = storage_trie_by_hash
+                        .get(&hash)
+                        .ok_or_else(|| {
+                            eyre::eyre!("missing storage trie for recorded lookup hash {hash}")
+                        })?
+                        .clone();
+                    hints.write(&ClientWitnessInput::StorageTrie(StorageTrieHeader {
+                        hashed_address: storage_trie.hashed_address,
+                        num_nodes: storage_trie.num_nodes,
+                    }))?;
+                    write_raw_hint_bytes(hints, storage_trie.bytes.as_ref());
+                }
+                _ => unreachable!(),
             }
         }
     }
@@ -288,6 +376,8 @@ pub enum BenchMode {
     Execute,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
+    /// Replay shards and count ShardRAM records without building proof witnesses.
+    AnalyzeShardRam,
     /// Generate sequence of app proofs for continuation segments.
     ProveApp,
     /// Generate a full end-to-end STARK proof with aggregation.
@@ -309,6 +399,7 @@ impl std::fmt::Display for BenchMode {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
+            Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
             Self::ProveApp => write!(f, "prove_app"),
             Self::ProveStark => write!(f, "prove_stark"),
             #[cfg(feature = "evm-verify")]
@@ -722,6 +813,24 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     } else {
         None
     };
+    let needs_ceno_hints = matches!(
+        args.mode,
+        BenchMode::Execute |
+            BenchMode::AnalyzeShardRam |
+            BenchMode::ProveApp |
+            BenchMode::ProveStark
+    );
+    let mut prebuilt_hints = if needs_ceno_hints {
+        let mut hints = CenoStdin::default();
+        info_span!("app.hints").in_scope(|| write_ceno_client_input(&mut hints, &client_input))?;
+        Some(hints)
+    } else {
+        None
+    };
+    #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+    if let (Some(ceno_sdk), Some(hints)) = (prebuilt_jagged_sdk.as_mut(), prebuilt_hints.as_ref()) {
+        info_span!("sdk.prepare_preflight_aot").in_scope(|| ceno_sdk.prepare_preflight_aot(hints));
+    }
 
     run_with_metric_collection("OUTPUT_PATH", || {
         info_span!("reth-block", block_number = args.block_number).in_scope(
@@ -757,7 +866,95 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                 }
 
                 match args.mode {
-                    BenchMode::Execute => {}
+                    BenchMode::Execute => {
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before execute");
+                        let multi_prover =
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                        let program_ctx =
+                            setup_program::<ff_ext::BabyBearExt4>(
+                                program.clone(),
+                                platform.clone(),
+                                multi_prover.clone(),
+                            );
+                        let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        let raw_step_cell_extractor =
+                            Arc::clone(&program_ctx.system_config.config);
+                        let step_cell_extractor: Arc<dyn StepCellExtractor> =
+                            raw_step_cell_extractor;
+                        let report = info_span!("sdk.execute", group = program_name).in_scope(|| {
+                            emulate_program(
+                                program_ctx.program.clone(),
+                                max_steps,
+                                &init_full_mem,
+                                [0; 8],
+                                &program_ctx.platform,
+                                &program_ctx.multi_prover,
+                                step_cell_extractor,
+                                #[cfg(all(
+                                    feature = "aot",
+                                    target_arch = "x86_64",
+                                    target_os = "linux"
+                                ))]
+                                program_ctx.preflight_aot_program.clone(),
+                            )
+                        });
+                        println!("ceno executed instructions: {}", report.executed_steps);
+                    }
+                    BenchMode::AnalyzeShardRam => {
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before analyze-shard-ram");
+                        let multi_prover =
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                        let program_ctx = setup_program::<ff_ext::BabyBearExt4>(
+                            program.clone(),
+                            platform.clone(),
+                            multi_prover,
+                        );
+                        let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        let reports = info_span!("sdk.analyze_shard_ram", group = program_name)
+                            .in_scope(|| {
+                                analyze_shard_ram_light(
+                                    &program_ctx,
+                                    &init_full_mem,
+                                    [0; 8],
+                                    max_steps,
+                                    args.shard_id.map(|v| v as usize),
+                                    40,
+                                    #[cfg(all(
+                                        feature = "aot",
+                                        target_arch = "x86_64",
+                                        target_os = "linux"
+                                    ))]
+                                    program_ctx.preflight_aot_program.clone(),
+                                )
+                            });
+                        for report in reports {
+                            println!(
+                                "shard_ram_light shard_id={} total={} read={} write={} first_access_later={} current_access_later={}",
+                                report.shard_id,
+                                report.total_records,
+                                report.read_records,
+                                report.write_records,
+                                report.first_shard_access_later_records,
+                                report.current_shard_access_later_records,
+                            );
+                            for (rank, stat) in report.top_pcs.iter().take(10).enumerate() {
+                                println!(
+                                    "shard_ram_light_top_pc shard_id={} rank={} pc=0x{:08x} kind={} read={} write={} total={}",
+                                    report.shard_id,
+                                    rank + 1,
+                                    stat.pc,
+                                    stat.kind,
+                                    stat.read_records,
+                                    stat.write_records,
+                                    stat.read_records + stat.write_records,
+                                );
+                            }
+                        }
+                    }
                     BenchMode::ExecuteMetered => {
                         unimplemented!()
                         // let engine =
@@ -780,15 +977,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let ceno_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
-                        let mut hints = CenoStdin::default();
-
-                        let pub_io_digest =
-                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input(&mut hints, &client_input)?;
-                                Ok(unsafe {
-                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                                })
-                            })?;
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before reth-block");
+                        let pub_io_digest = unsafe {
+                            core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                        };
 
                         let proofs = info_span!("app.prove").in_scope(|| {
                             ceno_sdk.generate_base_proof(
@@ -830,16 +1024,12 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         let agg_prover = prebuilt_agg_prover
                             .take()
                             .expect("ceno agg prover should be initialized before reth-block");
-                        let mut hints = CenoStdin::default();
-
-                        let pub_io_digest =
-                            info_span!("app.hints").in_scope(|| -> eyre::Result<_> {
-                                write_ceno_client_input(&mut hints, &client_input)?;
-                                Ok(unsafe {
-                                    core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                                })
-                            })?;
-
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before reth-block");
+                        let pub_io_digest = unsafe {
+                            core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                        };
                         let total_create_proof_start = std::time::Instant::now();
                         let app_prove_start = std::time::Instant::now();
                         let proofs = info_span!("app.prove").in_scope(|| {
@@ -1171,6 +1361,9 @@ pub async fn run_reth_benchmark(args: HostArgs, openvm_client_eth_elf: &[u8]) ->
 
                 match args.mode {
                     BenchMode::Execute => {}
+                    BenchMode::AnalyzeShardRam => {
+                        eyre::bail!("analyze-shard-ram mode is only implemented for ceno backend");
+                    }
                     BenchMode::ExecuteMetered => {
                         let engine = DefaultStarkEngine::new(app_config.app_fri_params.fri_params);
                         let (vm, _) = VirtualMachine::new_with_keygen(

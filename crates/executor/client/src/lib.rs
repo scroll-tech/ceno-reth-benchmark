@@ -1,27 +1,28 @@
+mod capacity;
 pub mod error;
 /// Client program input data types.
 pub mod io;
 
 use std::{cell::RefCell, fmt::Debug, sync::Arc};
 
-use alloy_consensus::TxReceipt;
-use alloy_primitives::{keccak256, Bloom, B256};
+use alloy_consensus::{Header, TxReceipt};
+use alloy_primitives::{keccak256, Bloom};
+use alloy_trie::EMPTY_ROOT_HASH;
 use openvm_primitives::chain_spec::{dev, mainnet};
 use reth_consensus::{Consensus, HeaderValidator};
 use reth_ethereum_consensus::{validate_block_post_execution, EthBeaconConsensus};
-use reth_evm::execute::{BasicBlockExecutor, Executor};
+use reth_evm::execute::Executor;
 use reth_evm_ethereum::EthEvmConfig;
 use reth_execution_types::ExecutionOutcome;
-use reth_primitives::Header;
 use reth_primitives_traits::block::Block as _;
 use reth_revm::db::CacheDB;
-use reth_trie::EMPTY_ROOT_HASH;
 
 use crate::{
+    capacity::{revm_state_with_capacity, CapacityBlockExecutor},
     error::ClientExecutionError,
     io::{
         AncestorHeadersInput, ClientExecutorInput, ClientExecutorInputWithState, ClientInputReader,
-        WitnessAccess,
+        WitnessAccess, WitnessRecording,
     },
 };
 
@@ -62,12 +63,12 @@ impl ClientExecutor {
         let header = self.execute_with_state(
             chain_variant,
             input,
-            Some((
-                &account_lookup_order,
-                &storage_lookup_order,
-                &bytecode_lookup_order,
-                &witness_order,
-            )),
+            Some(WitnessRecording {
+                account_lookup_order: &account_lookup_order,
+                bytecode_lookup_order: &bytecode_lookup_order,
+                storage_lookup_order: &storage_lookup_order,
+                witness_order: Some(&witness_order),
+            }),
         )?;
         Ok((header, witness_order.into_inner()))
     }
@@ -111,17 +112,17 @@ impl ClientExecutor {
         let witness_db =
             io::WitnessDb::from_streaming_parts(&state, &current_header, &ancestor_headers)?;
         let cache_db = CacheDB::new(&witness_db);
-
-        let block_executor = BasicBlockExecutor::new(EthEvmConfig::new(spec.clone()), cache_db);
+        let revm_state = revm_state_with_capacity(
+            cache_db,
+            recovered_block.body().transactions.len(),
+            ancestor_headers.len(),
+        );
+        let block_executor =
+            CapacityBlockExecutor::new_with_state(EthEvmConfig::new(spec.clone()), revm_state);
         let executor_output = block_executor.execute(&recovered_block)?;
 
-        validate_block_post_execution(
-            &recovered_block,
-            &spec,
-            &executor_output.receipts,
-            &executor_output.requests,
-        )
-        .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
+        validate_block_post_execution(&recovered_block, &spec, &executor_output, None, None)
+            .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
 
         let mut logs_bloom = Bloom::default();
         executor_output.receipts.iter().for_each(|r| {
@@ -138,7 +139,7 @@ impl ClientExecutor {
         drop(witness_db);
 
         let state_root = {
-            state.update_from_bundle_state(&executor_outcome.bundle)?;
+            state.update_from_bundle_state(executor_outcome.bundle)?;
             state.state_root()
         };
 
@@ -157,7 +158,6 @@ impl ClientExecutor {
         header.withdrawals_root = current_withdrawals_root;
         header.logs_bloom = logs_bloom;
         header.requests_hash = current_requests_hash;
-
         Ok(header)
     }
 
@@ -165,26 +165,11 @@ impl ClientExecutor {
         &self,
         chain_variant: ChainVariant,
         mut input: ClientExecutorInputWithState,
-        lookup_orders: Option<(
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<B256>>,
-            &RefCell<Vec<WitnessAccess>>,
-        )>,
+        recording: Option<WitnessRecording<'_>>,
     ) -> Result<Header, ClientExecutionError> {
         // Initialize the witnessed database with verified storage proofs.
-        let witness_db = match lookup_orders {
-            Some((
-                account_lookup_order,
-                storage_lookup_order,
-                bytecode_lookup_order,
-                witness_order,
-            )) => input.witness_db_recording(
-                account_lookup_order,
-                bytecode_lookup_order,
-                storage_lookup_order,
-                Some(witness_order),
-            )?,
+        let witness_db = match recording {
+            Some(recording) => input.witness_db_recording(recording)?,
             None => input.witness_db()?,
         };
         let cache_db = CacheDB::new(&witness_db);
@@ -215,17 +200,18 @@ impl ClientExecutor {
                 .map_err(ClientExecutionError::InvalidBlockPreExecution)?;
         };
 
-        let block_executor = BasicBlockExecutor::new(EthEvmConfig::new(spec.clone()), cache_db);
+        let state = revm_state_with_capacity(
+            cache_db,
+            current_block.body().transactions.len(),
+            input.input.ancestor_headers.len(),
+        );
+        let block_executor =
+            CapacityBlockExecutor::new_with_state(EthEvmConfig::new(spec.clone()), state);
         let executor_output = block_executor.execute(&current_block)?;
 
         // Validate the block post execution.
-        validate_block_post_execution(
-            &current_block,
-            &spec,
-            &executor_output.receipts,
-            &executor_output.requests,
-        )
-        .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
+        validate_block_post_execution(&current_block, &spec, &executor_output, None, None)
+            .map_err(ClientExecutionError::InvalidBlockPostExecution)?;
 
         // Accumulate the logs bloom.
         let mut logs_bloom = Bloom::default();
@@ -241,7 +227,12 @@ impl ClientExecutor {
             vec![executor_output.result.requests],
         );
 
-        if let Some((account_lookup_order, storage_lookup_order, _, witness_order)) = lookup_orders
+        if let Some(WitnessRecording {
+            account_lookup_order,
+            storage_lookup_order,
+            witness_order: Some(witness_order),
+            ..
+        }) = recording
         {
             let mut account_order = account_lookup_order.borrow_mut();
             let mut storage_order = storage_lookup_order.borrow_mut();
@@ -249,6 +240,8 @@ impl ClientExecutor {
             witness_order.push(WitnessAccess::StateTrie);
             for (address, account) in &executor_outcome.bundle.state {
                 let hashed_address = keccak256(address);
+                witness_order
+                    .push(WitnessAccess::ModifiedAccount(hashed_address, account.storage.len()));
                 if account.info.is_some() &&
                     !account.storage.is_empty() &&
                     !storage_order.contains(&hashed_address) &&
@@ -256,7 +249,7 @@ impl ClientExecutor {
                         .state
                         .storage_tries
                         .get(&hashed_address)
-                        .map_or(false, |storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
+                        .is_some_and(|storage_trie| storage_trie.hash() != EMPTY_ROOT_HASH)
                 {
                     if !account_order.contains(&hashed_address) {
                         account_order.push(hashed_address);

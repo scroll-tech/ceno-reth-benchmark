@@ -76,6 +76,7 @@ impl<P: Provider<Ethereum> + Clone> RpcDb<P> {
             nonce: proof.nonce,
             balance: proof.balance,
             code_hash: bytecode.hash_slow(),
+            account_id: None,
             code: Some(bytecode.clone()),
         };
 
