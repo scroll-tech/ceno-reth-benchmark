@@ -1017,3 +1017,28 @@ The first delivery objective is a correct warm preflight at or below five
 seconds without changing the guest instruction count. The one-second objective
 begins only after the standalone planning pass is removed from the critical
 path.
+
+## 2026-07-28 co-design gate result
+
+The integrated fixed-capacity tape, FullTracer cursor annotations, direct CPU
+witness consumption, dense-memory native path, and block-atomic static-register
+bookkeeping candidate was accepted. Its five-run warm combined median is
+`19.779601292 s`, versus `24.319528475 s` for the control: an `18.668%`
+improvement, clearing the required `15%` ceiling (`20.671599204 s`) by
+`0.891997912 s`.
+
+The accepted preflight median is `17.659601292 s`; shard-0 replay and witness
+assignment median is `2.11 s`. Every measured run preserved the canonical
+block hash, `994,896,527` instructions, `3,979,586,112` cycles, fixed tape
+capacity with zero overflow, zero normal-path access callbacks, 136-byte
+`StepRecord`, and a verified shard-0 proof. Production validation and the gate
+use only `CENO_GPU_WITGEN=0`; GPU witness generation is outside scope.
+
+Three subsequent memory aggregation/guard-removal iterations were profiled and
+proved instead of immediately discarding the preliminary result. They measured
+`17.899 s`, `17.754 s`, and `18.574 s` preflight respectively, so tracked source
+was returned to the accepted ABI-6 checkpoint. The large-block design exposed a
+545-access block and quadratic duplicate comparisons; the narrowed and
+prevalidated-address variants remained neutral or slower. Detailed
+distributions, commits, and retained logs are in
+[aot-codesign.md](aot-codesign.md).
