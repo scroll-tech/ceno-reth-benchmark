@@ -92,12 +92,73 @@ co-design. Their logs are retained under
 
 ## Next bottleneck
 
-The next optimization should target generated guest-body work and the exposed
-cryptographic syscall cost, not witness future-access lookup. A memory-block
-aggregation design should avoid quadratic generated comparisons and should be
-evaluated first as a fixed-size native hash/sort scratch scheme. Fusing direct
+Phase-accurate counters now identify frontend/iTLB pressure in generated code
+as the next code-generation priority. The retained secp256k1 double fix removes
+the largest avoidable callback cost. Do not resume the rejected quadratic
+memory-collapse or prevalidated-address scratch designs. Fusing direct
 FullTracer record emission remains the architectural route to remove the
 remaining replay span.
+
+## 2026-07-28 CPU profiling and secp256k1 double
+
+The profiling-only Ceno checkpoint is `fd36c95f` and the retained crypto
+checkpoint is `f996f82b`. `CENO_CPU_PROFILE_PHASES=1` provides stable begin/end
+symbols and optional `perf stat --control=fifo:` signaling for AOT execution,
+FullTracer replay, and witness assignment. Profile artifacts use a separate
+`-cpu-profile` cache key; accepted ABI-6 artifacts are unchanged. Generated
+images now expose dispatch, guard, accounting, guest, memory, commit, fallback,
+and Rust callback symbols.
+
+One cold correctness run measured AOT execution at `17.516455692 s`, shard-0
+FullTracer replay at `119.53972 ms`, and witness assignment at
+`1.950901786 s`. It preserved the canonical hash, instruction/cycle totals,
+fixed tape capacity/usage, zero overflow/callbacks, and verified shard 0.
+
+Non-multiplexed, CPU-0-pinned AOT-only counters reported:
+
+| Distribution | Result |
+| --- | ---: |
+| Host cycles / instructions | `78,307,657,755` / `155,809,004,414` |
+| Global IPC | `1.99` |
+| Frontend-idle cycles | `29.42%` |
+| Branch misses | `4.60%` of `18,685,182,298` branches |
+| Generic cache misses | `36.53%` of `7,910,550,940` references |
+| dTLB load misses | `2.40%` |
+| iTLB load misses | `42.01%` |
+
+Grouped cycle/instruction sampling attributed `75.09%` of cycles and `56.94%`
+of instructions to the generated image (recorded as the only unresolved user
+DSO because recording began disabled), implying approximately `1.51` local IPC.
+The largest named callback functions were secp256k1 modular inversion
+(`7.41%` cycles, approximately `3.66` local IPC), field multiplication (`5.49%`,
+approximately `3.67`), and field squaring (`1.69%`, approximately `3.71`). Thus
+the crypto routines were hot but not the low-IPC source. IBS operation sampling
+was retained, but this kernel did not attach a latency weight; no latency claim
+is made from those samples.
+
+The six-event branch/cache/TLB group in `counters-exact-3` scheduled at `0%`
+and is rejected. It was split into the valid four-event groups above rather
+than reported as multiplexed data.
+
+Syscall code `267` (`SECP256K1_DOUBLE`) executed `600,576` times and implemented
+doubling as a general scalar multiplication by two. Replacing it with direct
+point addition (`P + P`) preserved exact outputs in focused equivalence tests
+and all full-block proof runs. Five warm results were:
+
+| Run | Preflight (s) | Shard-0 witness (s) | Combined (s) |
+| ---: | ---: | ---: | ---: |
+| 1 | 15.949864257 | 2.08 | 18.029864257 |
+| 2 | 15.942025669 | 2.06 | 18.002025669 |
+| 3 | 15.986692200 | 2.06 | 18.046692200 |
+| 4 | 15.968778610 | 2.05 | 18.018778610 |
+| 5 | 15.902847085 | 2.06 | 17.962847085 |
+| Median | 15.949864257 | 2.06 | 18.018778610 |
+
+The retained combined median is `8.902%` faster than accepted ABI-6 and
+`25.908%` faster than control. Every run preserved the canonical hash,
+`994,896,527` guest instructions, `3,979,586,112` cycles, tape usage/capacity,
+zero overflow/callbacks, and verified shard 0. Raw results are under
+`.codex-results/aot-cpu-20260728/`.
 
 ## Outstanding promotion check
 

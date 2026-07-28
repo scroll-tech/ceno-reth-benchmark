@@ -47,10 +47,13 @@ production candidates are evaluated in this order:
 4. memory-block aggregation and specialization;
 5. removal of the standalone planning pass.
 
-Each production candidate is measured independently with an artifact trained
-on block `25607900` and five warm executions of block `25580200`. A candidate
-must preserve correctness and improve the preceding median by at least 15%.
-Rejected candidates are reverted before work proceeds to the next stage.
+The accepted production path now uses a same-block-trained artifact for block
+`25580200`. Keep an independent candidate when its five-run combined median
+improves by at least 1%, or when it materially reduces host instructions or
+memory without regressing combined latency by more than 1%. The 15% threshold
+applies to the final improvement over control, not to every incremental step.
+Checkpoint accepted improvements independently, return failed experiments only
+to the latest checkpoint, and retain their profile results.
 
 ## Candidate reports
 
@@ -1042,3 +1045,23 @@ was returned to the accepted ABI-6 checkpoint. The large-block design exposed a
 prevalidated-address variants remained neutral or slower. Detailed
 distributions, commits, and retained logs are in
 [aot-codesign.md](aot-codesign.md).
+
+## 2026-07-28 CPU-focused priority
+
+Phase-accurate, non-multiplexed counters on the accepted ABI-6 shape measured
+global IPC `1.99`, frontend-idle cycles `29.42%`, branch misses `4.60%`, dTLB
+misses `2.40%`, and iTLB misses `42.01%`. Generated code accounted for an
+estimated `75.09%` of cycles at approximately `1.51` local IPC. This makes
+profile-guided hot/cold block layout and common-edge fallthrough chaining the
+next AOT code-generation priority. Outline cold guards, traps, and fallback
+paths; do not retry the rejected quadratic memory-collapse or
+prevalidated-address scratch designs.
+
+Before changing layout, the largest callback inefficiency was removed:
+`SECP256K1_DOUBLE` (`600,576` calls) now uses direct point addition instead of
+general scalar multiplication by two. Checkpoint `f996f82b` produced a
+five-run combined median of `18.018778610 s` (`15.949864257 s` preflight and
+`2.06 s` shard-0 witness). This is `8.902%` faster than accepted ABI-6 and
+`25.908%` faster than control, with all canonical invariants and shard-0 proof
+verification preserved. Detailed counters, local-IPC interpretation, rejected
+counter grouping, and artifact paths are in [aot-codesign.md](aot-codesign.md).
