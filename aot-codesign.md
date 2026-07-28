@@ -99,6 +99,17 @@ evaluated first as a fixed-size native hash/sort scratch scheme. Fusing direct
 FullTracer record emission remains the architectural route to remove the
 remaining replay span.
 
+## Outstanding promotion check
+
+The circuit-aware WITGEN=0 sanity for block `23587691` could not start. Its
+cached input (`block_data/input/1/23587691.bin`, dated 2025-12-11) is
+incompatible with the current bincode schema and fails decoding with
+`unexpected string`. No RPC environment is configured to refresh the cache.
+The stale cache was left untouched; older proof artifacts were not presented
+as validation of this checkout. After refreshing that cached input, rerun
+execute sanity with `CENO_MAX_CELL_PER_SHARD=2684354560`, require the calibrated
+two-shard shape, then prove shard 0.
+
 ## Artifacts
 
 - Control logs: `.codex-results/aot-codesign-20260728/control/`.
