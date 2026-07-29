@@ -3,7 +3,7 @@ set -euo pipefail
 
 JOBS_DIR=${JOBS_DIR:-/app/jobs}
 ERROR_PATTERN=${GPU_ERROR_PATTERN:-"no CUDA-capable device"}
-ERROR_PATTERNS=${GPU_ERROR_PATTERNS:-"no CUDA-capable device|openvm_cuda_common::memory_manager::init|panic_cannot_unwind|thread caused non-unwinding panic|core dumped"}
+ERROR_PATTERNS=${GPU_ERROR_PATTERNS:-"no CUDA-capable device|failed to initialize nvml|nvidia-smi uuid query failed|openvm_cuda_common::memory_manager::init|panic_cannot_unwind|thread caused non-unwinding panic|core dumped"}
 LOG_GLOB=${GPU_ERROR_LOG_GLOB:-"${JOBS_DIR}"/*/stderr.log}
 SCAN_INTERVAL_SEC=${GPU_WATCH_SCAN_INTERVAL_SEC:-5}
 LOWER_PATTERNS=$(printf '%s' "${ERROR_PATTERNS:-$ERROR_PATTERN}" | tr '[:upper:]' '[:lower:]')
@@ -21,9 +21,9 @@ terminate_children() {
 }
 
 handle_usr1() {
-    echo "[check_gpu] CUDA error detected, exiting with failure" >&2
+    echo "[check_gpu] CUDA/NVML error detected, requesting container recreation" >&2
     terminate_children
-    exit 1
+    exit 75
 }
 
 matches_cuda_error() {
