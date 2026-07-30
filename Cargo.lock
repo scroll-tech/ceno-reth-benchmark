@@ -1431,7 +1431,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1563,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "glob",
 ]
@@ -1590,7 +1590,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1625,7 +1625,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1638,7 +1638,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion_v2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "bincode 1.3.3",
  "bincode 2.0.1",
@@ -1692,7 +1692,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1705,7 +1705,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1719,7 +1719,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#48f82923
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "arrayref",
  "base64",
@@ -2493,7 +2493,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3217,7 +3217,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#8cd01132a205631e3122a6fc364161cde1cf95d5"
+source = "git+https://github.com/scroll-tech/ceno?rev=6ab15eb0#6ab15eb0718c6387d1320a709da1e464565dcd46"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",

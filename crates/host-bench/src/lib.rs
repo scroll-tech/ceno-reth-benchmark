@@ -50,8 +50,10 @@ use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+use ceno_zkvm::e2e::prepare_preflight_aot_program;
 use ceno_zkvm::e2e::{
-    analyze_shard_ram_light, emulate_program, run_e2e_full_trace_verify,
+    analyze_shard_ram_light, emulate_program, generate_witness, run_e2e_full_trace_verify,
     run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
@@ -376,6 +378,8 @@ pub enum BenchMode {
     Execute,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
+    /// Run full preflight and CPU witness assignment, without proving.
+    Witness,
     /// Replay shards and count ShardRAM records without building proof witnesses.
     AnalyzeShardRam,
     /// Generate sequence of app proofs for continuation segments.
@@ -399,6 +403,7 @@ impl std::fmt::Display for BenchMode {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
+            Self::Witness => write!(f, "witness"),
             Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
             Self::ProveApp => write!(f, "prove_app"),
             Self::ProveStark => write!(f, "prove_stark"),
@@ -816,6 +821,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let needs_ceno_hints = matches!(
         args.mode,
         BenchMode::Execute |
+            BenchMode::Witness |
             BenchMode::AnalyzeShardRam |
             BenchMode::ProveApp |
             BenchMode::ProveStark
@@ -901,6 +907,66 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             )
                         });
                         println!("ceno executed instructions: {}", report.executed_steps);
+                    }
+                    BenchMode::Witness => {
+                        let hints = prebuilt_hints
+                            .take()
+                            .expect("ceno hints should be initialized before witness generation");
+                        let multi_prover =
+                            MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                        let program_ctx = setup_program::<ff_ext::BabyBearExt4>(
+                            program.clone(),
+                            platform.clone(),
+                            multi_prover,
+                        );
+                        let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        let raw_step_cell_extractor =
+                            Arc::clone(&program_ctx.system_config.config);
+                        let step_cell_extractor: Arc<dyn StepCellExtractor> =
+                            raw_step_cell_extractor;
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let preflight_aot_program = Some(prepare_preflight_aot_program(
+                            program_ctx.program.clone(),
+                            &program_ctx.platform,
+                            &program_ctx.multi_prover,
+                            step_cell_extractor.clone(),
+                            &init_full_mem,
+                        ));
+                        let emul_result = emulate_program(
+                            program_ctx.program.clone(),
+                            max_steps,
+                            &init_full_mem,
+                            [0; 8],
+                            &program_ctx.platform,
+                            &program_ctx.multi_prover,
+                            step_cell_extractor,
+                            #[cfg(all(
+                                feature = "aot",
+                                target_arch = "x86_64",
+                                target_os = "linux"
+                            ))]
+                            preflight_aot_program,
+                        );
+                        let target_shard_id = args.shard_id.map_or(0, |value| value as usize);
+                        let mut witnesses = generate_witness(
+                            &program_ctx.system_config,
+                            emul_result,
+                            program_ctx.program.clone(),
+                            &program_ctx.platform,
+                            &init_full_mem,
+                            Some(target_shard_id),
+                        );
+                        let _ = info_span!(
+                            "sdk.generate_witness_only",
+                            shard_id = target_shard_id
+                        )
+                        .in_scope(|| witnesses.next())
+                        .expect("requested shard did not produce a witness");
+                        println!("ceno witness-only completed shard {target_shard_id}");
                     }
                     BenchMode::AnalyzeShardRam => {
                         let hints = prebuilt_hints
