@@ -889,6 +889,18 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             Arc::clone(&program_ctx.system_config.config);
                         let step_cell_extractor: Arc<dyn StepCellExtractor> =
                             raw_step_cell_extractor;
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let preflight_aot_program = Some(prepare_preflight_aot_program(
+                            program_ctx.program.clone(),
+                            &program_ctx.platform,
+                            &program_ctx.multi_prover,
+                            step_cell_extractor.clone(),
+                            &init_full_mem,
+                        ));
                         let report = info_span!("sdk.execute", group = program_name).in_scope(|| {
                             emulate_program(
                                 program_ctx.program.clone(),
@@ -903,7 +915,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                     target_arch = "x86_64",
                                     target_os = "linux"
                                 ))]
-                                program_ctx.preflight_aot_program.clone(),
+                                preflight_aot_program,
                             )
                         });
                         println!("ceno executed instructions: {}", report.executed_steps);

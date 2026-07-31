@@ -1065,3 +1065,208 @@ five-run combined median of `18.018778610 s` (`15.949864257 s` preflight and
 `25.908%` faster than control, with all canonical invariants and shard-0 proof
 verification preserved. Detailed counters, local-IPC interpretation, rejected
 counter grouping, and artifact paths are in [aot-codesign.md](aot-codesign.md).
+
+## 2026-07-31 frontend attempt, failure analysis, and revised remainder
+
+The frontend priority was tested in two stages against a fresh isolated ABI-6
+control from Ceno `6ab15eb0`, always on block `25580200`, CPU 0,
+`CENO_GPU_WITGEN=0`, `jemalloc,gpu,aot`, and a `268435456`-cell shard limit.
+The control five-run warm preflight median was `16.250643596 s`; promotion
+required at most `15.438111416 s` and exact proof semantics.
+
+First, ABI 7 kept the whole image but used dense block/edge counts,
+deterministic weighted chains, and common-successor fallthrough. It achieved
+`65.49%` weighted fallthrough coverage and a `16.212812992 s` median, only
+`0.233%` faster than control. Its artifact remained effectively unchanged
+(`191,101,064` versus `191,207,560` bytes). It was correct through shard-0
+proof verification but missed the 5% performance gate, so whole-image chaining
+is rejected as a promotion candidate.
+
+Second, ABI 8 retained full bodies for 5,550 PC-ordered blocks covering
+`99.500%` of trained native instructions and routed all other PCs through
+shared typed fallback stubs. This reduced the artifact from `191,207,560` to
+`64,861,848` bytes, `.text` from `179,959,034` to `62,546,297` bytes, and RX
+pages from 43,936 to 15,271. FullTracer reused the identical persisted hot set
+and layout.
+
+The compact candidate nevertheless regressed: its five-run median was
+`16.431885731 s` (`+1.115%`). Fallback rose from 2,036,036 (`0.20%`) to
+6,999,492 (`0.70%`), adding 4,963,456 assembly-to-Rust recovery steps. One
+shard boundary moved by 20 cycles (`770,893,916` to `770,893,936`) because a
+cold block switched from block-atomic native accounting to per-step planner
+recovery. Cold ECALL recovery also polluted the diagnostic histogram with stale
+reason codes. The final hash, instruction/cycle totals, tape usage, and overflow
+state remained stable, but exact shard planning did not.
+
+Phase-controlled, non-multiplexed AOT-only counters explain the latency result:
+
+| Event | ABI 6 | ABI 8 | Change |
+| --- | ---: | ---: | ---: |
+| Host cycles | 71,669,404,678 | 72,015,887,986 | +0.48% |
+| Host instructions | 133,094,394,948 | 136,689,899,107 | +2.70% |
+| Frontend-idle cycles | 23,157,546,212 | 22,197,566,151 | -4.15% |
+| Branches | 17,853,602,231 | 18,524,188,783 | +3.76% |
+| Branch misses | 854,584,620 | 836,738,903 | -2.09% |
+| L1-I misses | 369,327,258 | 308,579,377 | -16.45% |
+| iTLB misses | 24,401,010 | 19,704,179 | -19.25% |
+
+The intended mechanism therefore worked: frontend idle, L1-I misses, and iTLB
+misses all decreased. It did not work as an optimization because total mapped
+pages were not the active working set, while fallback recovery increased real
+retired work. Four planner/interpreter recovery symbols each cross the 0.5%
+threshold and together account for at least 2.28% of candidate cycles. Across the
+complete reports, named recovery rises from 1.18% to 2.84%, and dispatch grows
+from 1.30% to 1.47%. The saved frontend cycles were smaller than the recovery
+cost.
+
+The remaining control samples are distributed across generated memory regions
+(`33.96%`), block accounting (`15.41%`), guest bodies (`10.31%`), and dispatch
+(`1.30%`). This is enough to prioritize the controlled ablations below, but not
+enough to justify another speculative code change: memory and accounting must
+first be separated without changing guest execution.
+
+Status: **ABI 7 and ABI 8 rejected; ABI-8 compaction reverted.** The footprint
+mechanism passed, but the latency and exact-boundary gates failed. Per the
+staged stop rule, do not proceed to hot-section chaining, additional cold
+outlining, or huge pages. The reverted tree passes all AOT tests (`58` passed,
+one ignored, plus two integration tests) and the `ceno_zkvm` AOT feature check.
+
+### Revised remaining optimization sequence
+
+The old 12-14 second hot/cold target is not supported by the measured result.
+The next work must attack host instruction count while preserving native
+block-atomic planning:
+
+1. Use ABI 6 as the matched baseline; keep ABI-7 dense frequency/edge data only
+   as profiling infrastructure until a candidate clears the gate.
+2. Add or run the four controlled modes already specified in Roadmap step 1:
+   semantic floor, block accounting, exact memory without shard planning, and
+   production. Collect the same core, branch, L1-I, and iTLB groups.
+3. Rank the instruction delta between those modes. Start one surgical candidate
+   only if the attributable component exceeds 5% of total AOT cycles.
+4. Prefer reducing generated hot-block loads/stores, dispatches, or planner
+   updates without Rust transitions. Do not retry the rejected broad
+   two-register cache, quadratic duplicate search, prevalidated-address scratch
+   cache, or selective cold fallback.
+5. Any future compaction must keep native block accounting for every trained
+   block that can affect a shard boundary; a generic per-step fallback is not a
+   semantics-preserving replacement.
+
+Raw data: `.codex-results/aot-hot-layout-20260731/`,
+`.codex-results/aot-hotcold-20260731/`, and the matched profiles in
+`.codex-results/aot-hotcold-20260731/profile/`. Full analysis is mirrored in
+[aot-codesign.md](aot-codesign.md).
+
+## 2026-07-31 matched cost ablations
+
+The four controlled modes requested above have now been measured. A temporary
+profiling binary fixed an execute-mode harness defect: unlike witness mode,
+execute had reused an AOT context prepared without the configured
+`MultiProver`, producing an invalid `u64::MAX` cache key. The corrected binary
+explicitly prepared preflight AOT with the real cell/cycle limits. The
+production source, local GPU path patch, and `Cargo.lock` were restored after
+the build; the diagnostic selector exists only in the copied binary.
+
+All latency runs used block `25580200`, cached `--chain-id 1` input,
+`jemalloc,gpu,aot`, `CUDA Backend Enabled`, CPU 0, `CENO_GPU_WITGEN=0`, and
+`CENO_MAX_CELL_PER_SHARD=268435456`. Each row is the median of five cache-hit
+warm runs:
+
+| Mode | Warm median | Change from control | AOT artifact |
+| --- | ---: | ---: | ---: |
+| ABI-7 control | `16.215944679 s` | control | `191,101,064 B` |
+| no shard-cost accounting | `13.785318122 s` | `-14.989%` (`-2.431 s`) | `173,570,184 B` |
+| no exact access/tape maintenance | `10.316278991 s` | `-36.382%` (`-5.900 s`) | `117,336,200 B` |
+| semantic execution floor | `7.764178268 s` | `-52.120%` (`-8.452 s`) | `93,452,424 B` |
+
+The no-access trim is the dominant direction. It kept native guest execution,
+block cost accounting, `994,896,527` executed AOT steps, `3,979,586,112`
+guest cycles, 0.20% fallback, and the 657 capped-run planner boundaries, while
+reducing tape usage from `25,334,834` to `581,366`. It is intentionally not a
+correctness candidate because those missing access events are required by
+FullTracer/witness replay. The no-accounting trim is also diagnostic only: it
+changed the capped run from 657 to 394 shards. The semantic-floor report counts
+only fallback steps in `PreflightTracer`, so its timing is a lower bound, not a
+proof-valid execution result.
+
+The remote shard-count setting is `CENO_MAX_CELL_PER_SHARD=4500000000`.
+ABI-7 AOT produced 35 shards, preserved `994,896,527` instructions and
+`3,979,586,112` cycles, used `16,809,729 / 18,911,061` tape events with zero
+overflow, and retained 0.20% fallback. Its cold target span was
+`16.100995288 s`; compilation/training was excluded. AOT uses basic-block
+atomic planning, so equality with interpreter boundary positions is no longer
+a gate. Correctness instead requires AOT preflight, FullTracer replay, witness
+generation, and proof verification to reuse AOT's own identical 35-boundary
+plan.
+
+### Revised path to preflight plus shard 0 below five seconds
+
+Instrumentation-only work cannot meet the target. The semantic floor is
+`7.764 s`; adding the approximately `2.04 s` shard-0 replay/witness span gives
+an optimistic floor near `9.8 s`. Use this sequence:
+
+1. Keep the retained secp256k1-double fix and use AOT's block-atomic plan as
+   the AOT correctness baseline. At the 4.5B remote setting, require the same
+   35 boundaries across AOT preflight, FullTracer replay, witness generation,
+   cache reloads, and proof verification; do not require interpreter boundary
+   equality.
+2. Split the 5.9-second access delta into static-register and dynamic-memory
+   trims. Implement only the larger half first. Prefer block summaries,
+   epoch-tagged latest-access entries, and direct batched tape writes; preserve
+   exact event order and avoid Rust transitions.
+3. Make shard accounting update cost buckets only when a chip count crosses a
+   power-of-two boundary. Preserve per-block accept/split decisions and exact
+   rollback semantics. The measured upper bound for this layer is 2.43--2.55
+   seconds.
+4. Re-measure the faithful combined candidate. A general-input result around
+   8--10 seconds is plausible; below five seconds is not supported by the
+   current native semantic floor.
+5. For the cached-block benchmark, prototype an exact-input preflight-result
+   cache keyed by program digest, complete input/hints digest, cost-model ABI,
+   cell/cycle limits, and AOT layout digest. Persist shard boundaries and the
+   exact next-access tape, validate all keys before reuse, and fall back to a
+   full preflight on any cache-key mismatch. This removes the whole 994M-step
+   warm preflight and is the only measured path with enough headroom for
+   preflight-plus-shard-0 below five seconds.
+6. If exact-input caching is out of scope, reaching five seconds requires a new
+   guest-code backend (profile-selected block SSA/register allocation), not
+   another layout tweak. Do not retry the rejected two-register cache,
+   quadratic memory aggregation, scratch-address cache, cold fallback, or huge
+   pages.
+
+Raw logs and warm samples are under
+`.codex-results/aot-ablation-20260731-v2/`. The copied diagnostic binary is
+`.codex-sanity-run/aot-ablation-20260731/profile-bin-v2` with SHA-256
+`771ff25a3102c1366ab91a4b9a2f71d651c58b33799a6aeefdd03f6db6b818b2`.
+
+## 2026-07-31 native tape/access checkpoint
+
+ABI-9 removes the block-static Rust access helper and keeps the next-access
+cursor resident in `%rbx`. The executed-step output pointer moved to the spare
+stack slot; native cursor state is flushed before fallback, synchronization,
+shard split, callbacks, halt, and errors, then reloaded after callbacks. Static
+block events are appended directly and release builds batch first-touch count
+updates. Generic and FullTracer entry ABIs are unchanged.
+
+On cached mainnet block `25580200`, pinned to CPU 0 with
+`CENO_MAX_CELL_PER_SHARD=4500000000`, the retained stage produced warm samples
+`16.392697`, `16.031515`, `16.071714`, `16.136394`, and `16.064960` seconds;
+median `16.071714 s`. The ABI-7 control median was `16.215945 s`, so this is a
+`0.889%` reduction. It is retained as a native-only cleanup per the explicit
+design preference despite not meeting the original 5% timing threshold.
+
+Correctness remained exact: block hash
+`34439c597563024690ce3c91a082c34507569c7e18cc4d1b3b68550b791a2773`,
+`994,896,527` instructions, `3,979,586,112` cycles, `16,809,729` tape events,
+zero overflow, zero normal access-helper calls, 0.20% fallback, and the same
+35 AOT boundaries. The generated preflight artifact shrank from `191,101,064`
+to `186,124,424` bytes (`-2.60%`); FullTracer replay grew from `146,568,120`
+to `150,528,952` bytes (`+2.70%`). Raw logs are under
+`.codex-results/aot-native-tape-access-20260731/candidate/`.
+
+The first sparse-accounting implementation was rejected. Its warm samples
+were `17.303190`, `17.533018`, `17.343788`, `17.480791`, and `17.309448`
+seconds; median `17.343788 s`, a `6.96%` regression. It preserved the same
+tape, totals, fallback, and 35 boundaries, but per-chip threshold-state traffic
+cost more than the bucket work it skipped. Logs are under
+`.codex-results/aot-native-tape-sparse-20260731/candidate/`.
