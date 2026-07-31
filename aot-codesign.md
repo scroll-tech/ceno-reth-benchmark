@@ -408,6 +408,12 @@ and all 35 boundaries remain exact. The preflight artifact shrank to
 `169,187,464` bytes. Shard-0 FullTracer positioning completed in `1.85 s` with
 the same plan. Raw logs are in `.codex-results/aot-block-capacity-20260731/candidate/`.
 
+The follow-up `prove-app --shard-id 0` run matched shard-0 replay again, then
+was killed by SIGKILL at `118.59 s` while positioning/building shard 1
+continuation state. No proof was serialized or verified, so this is an
+explicitly incomplete proof gate rather than a correctness pass; see
+`shard0-proof.log` and `shard0-proof.time` in that directory.
+
 The result remains `1.958x` the matched semantic-floor median, so further work
 must remove access/accounting instructions rather than only reorganize them.
 

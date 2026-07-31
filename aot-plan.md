@@ -1289,6 +1289,14 @@ took `1.85 s`, replayed `26,628,726` steps, and used `396,947` Rust fallback
 transitions. Full witness assignment took `43.5 s` and is outside the replay
 target span. Logs are under `.codex-results/aot-block-capacity-20260731/candidate/`.
 
+A subsequent `prove-app --shard-id 0` attempt reproduced the same shard-0
+FullTracer replay (`26,628,726` steps, `396,947` Rust transitions), but the
+prover then positioned shard 1 for continuation context and was terminated by
+SIGKILL after `118.59 s`, before proof output or verification. Thus shard-0
+witness generation is verified, but the proof-verification gate remains
+incomplete on this host. The attempt is recorded in `shard0-proof.log` and
+`shard0-proof.time` in the same artifact directory.
+
 Against the `7.764178 s` semantic floor, faithful preflight is still `1.958x`,
 so the final 1.10x gate is not met. Preflight plus shard-0 positioning is about
 `17.05 s`, also above the combined target.
