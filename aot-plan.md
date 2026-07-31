@@ -1292,3 +1292,38 @@ target span. Logs are under `.codex-results/aot-block-capacity-20260731/candidat
 Against the `7.764178 s` semantic floor, faithful preflight is still `1.958x`,
 so the final 1.10x gate is not met. Preflight plus shard-0 positioning is about
 `17.05 s`, also above the combined target.
+
+### Rejected same-bucket cost fast path
+
+ABI-11 tested a lighter sparse-accounting scheme without threshold arrays. It
+still updated every chip count, but branched around the trace/main/tower delta
+work when the old and candidate padded buckets were equal. Five uncontended
+warm samples were `15.480995`, `15.391056`, `15.282137`, `15.228894`, and
+`15.187410` seconds, median `15.282137 s`. That is `0.525%` slower than the
+ABI-10 checkpoint and therefore fails the 5% retention gate.
+
+The cold pass and every retained sample preserved the expected hash,
+`994,896,527` instructions, `3,979,586,112` cycles, exact tape usage, zero
+overflow/access callbacks, 0.20% fallback, and all 35 boundaries. Its artifact
+was `169,359,496` bytes (`+0.10%` from ABI-10). The code was reverted to ABI-10.
+Two concurrently launched measurements (`warm2` and `warm3`) are present in
+the directory but excluded from the median. Raw logs are under
+`.codex-results/aot-sparse-bucket-skip-20260731/candidate/`.
+
+### Rejected first-touch accumulator
+
+ABI-12 batched release-build first-touch increments in a native stack slot and
+published the total with the resident tape cursor at Rust-visible boundaries.
+It also omitted release-only event-address context stores after removal of the
+access callback. Five warm samples were `15.560373`, `15.651944`, `15.472060`,
+`15.547530`, and `15.540207` seconds, median `15.547530 s`; this regressed the
+ABI-10 checkpoint by `2.271%` and was reverted.
+
+The cold pass and warm runs preserved the expected hash, instruction/cycle
+totals, exact tape and first-touch totals, zero overflow/access callbacks,
+0.20% fallback, and all 35 boundaries. The artifact was `173,324,424` bytes
+(`+2.45%` from ABI-10). A register-resident precursor was rejected before
+measurement when the debug callback test exposed an assembly-local-label
+collision; the collision was fixed and the complete suite then passed before
+the stack candidate was measured. Raw logs are under
+`.codex-results/aot-first-touch-batch-20260731/candidate/`.

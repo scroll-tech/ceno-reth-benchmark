@@ -410,3 +410,26 @@ the same plan. Raw logs are in `.codex-results/aot-block-capacity-20260731/candi
 
 The result remains `1.958x` the matched semantic-floor median, so further work
 must remove access/accounting instructions rather than only reorganize them.
+
+## Same-bucket accounting branch rejection (2026-07-31)
+
+A threshold-array-free ABI-11 experiment updated chip counts normally and
+skipped trace/main/tower deltas when the padded bucket did not change. Its five
+uncontended warm samples were `15.480995`, `15.391056`, `15.282137`,
+`15.228894`, and `15.187410` seconds (median `15.282137 s`), a `0.525%`
+regression from ABI-10. The expected hash, tape, instruction/cycle totals,
+fallback, and all 35 boundaries remained exact, but the stage missed the 5%
+gate and was reverted. Artifact size was `169,359,496` bytes. Raw logs are in
+`.codex-results/aot-sparse-bucket-skip-20260731/candidate/`; overlapping
+`warm2`/`warm3` samples are explicitly excluded.
+
+## First-touch batching rejection (2026-07-31)
+
+ABI-12 accumulated release-build first touches natively and published the
+count only with cursor flushes. Warm samples were `15.560373`, `15.651944`,
+`15.472060`, `15.547530`, and `15.540207` seconds (median `15.547530 s`), a
+`2.271%` regression from ABI-10. Exact tape/first-touch totals, fallback, and
+all 35 boundaries matched; artifact growth was `2.45%`. The stage was reverted
+because a hot stack read-modify-write did not beat the original hot tracer
+field update. Logs are in
+`.codex-results/aot-first-touch-batch-20260731/candidate/`.
