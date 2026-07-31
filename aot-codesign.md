@@ -397,3 +397,16 @@ The attempted per-chip bucket/threshold state was rejected: its median was
 that adding hot threshold-state loads/branches is more expensive than the
 existing branch-free bucket calculation for this workload. Raw rejected logs
 are in `.codex-results/aot-native-tape-sparse-20260731/candidate/`.
+
+## Block-level tape-capacity checkpoint (2026-07-31)
+
+ABI-10 replaces per-event capacity loads/branches with one conservative native
+block-entry guard. Warm samples were `14.279486`, `14.427257`, `15.202264`,
+`15.797175`, and `15.454057` seconds (median `15.202264 s`), improving ABI-9
+by `5.410%` and ABI-7 by `6.251%`. Tape, instruction/cycle totals, fallback,
+and all 35 boundaries remain exact. The preflight artifact shrank to
+`169,187,464` bytes. Shard-0 FullTracer positioning completed in `1.85 s` with
+the same plan. Raw logs are in `.codex-results/aot-block-capacity-20260731/candidate/`.
+
+The result remains `1.958x` the matched semantic-floor median, so further work
+must remove access/accounting instructions rather than only reorganize them.

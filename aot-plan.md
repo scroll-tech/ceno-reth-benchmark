@@ -1270,3 +1270,25 @@ seconds; median `17.343788 s`, a `6.96%` regression. It preserved the same
 tape, totals, fallback, and 35 boundaries, but per-chip threshold-state traffic
 cost more than the bucket work it skipped. Logs are under
 `.codex-results/aot-native-tape-sparse-20260731/candidate/`.
+
+## 2026-07-31 block-capacity checkpoint
+
+ABI-10 hoists event-tape capacity checking to one conservative guard per
+native block. The guard reserves the maximum possible register/memory event
+count for that block; qualifying appends are then straight native stores and a
+resident-cursor increment. Five warm samples were `14.279486`, `14.427257`,
+`15.202264`, `15.797175`, and `15.454057` seconds, median `15.202264 s`. This
+is `-5.410%` from ABI-9 and `-6.251%` from the ABI-7 control.
+
+The cold and all warm runs retained the expected hash, `994,896,527`
+instructions, `3,979,586,112` cycles, `16,809,729 / 18,911,061` tape usage,
+zero overflow/access helpers, 0.20% fallback, and the same 35 boundaries. The
+preflight artifact is `169,187,464` bytes, `-11.47%` from ABI-7. A shard-0
+witness correctness pass completed with the same plan; FullTracer positioning
+took `1.85 s`, replayed `26,628,726` steps, and used `396,947` Rust fallback
+transitions. Full witness assignment took `43.5 s` and is outside the replay
+target span. Logs are under `.codex-results/aot-block-capacity-20260731/candidate/`.
+
+Against the `7.764178 s` semantic floor, faithful preflight is still `1.958x`,
+so the final 1.10x gate is not met. Preflight plus shard-0 positioning is about
+`17.05 s`, also above the combined target.
