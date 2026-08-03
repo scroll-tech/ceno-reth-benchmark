@@ -1415,3 +1415,65 @@ same-input differential; the local same-input suite above supplies exact tape
 and boundary validation. Per the revised acceptance criterion, ABI-11 is
 retained because warm `create_proof` improved; artifact size and cold setup are
 reported but are not rejection gates.
+
+## 2026-08-03 whole-register-file residency experiment
+
+The benchmark workflow now accepts a `frozen_input_sha256` value and refuses
+both a digest mismatch and RPC fallback when it is set (benchmark commit
+`8be9c24f`). All measurements in this experiment used block `25580200`, the
+21,842,724-byte object `proofs/testing/idc-us-2-9/25580200.bin`, and SHA-256
+`aa46af2e2365057d626de51cfd8c9f415c77ad30bedce1b87e42259a5a8799c3`.
+The local cached object has the same identity.
+
+Experimental ABI-12 (Ceno `4f5dfedd`) placed x0--x31 in XMM4--XMM11, used
+`pextrd`/`pinsrd` for native register accesses, kept the x0 write sink in the
+existing array, and left the tape/accounting registers unchanged. Resident
+registers were flushed with the existing runtime-state boundary path before
+fallback, ECALL, callback, synchronization, shard split, capacity/error,
+partial/max-step, and halt exits, and reloaded after state-mutating callbacks.
+The new test `aot_resident_register_file_survives_partial_exit_and_ecall`
+checks all 33 slots, x0, partial return/re-entry, and ECALL reload. The debug
+AOT suite passed 43 tests with one performance probe ignored, the release
+direct FullTracer differential passed, and a complete local release execution
+of the frozen block succeeded.
+
+On the matched local guest, ABI-12 retained exactly `994,896,527`
+instructions, `3,979,586,112` cycles, `16,809,729 / 18,911,061` tape usage,
+`2,036,036` fallback steps (0.20%), zero overflow/helpers, and all 35 shard
+boundaries. Five warm preflight samples were `14.371887`, `24.338696`
+(host-contention outlier), `13.812719`, `13.816796`, and `13.819427` seconds;
+median `13.819427 s`, effectively flat (`-0.01%`) against ABI-11's
+`13.820847 s`. Generated preflight and replay artifacts were `214,960,264`
+and `228,967,352` bytes. Raw logs are under
+`/home/wusm/data/codex-aot-register-residency-20260803/`.
+
+For context, frozen-input ABI-10 produced two warm remote totals of
+`191.543379` and `191.143550` seconds (median `191.343465 s`). Frozen-input
+ABI-11 produced three warm totals of `193.517548`, `192.020864`, and
+`192.344745` seconds (median `192.344745 s`); its median app, recursion,
+preflight, and shard-0 spans were `175.671105`, `16.552074`, `15.709496`, and
+`4.82` seconds. ABI-10 and ABI-11 still had different guest-program hashes and
+execution totals despite the identical input object, so this is operational
+context rather than a same-program differential.
+
+At the user's request the ABI-12 acceptance measurement was shortened to one
+warm sample after one cold cache-population proof. The cold run
+([30808906347](https://github.com/scroll-tech/ceno-reth-benchmark/actions/runs/30808906347))
+missed both artifacts, spent `269.976698 s` compiling/loading preflight AOT,
+and completed a valid 96,176-byte root proof. The warm run
+([30808908013](https://github.com/scroll-tech/ceno-reth-benchmark/actions/runs/30808908013))
+hit both artifacts and measured `177.610055 s` app proving, `16.631253 s`
+recursion, `194.464370 s` total proof, `15.779765 s` preflight, and `4.65 s`
+for shard 0; its root proof was 96,170 bytes. It consistently used
+`994,890,865` instructions, `3,979,563,464` cycles, `16,809,799` tape events,
+`2,017,656` fallback steps, and 35 boundaries. The remote ABI-12 guest hash
+also differs from ABI-11, while cold/warm ABI-12 match each other; exact
+semantic equivalence is therefore supplied by the local same-guest run above.
+
+Against the ABI-11 warm medians, ABI-12 regressed app proving by `1.938950 s`
+(`1.10%`) and total proof by `2.119626 s` (`1.10%`). Preflight also regressed
+by `0.070269 s` (`0.45%`). Whole-register residency consequently failed the
+authoritative retention gate and was reverted in Ceno `20ee5517`. The shared
+flush/reload subroutine shaping experiment was independently rejected after a
+`6.37%` local preflight regression. No accounting specialization was mixed
+into this rejected checkpoint.
