@@ -474,3 +474,23 @@ provisional code checkpoint until the proof workflow comparison completes.
 Raw control/trim logs are in
 `/home/wusm/data/codex-aot-access-profile-20260803/`, and candidate logs are in
 `/home/wusm/data/codex-aot-register-mask-v3-20260803/`.
+
+### Warm proof result
+
+Ceno `983eda5787cc5ee0a3d056a37a2bb67c352d2da0` is retained. The cold remote
+run successfully produced a root proof but paid `201.878500 s` for the new
+ABI's one-time AOT artifact. On the repeated run, both preflight and FullTracer
+artifacts hit cache and loaded in `166.151 us`. Warm app `create_proof` was
+`174.800661 s` versus ABI-10's `176.375837 s` (`-0.89%`), and total GPU
+`create_proof` was `191.620974 s` versus `193.357967 s` (`-0.90%`). Preflight
+was `15.685272 s` versus `16.168197 s`; shard-0 proof was `4.65 s` versus
+`4.69 s`. The 96,182-byte root proof was present.
+
+Workflow: [30805152620](https://github.com/scroll-tech/ceno-reth-benchmark/actions/runs/30805152620).
+Published result: [mainnet25580200-20260803-182238](https://github.com/scroll-tech/ceno-reth-benchmark/blob/gh-pages/benchmarks-dispatch/refs/heads/feat/opt_aot/mainnet25580200-20260803-182238_summary.md).
+The remote ABI-10 and ABI-11 ready inputs differed slightly in instruction,
+cycle, tape, and boundary counts, so the remote percentage is an operational
+comparison; exact same-input tape equality is established by the local
+CPU-pinned validation. Both remote candidate runs were mutually identical,
+had 35 self-consistent boundaries, the expected block hash, zero
+overflow/helpers, and 0.20% fallback.

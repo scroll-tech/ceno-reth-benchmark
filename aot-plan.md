@@ -1382,3 +1382,36 @@ proof comparison, not yet a final performance acceptance. Candidate logs are
 under `/home/wusm/data/codex-aot-register-mask-v3-20260803/`; the measured
 benchmark binary SHA-256 is
 `6d2b4bd204994d143a9567cc9c1a3497e90d518a70a51cd3cbec4dcccb63bd26`.
+
+### Remote proof acceptance
+
+The production checkpoint is Ceno `983eda5787cc5ee0a3d056a37a2bb67c352d2da0`
+and benchmark `a51ea9564cba24883db3a9d6867c9961328a94f0`. A cold remote proof run
+([30803686859](https://github.com/scroll-tech/ceno-reth-benchmark/actions/runs/30803686859))
+completed successfully and wrote a 96,180-byte root proof. Its app
+`create_proof` span was `363.680835 s`, including `201.878500 s` of the
+one-time ABI-11 AOT miss/training/compilation; recursion took `16.585984 s`.
+
+The repeated warm run
+([30805152620](https://github.com/scroll-tech/ceno-reth-benchmark/actions/runs/30805152620),
+[published result](https://github.com/scroll-tech/ceno-reth-benchmark/blob/gh-pages/benchmarks-dispatch/refs/heads/feat/opt_aot/mainnet25580200-20260803-182238_summary.md))
+hit both preflight and FullTracer ABI-11 artifacts (`166.151 us` load), wrote a
+96,182-byte root proof, and completed app `create_proof` in `174.800661 s`,
+recursion in `16.612833 s`, and total GPU `create_proof` in `191.620974 s`.
+The matched ABI-10 workflow run `30635981035` measured `176.375837 s`,
+`16.769774 s`, and `193.357967 s`, respectively. Thus the requested warm
+end-to-end metric improved by `1.575176 s` (`0.89%`) for app proving and
+`1.736993 s` (`0.90%`) overall. Shard-0 proof moved from `4.69 s` to `4.65 s`;
+remote preflight moved from `16.168197 s` to `15.685272 s` (`-2.99%`).
+
+The remote control and candidate fetched non-identical ready-input payloads:
+ABI-10 executed `994,869,169` instructions / `3,979,476,680` cycles with
+`16,809,717` tape events, while ABI-11 executed `994,921,963` instructions /
+`3,979,687,856` cycles with `16,809,682` events. Both produced the expected
+block hash, 35 internally consistent boundaries, zero overflow/helpers, and
+0.20% fallback, and the ABI-11 cold/warm remote executions match each other.
+Consequently the remote timing comparison is operational rather than a strict
+same-input differential; the local same-input suite above supplies exact tape
+and boundary validation. Per the revised acceptance criterion, ABI-11 is
+retained because warm `create_proof` improved; artifact size and cold setup are
+reported but are not rejection gates.
