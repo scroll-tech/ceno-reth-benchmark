@@ -439,3 +439,38 @@ all 35 boundaries matched; artifact growth was `2.45%`. The stage was reverted
 because a hot stack read-modify-write did not beat the original hot tracer
 field update. Logs are in
 `.codex-results/aot-first-touch-batch-20260731/candidate/`.
+
+## Shard-local register mask (2026-08-03)
+
+Matched ABI-10 trim profiling identified static-register access checks as the
+larger exact-access component: the warm median fell from `14.372994 s` to
+`11.890733 s` when those checks were diagnostically disabled (`-17.27%`),
+compared with `13.870011 s` when dynamic-memory tracking was disabled
+(`-3.50%`). These trims intentionally changed the tape and were used only to
+rank implementation work; no diagnostic selector remains in production.
+
+The ABI-11 design uses a 64-bit shard-local touched mask because the register
+address space includes 32 architectural registers plus Ceno's internal x0
+write sink. At native block entry, a single subset test skips all register
+history checks if the block's compile-time first-register mask is already
+touched. Otherwise the original address-ordered checks run unchanged and the
+block mask is published only after completion. Reconstructing from
+`latest_access`, resetting on shard changes, and synchronizing the mask with
+the resident tape cursor make callback and fallback boundaries conservative.
+Exact/fallback paths need not publish bits: a false negative performs extra
+checks, whereas a false positive could lose an event and is forbidden.
+
+The compact encoding's five cached warm samples were `13.875333`, `13.743991`,
+`13.805855`, `14.056734`, and `13.820847` seconds (median `13.820847 s`,
+`-3.84%` from matched ABI-10). Hash, instruction/cycle totals, exact
+`16,809,729 / 18,911,061` tape usage, zero helpers/overflow, 0.20% fallback,
+and all 35 boundaries matched. Forty-two AOT unit tests pass; the performance
+probe remains intentionally ignored.
+
+The generated preflight object is `178,374,792` bytes (`+5.43%`). Per the
+2026-08-03 review, object size and cold setup are no longer rejection criteria;
+warm end-to-end `create_proof` time is authoritative. This is therefore a
+provisional code checkpoint until the proof workflow comparison completes.
+Raw control/trim logs are in
+`/home/wusm/data/codex-aot-access-profile-20260803/`, and candidate logs are in
+`/home/wusm/data/codex-aot-register-mask-v3-20260803/`.

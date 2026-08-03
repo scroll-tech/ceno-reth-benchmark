@@ -1335,3 +1335,50 @@ measurement when the debug callback test exposed an assembly-local-label
 collision; the collision was fixed and the complete suite then passed before
 the stack candidate was measured. Raw logs are under
 `.codex-results/aot-first-touch-batch-20260731/candidate/`.
+
+## 2026-08-03 shard-local register-mask checkpoint
+
+A profiling-only ABI-10 build split exact-access cost on cached mainnet block
+`25580200`, CPU 0, and `4,500,000,000` cells. The matched control warm samples
+were `14.372994`, `14.420765`, `14.383674`, `14.368900`, and `14.355205`
+seconds (median `14.372994 s`). Removing static-register tracking produced
+`11.878734`, `11.853089`, `11.935073`, `11.896246`, and `11.890733` seconds
+(median `11.890733 s`, `-17.27%`); removing dynamic-memory tracking produced
+`13.751122`, `13.870011`, `13.833614`, `13.935441`, and `14.145309` seconds
+(median `13.870011 s`, `-3.50%`). The diagnostic selectors and counters were
+removed after this ranking. Logs are under
+`/home/wusm/data/codex-aot-access-profile-20260803/`; the diagnostic binary
+SHA-256 was
+`636d0e7542721996c4e9eba7648953fffee952e0a5208c2f0fb19fead6ce692e`.
+
+ABI-11 therefore adds a shard-local 64-bit touched mask (33 bits are required
+because Ceno has an internal x0 write sink). A block performs one subset test;
+the fully-touched case bypasses its entry register-history checks, while the
+incomplete case executes the original ordered checks and publishes the block
+mask only after completing them. The mask is reconstructed from `latest_access`
+at entry, cleared on a shard change, and flushed/reloaded with the resident tape
+cursor around Rust-visible boundaries. Exact and fallback paths deliberately
+leave conservative false negatives, which can cause redundant checks but can
+never suppress an event.
+
+Two larger encodings were discarded during code shaping. Updating a bit after
+every exact register access generated `181,684,360` bytes and ran the cold
+target in `15.117149 s`; retaining per-register bit tests on the partial-mask
+path generated `179,656,840` bytes and ran in `14.736604 s`. The compact form
+generated `178,374,792` bytes and its cold target was `14.932102 s`.
+
+With the artifact already cached, the compact form produced `13.875333`,
+`13.743991`, `13.805855`, `14.056734`, and `13.820847` seconds, median
+`13.820847 s` (`-3.84%` versus the matched ABI-10 control). Every sample kept
+the expected hash, `994,896,527` instructions, `3,979,586,112` cycles,
+`16,809,729 / 18,911,061` tape usage, zero overflow/helpers, 0.20% fallback,
+and the same 35 boundaries. Unit coverage is 42 passing AOT tests with one
+explicit performance probe ignored.
+
+Per the 2026-08-03 review, generated size and one-time setup/compilation are
+informational; the retention decision is now based on warm end-to-end
+`create_proof` time. ABI-11 is therefore a provisional checkpoint pending that
+proof comparison, not yet a final performance acceptance. Candidate logs are
+under `/home/wusm/data/codex-aot-register-mask-v3-20260803/`; the measured
+benchmark binary SHA-256 is
+`6d2b4bd204994d143a9567cc9c1a3497e90d518a70a51cd3cbec4dcccb63bd26`.
