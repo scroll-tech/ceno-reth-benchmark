@@ -1477,3 +1477,252 @@ authoritative retention gate and was reverted in Ceno `20ee5517`. The shared
 flush/reload subroutine shaping experiment was independently rejected after a
 `6.37%` local preflight regression. No accounting specialization was mixed
 into this rejected checkpoint.
+
+## 2026-08-03 local AOT hardware profile and direction review
+
+This checkpoint used only cached block `25580200` in preflight-only
+`--mode execute`. No CI job or proof was launched. The workload was frozen to
+`block_data/input/1/25580200.bin` (21,842,724 bytes, SHA-256
+`aa46af2e2365057d626de51cfd8c9f415c77ad30bedce1b87e42259a5a8799c3`) and
+one copied guest ELF (3,392,164 bytes, SHA-256
+`26f7581d5b37127e5014b4b5e22f97782c8fee0b14236d23ed3bb008c3497438`).
+Both variants therefore executed the same guest, independent of their host
+AOT changes. The expected block hash was
+`34439c597563024690ce3c91a082c34507569c7e18cc4d1b3b68550b791a2773`.
+
+The compared Ceno revisions were ABI-11
+`983eda5787cc5ee0a3d056a37a2bb67c352d2da0` and XMM ABI-12
+`4f5dfeddf67d42f7bce536f478d22ab336ded691`; the latter was reverted by
+`20ee551772798c4b231c1f7d7abaad0509fd1d39`. The benchmark revision was
+`63713a1e`, its input-freezing predecessor was `8be9c24f`, and the CUDA HAL
+revision was `996ef2a1c1f5648d8ae42b085f630ec84a514d7b`.
+
+All reproducibility material is under
+`/home/wusm/data/codex-aot-hw-20260803/`. Separate disposable source trees
+(`src/ceno-abi11`, `src/ceno-xmm`, `src/bench-abi11`, and `src/bench-xmm`),
+target directories, and AOT cache directories prevented cross-variant
+reuse. Each benchmark tree was locally path-patched to its Ceno tree and to
+`/home/wusm/rust/ceno-gpu/cuda_hal`, then built with:
+
+```console
+cargo build --release --features jemalloc,gpu,aot --bin ceno-reth-benchmark-bin
+```
+
+The host was an AMD Ryzen 9 5900XT running Linux 6.8.0-78 and perf 6.8.12,
+with `perf_event_paranoid=1`, `schedutil`, boost enabled, SMT enabled, and
+`nmi_watchdog=1`. Runs were pinned to logical CPU 0 (`taskset -c 0`; its SMT
+sibling CPU 16 remained online). For each variant, one excluded cold artifact
+build was followed by exactly one accepted warm timed execution:
+
+```console
+taskset -c 0 env RUST_LOG=info CENO_MAX_CELL_PER_SHARD=4500000000 \
+  CENO_AOT_CACHE_DIR=/home/wusm/data/codex-aot-hw-20260803/cache/VARIANT \
+  target/release/ceno-reth-benchmark-bin --mode execute \
+  --block-number 25580200 --chain-id 1 \
+  --input-path /home/wusm/rust/ceno-reth-benchmark/block_data/input/1/25580200.bin
+```
+
+Both accepted runs printed `CUDA Backend Enabled` and exactly
+`994,896,527` instructions, `3,979,586,112` cycles, tape usage
+`16,809,729 / 18,911,061`, `2,036,036` fallbacks (`0.20%`), zero
+overflow/helpers, and the same 35 boundaries. ABI-11 took `14.812157178 s`;
+XMM took `14.815914339 s`, a `+0.025365%` regression. The XMM preflight
+artifact grew from 178,374,792 to 214,960,264 bytes (`+20.510%`), and its
+replay artifact grew from 156,419,000 to 228,967,352 bytes (`+46.381%`).
+
+### Phase-gated PMU results
+
+`run_phase_perf.sh` sets `CENO_CPU_PROFILE_PHASES=1` and uses the perf-control
+FIFO with `--delay=-1`, so counters cover only `aot_execute`, excluding setup,
+input decoding, artifact loading, and replay. Enabling phase profiling has a
+separate AOT cache key; the first cold profile-artifact result for each
+variant was rejected and retained as
+`raw/{abi11,xmm}-core-rejected-cold-profile.*`. Each accepted group below was
+run once and reported `100.00%` scheduling; groups that multiplexed or failed
+to schedule were not accepted. In particular, a proposed group containing
+the perf metrics `l1_itlb_misses` and `l2_itlb_misses` failed before the
+workload because they are not schedulable events on this PMU.
+
+| aot_execute counter | ABI-11 | XMM ABI-12 | XMM delta |
+|---|---:|---:|---:|
+| cycles | 62,919,143,465 | 62,486,608,242 | -0.687% |
+| instructions | 129,197,360,416 | 128,270,227,090 | -0.718% |
+| IPC | 2.0534 | 2.0528 | -0.029% |
+| branches | 16,689,138,303 | 16,697,204,624 | +0.048% |
+| branch misses | 676,748,456 | 670,689,489 | -0.895% |
+| branch-miss rate | 4.055% | 4.017% | -0.038 pp |
+| frontend-stalled cycles | 16,307,432,064 | 16,401,057,582 | +0.574% |
+| frontend stalls / cycles | 25.918% | 26.247% | +0.329 pp |
+| L1-I load misses | 275,229,840 | 413,495,064 | +50.236% |
+| iTLB load misses | 17,899,541 | 26,167,204 | +46.189% |
+| cache misses | 2,363,894,042 | 2,958,150,273 | +25.139% |
+| dTLB loads | 40,675,145 | 37,338,887 | -8.202% |
+| dTLB load misses | 1,435,503 | 1,267,585 | -11.698% |
+| dTLB miss rate | 3.529% | 3.395% | -0.134 pp |
+| AMD `ic_stall_any` | 24,756,233,915 | 25,809,024,846 | +4.253% |
+| AMD `ic_stall_any` / cycles | 39.346% | 41.303% | +1.957 pp |
+| AMD `ic_stall_dq_empty` | 165,045,990 | 116,667,131 | -29.312% |
+| AMD cacheable I-cache reads | 6,302,454,698 | 6,862,538,850 | +8.887% |
+| AMD load dispatches | 38,210,043,563 | 34,826,387,595 | -8.855% |
+
+The generic dTLB events and AMD `l1_dtlb_misses` / `l2_dtlb_misses` aliases
+returned the same respective values. Counter groups are separate executions,
+so their absolute counts must not be combined as if simultaneous. They do,
+however, agree on the decision: XMM residency removed less than 1% of cycles
+and instructions while greatly increasing instruction-cache and iTLB
+pressure.
+
+A separate phase-gated `cycles:u` sample at 499 Hz produced about 7,000
+samples per variant with no lost samples. Reports are
+`raw/{abi11,xmm}-cycles.report.txt`, data are
+`raw/{abi11,xmm}-cycles.data`, and generated-block annotation is in
+`raw/{abi11,xmm}-hot-block.annotate.txt`. Generated AOT images account for
+78.18% of ABI-11 and 78.28% of XMM samples; the host binary accounts for
+18.29% and 18.52%, libc for 2.41% and 2.19%, and unknown DSOs for 1.12% and
+1.01%. Direct fallback/callback bodies account for 0.28% and 0.27%; direct
+callback synchronization/accounting helpers are at most 0.01% and 0.08%; and
+the generated dispatcher is 1.45% and 1.36%. These are direct body shares,
+not inclusive costs, because the profile intentionally omitted call graphs.
+The hottest named host symbol was
+`rustsecp256k1_v0_10_0_modinv64` (8.51% / 8.32%), and the hottest generated
+block was `ceno_aot_bb_080d4a74_memory_080d4a84` (2.06% / 2.03%). XMM
+annotation contains `pinsrd`, but no register-movement or synchronization
+region approaches 5% of the whole profile.
+
+### OpenVM comparison and next direction
+
+OpenVM `494feec4aacaa83fcce7925d3727741b7a055875` is materially different from
+the rejected Ceno design. Its AOT mapping uses all 16 XMM registers, packs two
+RV32 registers per XMM with `movq` / `pinsrq`, keeps x10-x15 in hot GPR
+overrides (`r10d`, `r11d`, `r9d`, `r8d`, `ebp`, `r13d`), synchronizes those
+mappings at entry/exit, and uses instruction-specific assembly. Ceno ABI-12
+used only XMM4-XMM11, packed four 32-bit lanes per register, had no hot GPR
+overrides, relied on general `pextrd` / `pinsrd`, produced much larger code,
+and still had to preserve tape, first-touch, block-accounting, and shard
+semantics around approximately 2.04 million fallback/callback transitions.
+It was therefore not a reproduction of OpenVM's design.
+
+The earlier `-17.27%` no-static-register diagnostic is corrected here: it
+removed static-register history/latest-access tracking, not register-array
+traffic. It changed tape length by only 669 events and cannot justify another
+residency implementation. The current ranked opportunities are:
+
+1. static-register history/latest-access checks: `-17.27%` diagnostic signal,
+   but it needs a faithful replacement preserving event order and latest-use
+   semantics;
+2. shard/accounting count updates: a non-faithful capped trim showed
+   `-14.989%`, while faithful sparse versions ranged from `+0.525%` to
+   `+6.96%`, so no production mechanism is established;
+3. register tape-event emission: native direct emission improved only
+   `0.889%`, first-touch batching regressed `2.271%`, and the static trim
+   removed only 669 events;
+4. incomplete touched-mask paths: this remains the next bounded diagnostic,
+   but the existing faithful touched-mask implementation improved only
+   `3.84%` and does not clear the gate.
+
+No production change is retained from this hardware checkpoint. Another
+register-residency attempt requires evidence attributing at least 5% of
+preflight cycles to register-value movement plus a synchronization/layout
+change capable of recovering it. Any other candidate must show at least a 5%
+single-warm local improvement, matching cycle/instruction/cache evidence, and
+all exact semantic invariants before warm proof validation is considered.
+
+## 2026-08-03 block-atomic exact-access decision
+
+The accounting follow-up used frozen block `25580200`, input SHA-256
+`aa46af2e2365057d626de51cfd8c9f415c77ad30bedce1b87e42259a5a8799c3`,
+guest ELF SHA-256
+`26f7581d5b37127e5014b4b5e22f97782c8fee0b14236d23ed3bb008c3497438`,
+Ceno `983eda57`, `jemalloc,gpu,aot`, CPU 0, execute mode, and a 4.5B-cell
+budget. Worktrees, targets, and caches were isolated under
+`/home/wusm/data/codex-aot-accounting-20260803/`.
+
+Exclusive cycle sampling placed shard accounting at `15.91%`, above the 5%
+candidate gate. An untimed diagnostic then observed `442,923,441`
+chip-contribution updates: `442,901,268` (`99.994994%`) remained in the same
+cost bucket and only `22,173` transitioned. Despite clearing both eligibility
+gates, the faithful same-bucket fast path improved the single warm run by only
+`1.471%` (`14.812157178 s` to `14.594251271 s`) and was reverted.
+
+The fallback candidate was successful. Static-register first/last tracking is
+now block-atomic for adaptive exact-access blocks, while dynamic-memory
+accesses remain exact per step. ABI 13 invalidates old AOT cache
+artifacts without reusing the rejected XMM experiment's ABI 12 key. The warm
+preflight fell to `12.407317827 s`, a `16.236%` reduction.
+Phase-gated counters corroborate it: cycles `-16.583%`, instructions `-5.166%`,
+branches `-9.449%`, branch misses `-39.793%`, frontend stalls `-25.036%`, and
+cache misses `-17.933%`; IPC rose from `2.0534` to `2.3344`. L1-I misses rose
+`5.850%`, but iTLB misses fell `4.141%`. Every group scheduled at 100%.
+
+The exact block hash, instruction/cycle totals, tape usage/capacity, fallback
+reasons, zero helper/overflow state, and all 35 boundaries matched ABI-11.
+All `ceno_emul` tests and the `ceno_zkvm` AOT check pass. The candidate is
+retained and committed locally as `2cae93f6`; no CI or proof has run. The
+accounting fast path, diagnostic counters, and non-faithful trims remain
+rejected and are not present in retained source.
+
+### Why block-atomic register tracking wins
+
+The old exact-access path paid the full history protocol after almost every
+guest instruction that reads or writes a static register. Each instruction
+reloaded the latest-access array, current cycle, and shard start, then each
+`rs1`/`rs2`/`rd` access loaded and overwrote its latest cycle, tested for first
+touch, compared against the shard start, and branched around the usually
+untaken tape append. The tape itself barely changes: the `-17.27%` diagnostic
+removed only 669 events. The expensive part was deciding billions of times
+that no event was needed and publishing intermediate latest cycles that no
+observer could use.
+
+An accepted straight-line block cannot split internally: accounting and
+budget guards either admit the whole block or split before it. Register
+addresses are static and do not alias dynamic memory. Therefore the externally
+observable register history for a block is fully described by two compiler
+computed summaries:
+
+1. at entry, the first subcycle touching each register determines any incoming
+   cross-shard/first-touch tape event;
+2. at exit, the last subcycle touching each register determines the latest
+   cycle visible to the next block.
+
+All intermediate static-register accesses are within the same admitted shard,
+so removing their history loads, stores, comparisons, and branches is exact.
+Dynamic-memory events still execute the original per-step path, and JALR,
+fallback, memory-guard, first-touch, and speculative split/rollback behavior
+remain unchanged.
+
+The hardware deltas explain why the wall-time gain is larger than the retired
+instruction reduction. Instructions fell only `5.166%`, but branches fell
+`9.449%`, branch misses `39.793%`, frontend stalls `25.036%`, and cache misses
+`17.933%`; cycles consequently fell `16.583%` and IPC rose `13.69%`. This was a
+branch- and latency-heavy metadata loop, not merely a large instruction count.
+The candidate preflight image actually grew from `178,374,792` to
+`198,666,816` bytes (`+11.376%`) and L1-I misses rose `5.850%`, but eliminating
+the repeatedly executed exact-register protocol outweighed that code-size
+cost.
+
+The label-only profile needs the same semantic interpretation. The measured
+`0.08%` block-entry checks and `0.93%` latest commits are the cost of the new
+replacement. They are not an estimate of the removed old path: the old exact
+register operations were inlined after guest instructions and were charged to
+guest/memory-body symbols. The independent `-17.27%` trim, followed by the
+faithful `16.236%` candidate and its PMU deltas, establishes the attribution.
+
+### Current-branch local confirmation
+
+The retained source was applied to Ceno branch `feat/extract_aot_bb_workload`
+at `20ee5517` and committed as `2cae93f6`. A fresh before/after build used
+separate target and AOT caches with the same block, input, CPU pinning,
+features, and 4.5B-cell budget. Warm ABI-11 preflight was `14.769762030 s`;
+warm ABI-13 was `12.476584248 s`, saving `2.293177782 s` (`15.526%`,
+`1.184x`). Both were cache hits and preserved CUDA enablement, the canonical
+hash, guest instruction/cycle totals, tape and fallback totals, and all 35
+boundaries. The post-cleanup focused suite passed 60 unit and 2 integration
+tests. Local logs and the comparison manifest are under
+`/home/wusm/data/codex-aot-local-20260804/`.
+
+The reusable planning lesson is to optimize the frequency of semantic
+bookkeeping, not only its rare output. When a block boundary is already the
+atomic shard/split boundary, static first/last effects should be summarized at
+that boundary. Future profiles must also label inlined per-step metadata work;
+labeling only the replacement entry/exit code can materially understate the
+opportunity.

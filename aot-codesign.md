@@ -494,3 +494,253 @@ comparison; exact same-input tape equality is established by the local
 CPU-pinned validation. Both remote candidate runs were mutually identical,
 had 35 self-consistent boundaries, the expected block hash, zero
 overflow/helpers, and 0.20% fallback.
+
+## 2026-08-03 local AOT hardware profile and direction review
+
+This checkpoint used only cached block `25580200` in preflight-only
+`--mode execute`; no CI or proof was launched. The input was frozen at
+21,842,724 bytes with SHA-256
+`aa46af2e2365057d626de51cfd8c9f415c77ad30bedce1b87e42259a5a8799c3`, and
+both variants used the same copied 3,392,164-byte guest ELF with SHA-256
+`26f7581d5b37127e5014b4b5e22f97782c8fee0b14236d23ed3bb008c3497438`.
+The expected block hash was
+`34439c597563024690ce3c91a082c34507569c7e18cc4d1b3b68550b791a2773`.
+
+The revisions were Ceno ABI-11
+`983eda5787cc5ee0a3d056a37a2bb67c352d2da0`, XMM ABI-12
+`4f5dfeddf67d42f7bce536f478d22ab336ded691`, its revert
+`20ee551772798c4b231c1f7d7abaad0509fd1d39`, benchmark `63713a1e` (input
+freeze `8be9c24f`), and CUDA HAL
+`996ef2a1c1f5648d8ae42b085f630ec84a514d7b`. Reproducibility material is in
+`/home/wusm/data/codex-aot-hw-20260803/`, with separate source worktrees,
+targets, and caches for `abi11` and `xmm`. Each was path-patched to its Ceno
+tree and `/home/wusm/rust/ceno-gpu/cuda_hal`, then built with:
+
+```console
+cargo build --release --features jemalloc,gpu,aot --bin ceno-reth-benchmark-bin
+```
+
+The AMD Ryzen 9 5900XT host ran Linux 6.8.0-78 and perf 6.8.12 with
+`perf_event_paranoid=1`, `schedutil`, boost and SMT enabled, and
+`nmi_watchdog=1`. Every run was pinned to CPU 0 with `taskset -c 0`; sibling
+CPU 16 remained online. One cold artifact build was excluded, followed by one
+accepted warm sample per variant:
+
+```console
+taskset -c 0 env RUST_LOG=info CENO_MAX_CELL_PER_SHARD=4500000000 \
+  CENO_AOT_CACHE_DIR=/home/wusm/data/codex-aot-hw-20260803/cache/VARIANT \
+  target/release/ceno-reth-benchmark-bin --mode execute \
+  --block-number 25580200 --chain-id 1 \
+  --input-path /home/wusm/rust/ceno-reth-benchmark/block_data/input/1/25580200.bin
+```
+
+Both variants reported `CUDA Backend Enabled`, `994,896,527` instructions,
+`3,979,586,112` cycles, tape `16,809,729 / 18,911,061`, `2,036,036`
+fallbacks (`0.20%`), zero overflow/helpers, and identical 35 boundaries.
+ABI-11 took `14.812157178 s`; XMM took `14.815914339 s` (`+0.025365%`). XMM
+grew the preflight artifact from 178,374,792 to 214,960,264 bytes (`+20.510%`)
+and replay from 156,419,000 to 228,967,352 bytes (`+46.381%`).
+
+### Phase-gated PMU evidence
+
+`run_phase_perf.sh` combines `CENO_CPU_PROFILE_PHASES=1` with the perf-control
+FIFO and `--delay=-1`, counting only `aot_execute`. The first run with the
+profile-specific cache key was rejected as cold and kept at
+`raw/{abi11,xmm}-core-rejected-cold-profile.*`. Accepted groups were run once,
+were non-multiplexed, and reported `100.00%` scheduling. A group using the
+perf metrics `l1_itlb_misses` and `l2_itlb_misses` was rejected because those
+names were not schedulable PMU events.
+
+| aot_execute counter | ABI-11 | XMM ABI-12 | XMM delta |
+|---|---:|---:|---:|
+| cycles | 62,919,143,465 | 62,486,608,242 | -0.687% |
+| instructions | 129,197,360,416 | 128,270,227,090 | -0.718% |
+| IPC | 2.0534 | 2.0528 | -0.029% |
+| branches | 16,689,138,303 | 16,697,204,624 | +0.048% |
+| branch misses | 676,748,456 | 670,689,489 | -0.895% |
+| branch-miss rate | 4.055% | 4.017% | -0.038 pp |
+| frontend-stalled cycles | 16,307,432,064 | 16,401,057,582 | +0.574% |
+| frontend stalls / cycles | 25.918% | 26.247% | +0.329 pp |
+| L1-I load misses | 275,229,840 | 413,495,064 | +50.236% |
+| iTLB load misses | 17,899,541 | 26,167,204 | +46.189% |
+| cache misses | 2,363,894,042 | 2,958,150,273 | +25.139% |
+| dTLB loads | 40,675,145 | 37,338,887 | -8.202% |
+| dTLB load misses | 1,435,503 | 1,267,585 | -11.698% |
+| dTLB miss rate | 3.529% | 3.395% | -0.134 pp |
+| AMD `ic_stall_any` | 24,756,233,915 | 25,809,024,846 | +4.253% |
+| AMD `ic_stall_any` / cycles | 39.346% | 41.303% | +1.957 pp |
+| AMD `ic_stall_dq_empty` | 165,045,990 | 116,667,131 | -29.312% |
+| AMD cacheable I-cache reads | 6,302,454,698 | 6,862,538,850 | +8.887% |
+| AMD load dispatches | 38,210,043,563 | 34,826,387,595 | -8.855% |
+
+The generic dTLB events duplicated their AMD alias values. Because each group
+is a separate run, absolute counts across rows are not simultaneous. The
+direction is nevertheless clear: XMM removed only about 0.7% of host cycles
+and instructions, while L1-I misses rose 50.24%, iTLB misses 46.19%, total
+cache misses 25.14%, and AMD instruction-cache stalls 4.25%.
+
+Phase-gated 499 Hz `cycles:u` sampling produced about 7,000 samples per
+variant with zero loss. Raw data and reports are
+`raw/{abi11,xmm}-cycles.{data,report.txt}`, and annotations are
+`raw/{abi11,xmm}-hot-block.annotate.txt`. The generated image accounts for
+78.18% / 78.28% of samples, the host binary 18.29% / 18.52%, libc 2.41% /
+2.19%, and unknown DSOs 1.12% / 1.01%. Direct fallback/callback bodies are
+0.28% / 0.27%, direct synchronization/accounting callback helpers at most
+0.01% / 0.08%, and the generated dispatcher 1.45% / 1.36%. These are direct,
+not inclusive, shares because call graphs were disabled. The hottest named
+host function was `rustsecp256k1_v0_10_0_modinv64` (8.51% / 8.32%); the
+hottest generated block was `ceno_aot_bb_080d4a74_memory_080d4a84` (2.06% /
+2.03%). Although XMM annotation contains `pinsrd`, no register-value movement
+or synchronization site is near 5% of the full profile.
+
+### Why this is not OpenVM, and the ranked follow-up
+
+OpenVM `494feec4aacaa83fcce7925d3727741b7a055875` uses all 16 XMM registers,
+packs two RV32 registers per XMM with `movq` / `pinsrq`, maps x10-x15 to
+`r10d`, `r11d`, `r9d`, `r8d`, `ebp`, and `r13d`, synchronizes at entry/exit,
+and emits instruction-specific assembly. Rejected Ceno ABI-12 instead used
+XMM4-XMM11, four 32-bit lanes per register, no hot GPR overrides, general
+`pextrd` / `pinsrd`, much larger generated objects, and synchronization while
+preserving tape, first-touch, block-accounting, and shard semantics around
+roughly 2.04 million fallback/callback transitions. The designs are not
+equivalent.
+
+The previously reported `-17.27%` trim removed static-register
+history/latest-access checks, not register-array loads and stores. It changed
+the tape by only 669 events, so it is evidence for access tracking rather than
+residency. Directions rank as follows:
+
+1. static-register history/latest-access checks (`-17.27%` non-faithful trim),
+   conditional on a faithful event-order/latest-use mechanism;
+2. shard/accounting updates (`-14.989%` non-faithful capped trim), noting that
+   faithful sparse designs regressed by `+0.525%` to `+6.96%`;
+3. register tape-event emission (`0.889%` direct-emission gain; first-touch
+   batching `+2.271%` regression; only 669 static events removed);
+4. incomplete touched-mask paths, as the next bounded diagnostic, while the
+   existing faithful touched mask reaches only `3.84%`.
+
+No production change is retained. A new residency design is barred unless
+hardware attribution finds at least 5% of preflight cycles in register-value
+movement and identifies a viable synchronization/layout recovery. Any other
+candidate must improve the single warm local preflight by at least 5%, have
+corroborating cycle/instruction/cache deltas, and preserve every exact
+semantic invariant before a later warm proof checkpoint.
+
+## 2026-08-03 accounting and exact-access follow-up
+
+Fresh label-only ABI-11 profiling at Ceno `983eda57` separated the previously
+combined accounting/register-entry symbol. A phase-gated 499 Hz `cycles:u`
+sample with 7K samples and zero loss attributed `15.91%` exclusively to shard
+accounting, `0.93%` to register latest-access commits, `0.13%` to plan commits,
+`0.08%` to block-entry register checks, and less than `0.01%` to block-entry
+tape appends. Guards were `3.62%`, guest bodies `14.24%`, and memory bodies
+`36.35%`. The earlier trim ranking remains useful: static-register tracking
+was the largest removable access component (`-17.27%`), followed by the
+non-faithful accounting ceiling (`-14.989%`); direct tape emission had only a
+`0.889%` gain.
+
+An untimed generated-code diagnostic counted `442,923,441` chip-contribution
+updates. Only `22,173` crossed a padded cost bucket, so `442,901,268`
+(`99.994994%`) stayed in the same bucket. This cleared the frequency gate, but
+the faithful ABI-12 fast path did not clear the performance gate: it always
+updated counts and skipped trace/main/tower work on equal buckets, yet its
+single warm time was `14.594251271 s` versus `14.812157178 s` for ABI-11, only
+`1.471%` lower. It was reverted and its ABI-12 artifact was rejected.
+
+The retained candidate instead extends block-atomic static-register tracking
+to adaptive exact-access blocks. Dynamic-memory accesses remain exact per
+step; static-register first accesses move to block entry and latest-access
+commits move to block exit. The AOT ABI is bumped from 11 to 13; ABI 12 was
+already used by the rejected XMM experiment. The single warm cache-hit
+preflight was `12.407317827 s`, a `16.236%` reduction from the
+ABI-11 control, and the excluded cold candidate run was `12.218908783 s` after
+artifact generation.
+
+Every cold/warm run preserved the block hash, `994,896,527` guest instructions,
+`3,979,586,112` guest cycles, tape `16,809,729 / 18,911,061`, zero
+overflow/helpers, the exact `2,036,036` fallback count and reason histogram,
+and all 35 shard boundaries. All 60 `ceno_emul` unit tests passed (one perf
+probe ignored), both integration tests passed, and `cargo check -p ceno_zkvm
+--features aot-x86_64` passed.
+
+All four-event counter groups scheduled at `100.00%`:
+
+The counter groups were collected before the collision-safe ABI-only bump
+from 12 to 13; the emitted candidate instructions are identical.
+
+| `aot_execute` counter | ABI-11 | block-atomic exact access | Change |
+|---|---:|---:|---:|
+| cycles | 62,919,143,465 | 52,485,346,722 | -16.583% |
+| instructions | 129,197,360,416 | 122,523,636,480 | -5.166% |
+| IPC | 2.0534 | 2.3344 | +13.69% |
+| branches | 16,689,138,303 | 15,112,248,663 | -9.449% |
+| branch misses | 676,748,456 | 407,451,297 | -39.793% |
+| frontend-stalled cycles | 16,307,432,064 | 12,224,761,483 | -25.036% |
+| L1-I load misses | 275,229,840 | 291,331,311 | +5.850% |
+| iTLB load misses | 17,899,541 | 17,158,303 | -4.141% |
+| cache misses | 2,363,894,042 | 1,939,975,220 | -17.933% |
+
+Status: **retained and committed locally as `2cae93f6`**. No CI or proof was
+run, as required by the local 5% gate. Diagnostic counters and the rejected
+same-bucket fast path are absent from the retained source. Commands, logs,
+counter CSVs, symbol report, isolated sources/targets/caches, and the result
+manifest are under
+`/home/wusm/data/codex-aot-accounting-20260803/`.
+
+### Access-history coarsening principle
+
+This optimization succeeds because static-register history has block-boundary
+semantics even though the old implementation maintained it at instruction
+granularity. In the old exact path, every register-bearing instruction loaded
+the history context and, for each static operand, loaded the previous cycle,
+stored the new cycle, tested first touch, compared with the shard start, and
+branched around event emission. Almost every execution produced no tape event;
+the no-static-register trim changed the tape by only 669 entries. Its
+`-17.27%` result measured repeated negative decisions and intermediate state
+publication, not tape-copy bandwidth or guest-register movement.
+
+For a block admitted atomically by the shard planner, only these register
+observations escape the block:
+
+- the first access to a register, which determines a first-touch or incoming
+  cross-shard event;
+- the last access to a register, which is the latest cycle observed by the
+  next block.
+
+The compiler already knows both subcycles. Emitting the first-access checks
+once at block entry and the last-cycle stores once at block exit is therefore
+a lossless reduction. No shard boundary can occur between them because a
+failed budget check splits before the block. Static register addresses cannot
+alias dynamic memory, whose accesses deliberately remain exact per step.
+Fallback and exceptional paths retain their original exact handling, and a
+speculatively rejected block is reset before execution.
+
+The PMU signature matches this model: retired instructions `-5.166%`, branches
+`-9.449%`, branch misses `-39.793%`, frontend stalls `-25.036%`, cache misses
+`-17.933%`, cycles `-16.583%`, and IPC `+13.69%`. The large cycle benefit is
+thus caused by removing poorly predicted, dependency-chained metadata work
+from nearly one billion steps. It is not caused by fewer tape events and it is
+not register-value residency. The new block-entry/latest-commit symbols occupy
+only `0.08%`/`0.93%` because they measure the cheap replacement; the removed
+exact operations were inlined into guest and memory instruction bodies.
+
+There is a deliberate frontend tradeoff. The ABI-13 preflight object is
+`198,666,816` bytes versus `178,374,792` for ABI-11 (`+11.376%`), and L1-I
+misses rise `5.850%`. Yet the dynamic instruction/branch/cache reduction wins
+decisively. This is a useful codesign rule: generated-code size is secondary
+when static specialization removes much more frequently executed history
+machinery, but it must remain a measured constraint.
+
+Ceno commit `2cae93f6` records the retained implementation. A fresh local
+current-branch comparison independently measured `14.769762030 s` ABI-11
+versus `12.476584248 s` ABI-13 (`-15.526%`) with identical canonical hash,
+994,896,527 guest instructions, 3,979,586,112 cycles, tape/fallback totals,
+and 35 boundaries. The post-cleanup focused test result is 60 unit plus 2
+integration tests passed. Artifacts are in
+`/home/wusm/data/codex-aot-local-20260804/`.
+
+General rule: when execution is already atomic at a larger semantic boundary,
+replace repeated exact bookkeeping for statically known state with compiler
+summaries of the first and last externally visible effects. Keep dynamic or
+aliasable effects exact, preserve rollback at the boundary, and validate both
+event totals and boundary state—not only final guest output.
