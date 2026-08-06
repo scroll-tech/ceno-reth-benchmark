@@ -10,14 +10,17 @@ fi
 GPU_UNAVAILABLE_RESTART_DELAY_SEC="${GPU_UNAVAILABLE_RESTART_DELAY_SEC:-60}"
 STARTUP_GPU_CHECK="${STARTUP_GPU_CHECK:-1}"
 GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
+GPU_READY_MAX_ATTEMPTS="${GPU_READY_MAX_ATTEMPTS:-6}"
+GPU_UNAVAILABLE_EXIT_CODE=75
 
 wait_for_gpu() {
-    local gpu_check_error gpu_check_status gpu_count gpu_uuids
+    local gpu_check_attempt=0 gpu_check_error gpu_check_status gpu_count gpu_uuids
     if [[ "$STARTUP_GPU_CHECK" != "1" ]]; then
         return 0
     fi
 
     while true; do
+        gpu_check_attempt=$((gpu_check_attempt + 1))
         gpu_check_error=""
         if ! command -v nvidia-smi >/dev/null 2>&1; then
             gpu_check_error="nvidia-smi is not installed or not in PATH"
@@ -37,6 +40,10 @@ wait_for_gpu() {
             else
                 gpu_check_error="nvidia-smi UUID query returned no devices"
             fi
+        fi
+        if (( gpu_check_attempt >= GPU_READY_MAX_ATTEMPTS )); then
+            echo "[entrypoint] GPU unavailable after ${gpu_check_attempt} attempt(s): ${gpu_check_error}; container recreation required" >&2
+            return "$GPU_UNAVAILABLE_EXIT_CODE"
         fi
         echo "[entrypoint] GPU unavailable: ${gpu_check_error}; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
         sleep "${GPU_READY_POLL_INTERVAL_SEC}"
@@ -73,6 +80,11 @@ while true; do
     wait "${CHECK_PID}" 2>/dev/null || true
     CHECK_PID=""
     UVICORN_PID=""
+
+    if [[ "$status" -eq "$GPU_UNAVAILABLE_EXIT_CODE" ]]; then
+        echo "[entrypoint] GPU binding is unusable; exiting with status=${status} so the container can be recreated" >&2
+        exit "$status"
+    fi
 
     echo "[entrypoint] server stack exited with status=${status}; restarting after ${GPU_UNAVAILABLE_RESTART_DELAY_SEC}s" >&2
     sleep "${GPU_UNAVAILABLE_RESTART_DELAY_SEC}"
