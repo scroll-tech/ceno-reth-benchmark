@@ -54,6 +54,11 @@ on:
         required: false
         type: string
         default: "1"
+      frozen_input_sha256:
+        description: "Optional SHA-256 of the generated input; when set, download or digest mismatch is fatal"
+        required: false
+        type: string
+        default: ""
       rerun_keygen:
         description: "Rerun keygen"
         required: false
@@ -264,8 +269,19 @@ jobs:
             if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
               mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
               echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+              INPUT_SHA256=$(sha256sum "$LOCAL_INPUT_PATH" | awk '{print $1}')
+              echo "Frozen input identity: sha256=${INPUT_SHA256} size=$(stat -c %s "$LOCAL_INPUT_PATH") path=${LOCAL_INPUT_PATH}"
+              EXPECTED_INPUT_SHA256="${{ inputs.frozen_input_sha256 }}"
+              if [[ -n "$EXPECTED_INPUT_SHA256" && "$INPUT_SHA256" != "$EXPECTED_INPUT_SHA256" ]]; then
+                echo "Generated input SHA-256 mismatch: expected ${EXPECTED_INPUT_SHA256}, got ${INPUT_SHA256}"
+                exit 1
+              fi
             else
               rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              if [[ -n "${{ inputs.frozen_input_sha256 }}" ]]; then
+                echo "Frozen input was required but could not be downloaded"
+                exit 1
+              fi
               echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
             fi
           else
@@ -457,8 +473,19 @@ jobs:
             if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
               mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
               echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
+              INPUT_SHA256=$(sha256sum "$LOCAL_INPUT_PATH" | awk '{print $1}')
+              echo "Frozen input identity: sha256=${INPUT_SHA256} size=$(stat -c %s "$LOCAL_INPUT_PATH") path=${LOCAL_INPUT_PATH}"
+              EXPECTED_INPUT_SHA256="${{ inputs.frozen_input_sha256 }}"
+              if [[ -n "$EXPECTED_INPUT_SHA256" && "$INPUT_SHA256" != "$EXPECTED_INPUT_SHA256" ]]; then
+                echo "Generated input SHA-256 mismatch: expected ${EXPECTED_INPUT_SHA256}, got ${INPUT_SHA256}"
+                exit 1
+              fi
             else
               rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
+              if [[ -n "${{ inputs.frozen_input_sha256 }}" ]]; then
+                echo "Frozen input was required but could not be downloaded"
+                exit 1
+              fi
               echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
             fi
           else
