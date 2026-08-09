@@ -48,7 +48,12 @@ use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
-use ceno_emul::{Platform, Program, StepCellExtractor};
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+use ceno_emul::{
+    aot::{AotProgram, PureAotTracer},
+    VMState,
+};
+use ceno_emul::{IterAddresses, Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 use ceno_zkvm::e2e::prepare_preflight_aot_program;
@@ -376,6 +381,8 @@ pub enum BenchMode {
     ExecuteHost,
     /// Execute the VM without generating a proof.
     Execute,
+    /// Benchmark-only value-correct AOT execution without proof tracking.
+    AotPure,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
     /// Run full preflight and CPU witness assignment, without proving.
@@ -402,6 +409,7 @@ impl std::fmt::Display for BenchMode {
         match self {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
+            Self::AotPure => write!(f, "aot_pure"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
             Self::Witness => write!(f, "witness"),
             Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
@@ -618,6 +626,18 @@ fn env_flag_enabled(name: &str) -> bool {
     )
 }
 
+#[cfg(target_os = "linux")]
+fn peak_rss_kib() -> Option<u64> {
+    fs::read_to_string("/proc/self/status")
+        .ok()?
+        .lines()
+        .find_map(|line| line.strip_prefix("VmHWM:"))?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()
+}
+
 fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecursionV2Prover> {
     sdk.init_agg_prover().map_err(|err| eyre::eyre!("{err:?}"))
 }
@@ -821,6 +841,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let needs_ceno_hints = matches!(
         args.mode,
         BenchMode::Execute |
+            BenchMode::AotPure |
             BenchMode::Witness |
             BenchMode::AnalyzeShardRam |
             BenchMode::ProveApp |
@@ -872,6 +893,114 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                 }
 
                 match args.mode {
+                    BenchMode::AotPure => {
+                        #[cfg(not(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        )))]
+                        eyre::bail!("aot-pure requires --features aot on x86_64 Linux");
+
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        {
+                            let hints = prebuilt_hints
+                                .take()
+                                .expect("ceno hints should be initialized before aot-pure");
+                            let hint_words = Vec::<u32>::from(&hints);
+                            let init_memory = platform
+                                .hints
+                                .iter_addresses()
+                                .zip(hint_words.iter().copied())
+                                .map(|(addr, value)| (addr.into(), value))
+                                .collect::<Vec<_>>();
+
+                            let artifact_started = std::time::Instant::now();
+                            let pure_program = Arc::new(program.clone());
+                            let aot = AotProgram::load_or_train_pure(
+                                &platform,
+                                pure_program.clone(),
+                                init_memory.iter().copied(),
+                            )
+                            .map_err(|err| eyre::eyre!("pure AOT setup failed: {err:#}"))?;
+                            let artifact_elapsed = artifact_started.elapsed();
+                            let compile_report = aot.report();
+                            let cache_identity = aot.cache_identity();
+
+                            let mut vm = VMState::<PureAotTracer>::new_with_tracer(
+                                platform.clone(),
+                                pure_program,
+                            );
+                            for (addr, value) in init_memory {
+                                vm.init_memory(addr, value);
+                            }
+
+                            let report = info_span!("sdk.execute_aot_pure", group = program_name)
+                                .in_scope(|| aot.run_pure_to_halt(&mut vm, max_steps))
+                                .map_err(|err| eyre::eyre!("pure AOT execution failed: {err:#}"))?;
+                            let exit_code = vm.halted_state().map(|state| state.exit_code);
+                            let digest_words = vm.committed_public_io().ok_or_else(|| {
+                                eyre::eyre!("pure AOT guest did not commit a public digest")
+                            })?;
+                            let digest = digest_words
+                                .into_iter()
+                                .flat_map(u32::to_le_bytes)
+                                .collect::<Vec<_>>();
+                            eyre::ensure!(
+                                digest.as_slice() == block_hash.0.as_slice(),
+                                "pure AOT block hash mismatch: guest={} host={}",
+                                hex::encode(&digest),
+                                ToHexExt::encode_hex(&block_hash),
+                            );
+                            eyre::ensure!(
+                                exit_code == Some(0),
+                                "pure AOT guest exit code was {exit_code:?}"
+                            );
+
+                            let native_time = report.native_time();
+                            let throughput = report.executed_steps as f64
+                                / report.execute_time.as_secs_f64()
+                                / 1_000_000.0;
+                            println!("aot-pure diagnostic only: proof_compatible=false");
+                            println!(
+                                "aot-pure block_hash: {}",
+                                ToHexExt::encode_hex(&block_hash)
+                            );
+                            println!("aot-pure exit_code: {}", exit_code.unwrap_or_default());
+                            println!(
+                                "aot-pure instructions: {} throughput_minst_per_s={throughput:.3}",
+                                report.executed_steps
+                            );
+                            println!(
+                                "aot-pure execution: total={:?} native={:?} fallback={:?}",
+                                report.execute_time, native_time, report.fallback_time
+                            );
+                            println!(
+                                "aot-pure fallbacks: total={} dynamic_pc={} memory_guard={} ecall_by_code={:?} exceptional={}",
+                                report.fallback_steps,
+                                report.fallback.dynamic_pc_miss,
+                                report.fallback.memory_guard,
+                                report.fallback.ecall_by_code,
+                                report.fallback.exceptional_jump_or_trap,
+                            );
+                            println!(
+                                "aot-pure artifact: abi={} cache_identity={} setup={:?} load_or_compile={:?} blocks={} reachable_instructions={}",
+                                AotProgram::abi_version(),
+                                cache_identity,
+                                artifact_elapsed,
+                                compile_report.compile_load_time,
+                                compile_report.block_count,
+                                compile_report.reachable_instruction_count,
+                            );
+                            println!(
+                                "aot-pure peak_rss_kib: {}",
+                                peak_rss_kib().unwrap_or_default()
+                            );
+                        }
+                    }
                     BenchMode::Execute => {
                         let hints = prebuilt_hints
                             .take()
