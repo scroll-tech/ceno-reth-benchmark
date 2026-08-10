@@ -277,7 +277,7 @@ Contingency reserve                  0.276s
 | `Pure` | Existing value-only execution | provisional smoke passed; canonical median pending | `f73dc3f4` / `a38e…-abi59-pure-x86_64-linux-cells268435456-cycles536870912` | Value-only execution | Value-only staged callback and native body | `2.441866106s` / provisional single sample | — | `0.000000000s` | — | `0.000000000s` | `2.626000000s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/pure-abi59-smoke.log` |
 | `Runtime` | Container, callback/syscall routing, synchronization shell | provisional smoke passed | `f73dc3f4` / `a38e…-abi59-runtime-x86_64-linux-cells268435456-cycles536870912` | Exact shell, no later-stage work | Preflight container with pure native execution and stage-safe syscall/fallback callback | `2.428137201s` / provisional single sample | `-0.013728905s` | `-0.013728905s` | `0.200s` | `0s` (negative delta retained as noise/slack) | `2.639728905s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/runtime-abi59-smoke.log` |
 | `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | `f73dc3f4` / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
-| `Planner` | Chip counts, bucket costs, admission, shard transitions | budget gate failed; compile-time descriptor specialization next | `f73dc3f4` / ABI 59 identities for `cells268435456` and canonical `cells4500000000` | Exact planner and 35 shards at 4.5B cells | Exact cycle/hash/count; canonical run reports 35 costs/shards and 36 boundary points | `5.359623084s` at 268M; `5.381945825s` at 4.5B / provisional single samples | `+2.574481280s` (268M adjacent) | `+2.917756978s` (268M) | `0.850s` cumulative | `2.917756978s` cumulative | `-0.291756978s` | 268M diagnostic: `.codex-results/aot-tracking-20260810/planner-abi59-smoke.log`; canonical-cell correctness: `.codex-results/aot-tracking-20260810/planner-abi59-cells4500m-smoke.log` |
+| `Planner` | Chip counts, bucket costs, admission, shard transitions | specialization retained; budget gate still failed, so advancement stopped | `7c79627d` / `a38e…-abi61-planner-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact planner and 35 shards at 4.5B cells | One/two-chip descriptors embedded and unrolled; larger descriptors retain the generic loop | cold `5.026433376s`, cached `4.825796107s` / provisional single samples | `+2.040654303s` (cached adjacent) | `+2.383930001s` | `0.850s` cumulative | `2.383930001s` cumulative | `0.242069999s` | exact hash/count/cycle, complete 36-point boundary vector and 35 costs/shards; `.codex-results/aot-tracking-20260810/planner-specialized-abi61/` |
 | `RegisterLatest` | Register first/latest state without events | pending | pending | Exact latest cycles/touched state | pending | pending | pending | pending | 0.200s | pending | pending | pending |
 | `MemoryLatest` | Packed stamps and latest memory cycles | pending | pending | Exact packed memory state | pending | pending | pending | pending | 0.600s | pending | pending | pending |
 | `MmioBounds` | Heap, stack, hints classification/extrema | pending | pending | Exact extrema | pending | pending | pending | pending | 0.100s | pending | pending | pending |
@@ -373,6 +373,19 @@ The measured adjacent marginals reconcile exactly for the provisional prefix:
 residual = 0
 ```
 
+After retained ABI 61 specialization, the current cached provisional prefix is:
+
+```text
+-0.013728905s + 0.357004603s + 2.040654303s = 2.383930001s
+4.825796107s - 2.441866106s = 2.383930001s
+residual = 0
+```
+
+Only `0.242069999s` of the `2.626s` tracking budget remains at Planner.
+The remaining stages have minimum allocations totaling `1.500s`, so the
+projected prefix exceeds the budget by `1.257930001s`. Per the advancement
+rule, `RegisterLatest` was not started.
+
 Provisional smokes were pinned with `taskset -c 0` on an AMD Ryzen 9 5900XT;
 the recorded governor/driver were `schedutil` / `acpi-cpufreq`. Canonical
 five-run measurement and hardware counters remain pending.
@@ -426,3 +439,80 @@ block descriptors at AOT construction time, and specialize/unroll the common
 one- or two-chip admission path. This follows the compile-time descriptor
 architecture without repeating the failed register-only fusion, duplicate
 scan, or resident-base experiments.
+
+### Planner descriptor specialization (ABI 61)
+
+Ceno commit `7c79627d` implements the compile-time descriptor design. The
+artifact identity includes deterministic shard-cost-model fingerprint
+`46a252f9299cfc23d4d539af42c5dc115ebf2b9756f3660bd7672b8dd35ad203`,
+which covers opcode and ecall chip mappings, chip specifications, generated
+trace/main/tower tables, and extension degree. Runtime rejects a cached
+planner artifact if its model fingerprint differs.
+
+One- and two-contribution blocks embed chip indices, instance deltas, cost-row
+offsets, and cold split standalone costs as immediates. Their bucket proof,
+rollback, and exact transition paths are unrolled. Blocks with more than two
+contributions retain the ABI-59 generic descriptor loop. Production Preflight
+and staged `Full` use the same internal selection and remain byte-identical.
+The ABI is 61 rather than reusing ABI 60, which remains the rejected
+resident-next-PC experiment.
+
+Canonical block-25580200 evidence at 4.5B cells:
+
+- Cold ABI-61 execution: `5.026433376s` total, `3.585856608s` native,
+  `1.440576768s` fallback. Against the ABI-59 canonical `5.381945825s`
+  sample this is `0.355512449s` or `6.61%` faster, clearing both retention
+  thresholds.
+- Cached ABI-61 execution: `4.825796107s` total, `3.397309932s` native,
+  `1.428486175s` fallback. This is a provisional single cached sample, not a
+  five-run median.
+- The matched `cycles:u` profiling execution was `5.215572346s` total,
+  `3.685349039s` native, and `1.530223307s` fallback. It is a counter artifact,
+  not a timing sample.
+- The cold and cached samples both produced the required hash, exit code 0,
+  exactly `994,896,527` instructions, final cycle `3,979,586,112`, 35 shards,
+  35 predicted costs, and the complete unchanged 36-point boundary vector.
+- Setup was `128.041592293s` and compile/load was `52.382106018s` on the cold
+  run; cached setup was `404.774189ms` and load was `70.081µs`. These remain
+  outside `run_to_halt` timing.
+- ABI-61 artifact size is `115,387,832` bytes versus `114,359,736` bytes for
+  ABI 59, a `0.90%` increase.
+
+Matched untruncated 999 Hz `cycles:u` profiling records 938 accounting samples
+in the ABI-61 Planner DSO versus 1,059 for ABI 59, a reduction of 121 samples
+or `11.4%`. Total generated-DSO samples also fall by exactly 121, from 3,616
+to 3,495. The other classified regions move from/to: memory 1,054/1,071,
+guest 947/975, guards 393/372, plan commit 58/46, and other 105/93. Thus the
+accounting reduction is not displaced into guards, guest bodies, memory,
+commit, or callbacks. This is sampling attribution, not elapsed-time
+decomposition. A specialized hot-block disassembly contains no descriptor
+scan loop; a sampled block with more than two contributions retains it as
+intended. Raw logs, the untruncated report, perf data, and disassemblies are in
+`.codex-results/aot-tracking-20260810/planner-specialized-abi61/`.
+
+Validation completed:
+
+- `cargo fmt --check`
+- complete `ceno_emul` suite with `aot-x86_64`: 76 passed, 1 ignored
+- finite-cycle and finite-cell shard tests
+- specialized-versus-generic finite-cell planner state, costs, boundaries,
+  callbacks, and tape parity
+- direct-syscall parity and cache hit/corruption/identity rebuild tests
+- all cumulative tracking-stage checks
+- production-`Full` byte-identical emitter equality with specialized metadata
+- release benchmark build and two canonical cached-block executions
+
+The broader `ceno_zkvm` AOT test build was attempted but stopped while
+compiling its separate debug graph because the filesystem had no free space;
+it did not reach test execution. No unrelated artifacts were deleted to retry.
+This is an infrastructure failure, not passing evidence.
+
+The cold layout profile measured 129,344,238 static edge executions, of which
+84,702,885 (`65.49%`) follow adjacent emitted edges. This supports wider hot
+conditional/native-memory region work, but descriptor specialization alone
+does not pass the budget gate: the cached Planner prefix consumes
+`2.383930001s`, leaving `0.242069999s` before `1.500s` of remaining minimum
+allocations. Advancement therefore stops at Planner. A region implementation
+must use the exact per-block path whenever every affected chip cannot remain
+inside its cached bucket or the complete region cannot fit the current shard,
+and must commit the exact executed prefix on early exit.
