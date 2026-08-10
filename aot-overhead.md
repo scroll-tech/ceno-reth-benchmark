@@ -7,15 +7,15 @@ This document compares two Ceno AOT execution modes on Ethereum block `25580200`
 - **Pure AOT:** executes guest-visible values and architectural state without trace or access bookkeeping.
 - **Tracked Preflight AOT:** executes the same guest program while constructing shard-aware access history and planner state.
 
-Current representative results:
+Current retained ABI-64 results:
 
 | Mode | Elapsed time |
 |---|---:|
-| Pure AOT median | ~2.37s |
-| Tracked Preflight total | ~8.24s |
-| Tracked native execution | ~6.59s |
-| Tracked Rust fallback/syscalls | ~1.63s |
-| Total tracked-mode gap | ~5.87s |
+| Pure AOT median | 2.352314716s |
+| Tracked Preflight median | 5.999957665s |
+| Tracked native execution median | 4.396290741s |
+| Tracked Rust fallback/syscalls median | 1.607863903s |
+| Total tracked-mode gap | 3.647642949s |
 
 The tracked run preserves the exact output hash, `994,896,527` guest instructions, `16,865,461` next-access events, and 35 shard boundaries.
 
@@ -725,3 +725,77 @@ gate passed.
 
 Final logs and counters are under
 `.codex-results/aot-tracking-20260810/{final-alternating-abi63,secondary-25687400-abi63}/`.
+
+### Evidence-driven Full optimization: deferred MMIO extrema (ABI 64)
+
+Ceno commit `b6de61b4` retains the largest one-at-a-time Full candidate. Full
+no longer updates heap, stack, and hints extrema on every native or fallback
+memory access. It reconstructs the exact three ranges once from source-cycle
+zero entries in the already-required next-access tape. Every touched address
+has exactly one such initialization event, so this changes neither access
+order nor the planner, packed stamps, event format, AIR, witness format, or
+syscall ABI. The cumulative `MmioBounds` diagnostic stage remains available;
+only production-equal `Full` uses deferred reconstruction. The AOT ABI advances
+to 64.
+
+The same-Full MMIO-off trim measured `5.959737984s`, versus the accepted ABI-63
+Full median `7.862198032s`, and preserved the exact hash, exit status,
+994,896,527 instructions, final cycle, 35-shard vector, and 16,865,461-event
+tape. The sound reconstruction candidate measured `6.028479776s` on its first
+warm sample, only `0.068741792s` above that floor. This is a controlled causal
+result, not an inference from cumulative stage timing.
+
+Five pinned, alternating ABI-64 Pure/Full pairs produced Pure samples
+`2.352723611`, `2.353451093`, `2.348815703`, `2.352314716`, and
+`2.336025669s` (median `2.352314716s`) and Full samples `6.033999334`,
+`6.072596809`, `5.941897348`, `5.999957665`, and `5.972803752s` (median
+`5.999957665s`). The exact median overhead is `3.647642949s`, with zero
+reconciliation residual. Against ABI 63, Full improves by `1.862240367s`
+(`23.69%`) and clears both retention thresholds. It remains `0.999957665s`
+above the strict `<5.0s` endpoint, so final performance acceptance still
+fails.
+
+The ABI-64 Pure median is `4.03%` slower than the earlier ABI-63 Pure median,
+but the two cached Pure `.text` sections have the identical SHA-256
+`83a090da72d776077a9b107591acf63be087cd1c5a22bd05cf93a2eb37784e2c`.
+No Pure instruction changed; the observed delta is host-frequency/session
+drift, not displaced work. It is recorded rather than waived as a timing
+gate.
+
+Assembly and sampling confirm removal rather than displacement. Full generated
+text falls from `155,570,658` to `131,301,647` bytes (`15.60%`). In matched
+999 Hz profiles, generated-code samples fall from 6,504 to 4,170 and memory
+samples from 3,371 to 1,564 (`53.60%`); accounting changes 1,096/914, guest
+994/877, guards 604/458, register-first 40/29, register-latest 197/151,
+plan-commit 43/39, and dispatch 134/119. The candidate hardware-counter run
+measured 54,993,597,419 user cycles, 132,666,650,638 user instructions,
+14,168,161,959 user branches, 101,267,499 branch misses (`0.71%`), and
+1,013,441,510 cache misses while preserving all canonical fields.
+
+Block 25687400 also remains exact: Pure was `1.651599454s`; Full was
+`4.210921353s`, produced 14,472,131 events without growth, ended at cycle
+2,653,033,620, and reproduced the exact 25-shard/26-boundary plan. Full is
+`1.265497044s` (`23.11%`) faster than ABI 63. The Pure sample is `2.22%`
+slower than the prior single sample despite the byte-identical Pure text, so
+the secondary Pure timing gate is conservatively recorded as missed.
+
+Validation completed with `cargo fmt --check`, `git diff --check`, the complete
+`ceno_emul` AOT suite (78 tests: 77 passed and 1 ignored), both integration
+tests, the focused all-region reconstruction test, release benchmark rebuild,
+five primary pairs, the counter/profile runs, and the secondary-block run.
+
+The OpenVM reference remains source-supported rather than conflated with Ceno
+timings. `openvm-eth` is pinned at `b364f163` and its OpenVM dependency at
+`15a7ab6`; the existing same-block execute log reports the required hash and
+600,039,843 OpenVM guest instructions. At that dependency, `MemoryConfig`
+assigns separate register and general-memory address spaces, `TracingMemory`
+stores timestamp metadata in per-address-space `PagedVec` instances, atomic
+`read`/`write` return and update the previous timestamp, and adapter records
+store previous timestamps for later trace filling. Those sources support
+compact/deferred metadata as a direction, but no AIR rows or OpenVM wall time
+are treated as Ceno instructions or savings. The retained Ceno result instead
+uses its own exact initialization-event tape, which measured better than
+per-access extrema maintenance without adopting OpenVM's paged layout.
+
+Raw evidence is under
+`.codex-results/aot-tracking-20260810/{final-profile-abi63,full-trims-abi64,mmio-deferred-abi64,final-alternating-abi64,secondary-25687400-abi64}/`.
