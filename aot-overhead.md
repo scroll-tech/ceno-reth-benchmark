@@ -283,7 +283,7 @@ Contingency reserve                  0.276s
 | `MmioBounds` | Heap, stack, hints classification/extrema | retained; budget remains failed | `f12cb498` / `a38e…-abi63-mmio-bounds-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact extrema | Hoisted guard records two-bit region; body updates only that region without reclassification | cold `7.091111770s`, cached `7.816615748s` / provisional noisy samples | `+1.427889404s` (cold adjacent) | `+4.649245664s` | 0.100s | `1.427889404s` | `-2.023245664s` | exact hash/count/cycle/vector; complete emulator suite and assembly inspection pass; `.codex-results/aot-tracking-20260810/mmio-regions-abi63/` |
 | `EventCapacity` | Cursor, guards, growth, synchronization | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-event-capacity-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact capacity behavior, no events | Per-block capacity guards; trained tape has no growth | cold `7.840320821s` / provisional single sample | `+0.749209051s` | `+5.398454715s` | 0.100s | `0.749209051s` | `-2.772454715s` | exact hash/count/cycle/vector and capacity 18,973,696; ABI-64 trim rejected; `.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/` |
 | `RegisterEvents` | Register next-access events | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-register-events-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Golden register-only tape | Exact 24-byte first-touch entries; memory events absent | cold `7.922237605s` / provisional single sample | `+0.081916784s` | `+5.480371499s` | 0.150s | `0.081916784s` | `-2.854371499s` | exact 1,086-event tape and canonical state/vector; disassembly inspected; `.codex-results/aot-tracking-20260810/register-events-abi63/` |
-| `Full` | Memory next-access events and complete parity | measured; acceptance failed | `f12cb498` / `a38e…-abi63-full-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact production Preflight state/tape | 16,865,461-event tape; byte-identical production emitter | cold `7.845179490s` / provisional single sample | `-0.077058115s` | `+5.403313384s` | 0.350s | `0s` (negative delta retained as noise/layout) | `-2.777313384s` | exact hash/count/cycle/vector/tape counts; final `<5.0s` gate failed; `.codex-results/aot-tracking-20260810/full-abi63/` |
+| `Full` | Memory next-access events and complete parity | measured; production switched; acceptance failed | `19e5a891` / `a38e…-abi63-full-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact production Preflight state/tape | 16,865,461-event tape; staged Full is the production selector and cache identity | cold `7.845179490s` / provisional single sample | `-0.077058115s` | `+5.403313384s` | 0.350s | `0s` (negative delta retained as noise/layout) | `-2.777313384s` | exact hash/count/cycle/vector/tape counts; full emulator suite passes; final `<5.0s` gate failed; `.codex-results/aot-tracking-20260810/full-abi63/` |
 
 Budget borrowing must be recorded in this ledger. Advancement stops if measured
 cumulative cost plus remaining minimum allocations projects above 2.626s.
@@ -678,3 +678,19 @@ all pass, and the focused assembly test proves staged Full is byte-identical
 to the production emitter. The endpoint performance acceptance fails:
 `7.845179490s` is `2.845179490s` above the required `<5.0s` threshold.
 Evidence is under `.codex-results/aot-tracking-20260810/full-abi63/`.
+
+### Production Full handoff
+
+Ceno commit `19e5a891` makes `PreflightTracking(Full)` the selector used by
+both public production Preflight entry points. Production and tracking now
+share one cache identity and one assembly path; the legacy block-plan style is
+no longer selected by production. The AOT ABI remains 63 because generated
+Full bytes do not change.
+
+After the handoff, the complete `ceno_emul` AOT suite passes: 76 unit tests, 1
+ignored, and 2 integration tests. This includes finite-cell/cycle shards,
+specialized planner parity, direct syscalls, cache hit/corruption/identity
+rebuild, tape growth, cumulative stage parity, exact memory access behavior,
+and the explicit production-selector assertion. The release host rebuild also
+passes. This completes the emitter migration but does not waive the failed
+Full timing gate recorded above.
