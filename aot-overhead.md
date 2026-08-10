@@ -279,7 +279,7 @@ Contingency reserve                  0.276s
 | `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | `f73dc3f4` / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
 | `Planner` | Chip counts, bucket costs, admission, shard transitions | specialization retained; budget gate still failed, so advancement stopped | `7c79627d` / `a38e…-abi61-planner-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact planner and 35 shards at 4.5B cells | One/two-chip descriptors embedded and unrolled; larger descriptors retain the generic loop | cold `5.026433376s`, cached `4.825796107s` / provisional single samples | `+2.040654303s` (cached adjacent) | `+2.383930001s` | `0.850s` cumulative | `2.383930001s` cumulative | `0.242069999s` | exact hash/count/cycle, complete 36-point boundary vector and 35 costs/shards; `.codex-results/aot-tracking-20260810/planner-specialized-abi61/` |
 | `RegisterLatest` | Register first/latest state without events | retained; budget remains failed | `cb3cc5b9` / `a38e…-abi62-register-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact latest cycles/touched state | Initialized-register subset guard skips redundant first-touch probes; exact block-last commits remain | cold `5.529363466s`, cached `5.465545408s` / provisional samples | `+0.639749301s` | `+3.023679302s` | 0.200s | `0.639749301s` | `-0.397679302s` | exact hash/count/cycle and complete planner vector; 76 AOT tests pass; `.codex-results/aot-tracking-20260810/register-latest-mask-abi62/` |
-| `MemoryLatest` | Packed stamps and latest memory cycles | pending | pending | Exact packed memory state | pending | pending | pending | pending | 0.600s | pending | pending | pending |
+| `MemoryLatest` | Packed stamps and latest memory cycles | measured; existing emitter retained | `cb3cc5b9` / `a38e…-abi62-memory-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact packed memory state | Packed `{ordinal,value}` read/modify/write; later extrema/capacity/events absent | cold `5.780129189s`, cached `5.747544993s` / provisional samples | `+0.281999585s` | `+3.305678887s` | 0.600s | `0.281999585s` | `-0.679678887s` | exact hash/count/cycle and complete planner vector; hot disassembly inspected; `.codex-results/aot-tracking-20260810/memory-latest-abi62/` |
 | `MmioBounds` | Heap, stack, hints classification/extrema | pending | pending | Exact extrema | pending | pending | pending | pending | 0.100s | pending | pending | pending |
 | `EventCapacity` | Cursor, guards, growth, synchronization | pending | pending | Exact capacity behavior, no events | pending | pending | pending | pending | 0.100s | pending | pending | pending |
 | `RegisterEvents` | Register next-access events | pending | pending | Golden register-only tape | pending | pending | pending | pending | 0.150s | pending | pending | pending |
@@ -568,3 +568,23 @@ Validation completed:
 
 Raw logs and the untruncated profile are under
 `.codex-results/aot-tracking-20260810/register-latest-mask-abi62/`.
+
+### MemoryLatest checkpoint (ABI 62)
+
+The existing cumulative emitter was measured without a source change. Cold
+execution was `5.780129189s` total (`4.175448969s` native and
+`1.604680220s` fallback); the cached execution was `5.747544993s` total
+(`4.147496362s` native and `1.600048631s` fallback). Both preserve the
+required hash, exit code, instruction count, final cycle, and complete
+35-shard/36-boundary planner vector.
+
+The cached adjacent marginal is `+0.281999585s` over RegisterLatest, below the
+stage's `0.600s` allocation. Cumulative overhead against Pure is
+`+3.305678887s`, leaving `-0.679678887s` of the nominal budget. A hot memory
+block disassembly shows the expected packed-cell read, high-half ordinal
+decode, value preservation, and new high-half ordinal store. Mmio extrema,
+event-capacity, and next-access tape append work remain absent. Because the
+observed marginal is already below half its allocation and the earlier causal
+packed-stamp floor was approximately `0.444s`, no speculative stage-local
+rewrite was justified. Artifacts are under
+`.codex-results/aot-tracking-20260810/memory-latest-abi62/`.
