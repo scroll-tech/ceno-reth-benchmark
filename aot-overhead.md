@@ -799,3 +799,91 @@ per-access extrema maintenance without adopting OpenVM's paged layout.
 
 Raw evidence is under
 `.codex-results/aot-tracking-20260810/{final-profile-abi63,full-trims-abi64,mmio-deferred-abi64,final-alternating-abi64,secondary-25687400-abi64}/`.
+
+### Remaining-candidate audit after ABI 64
+
+The remaining Full queue was re-ranked from the ABI-64 sampled profile rather
+than from the original implementation ladder. The sampled additions over Pure
+were approximately `1.057s` in memory tracking, `0.915s` in planner
+accounting, `0.458s` in guards, `0.392s` in guest/layout work, `0.180s` in
+register tracking, and `0.095s` in dispatch/commit. These are **Observed**
+sample attributions, not additive causal savings: a sample assigned to a
+component can include required value work, and whole-command syscall profiles
+include the crypto kernels themselves.
+
+Four controlled candidates were evaluated from the same retained ABI-64 Full
+implementation:
+
+- A compact initialization-event tape used 16-byte internal first-touch
+  records and expanded them to the public 24-byte tape during finalization.
+  It remained exact, but five Full samples had median `6.319184093s`; the
+  paired Pure median was `2.408821801s`, so tracking overhead was
+  `3.910362292s`, `0.262719343s` worse than the retained ABI-64 campaign
+  overhead. Finalization was approximately `0.719s`. This is a **Controlled
+  causal result** rejecting deferred expansion; the public event layout was
+  never changed.
+- Removing the direct-syscall value reread while leaving stamp/event tracking
+  separate produced exact Full samples `6.372896625`, `6.393901542`, and
+  `6.380741550s`. This is an **Observed** no-gain diagnostic, not a paired
+  causal estimate, because host timing had drifted from the earlier campaign.
+- A conservative two-block planner region combined only a register-only
+  predecessor with one static successor and admitted the pair only when the
+  combined cached bucket ceilings and cycle/step limits were already safe.
+  After advancing the cache ABI to 66, it remained exact and measured
+  `6.409985563`, `6.411621698`, and `6.386322693s`. This is also an
+  **Observed** rejection under session drift. An earlier ABI-65 crash was
+  diagnosed as incompatible cached-DSO reuse after a context-layout change,
+  not planner semantic failure.
+- Fused syscall stamp capture updated packed timestamps inside the value
+  kernel's existing loads and stores, retained exact access-plan ordering, and
+  deferred only event publication. Focused tests matched the generic path,
+  including previous cycles, final stamps, event tape, and shard boundaries.
+  Five same-session alternating Full pairs gave baseline samples
+  `6.453233398`, `6.660328623`, `6.460807060`, `6.461151656`, and
+  `6.451827609s` (median `6.460807060s`) and fused samples `6.565561938`,
+  `6.492768009`, `6.507261256`, `6.453859605`, and `6.483500114s` (median
+  `6.492768009s`). The candidate regressed by `0.031960949s` (`0.49%`), with
+  zero median arithmetic residual; its paired-delta median was also a
+  `0.031672505s` regression. This is a **Controlled causal result** and the
+  implementation was rejected.
+
+Every canonical candidate run reported block hash
+`34439c597563024690ce3c91a082c34507569c7e18cc4d1b3b68550b791a2773`,
+exit status 0, `994,896,527` instructions, cycle `3,979,586,112`, the exact
+35-shard/36-boundary vector, and `16,865,461` Full events where applicable.
+Rejected implementations are preserved as named Ceno stashes; none is in the
+production tree. Raw evidence is under
+`.codex-results/aot-tracking-20260810/{compact-init-abi65,syscall-no-reread-abi64,two-block-region-abi65,two-block-region-abi66,syscall-stamp-fusion-abi64}/`.
+
+The remaining queue does not currently contain another candidate that meets
+the retention rule. Compact register metadata has an observed upper bound of
+about `0.180s`, and dispatch/commit about `0.095s`; each is below both
+`0.25s` and 5% of Full before implementation cost. The event-capacity trim
+already saved only `0.209034295s` (`2.67%`) and was rejected. The tested
+planner aggregation, compact sequential tape, and syscall fusion designs did
+not improve Full. Guards and guest/layout samples are not proven removable,
+while the general-memory sample includes the sound packed-stamp operation.
+
+OpenVM's separate register space, atomic value/timestamp access, sequential
+record filling, fused custom instructions, and paged timestamp metadata remain
+**Source-supported inferences**, not Ceno performance evidence. Ceno already
+packs values and stamps into one dense cell. A profiling-only scan of the
+already-sorted initialization tape measured `14,172,004` first-touched memory
+words on `24,332` distinct 4 KiB pages out of `98,304` configured pages:
+`24.7518%` page density and `14.0786%` word density. The exact run took
+`6.449802064s`; the scan occurs after the separately measured execution and
+finalization intervals and does not alter either result. Together with the
+ABI-64 Full-minus-Pure cache-miss delta, this is **Observed** evidence that
+timestamp pages would be sparse in capacity but not evidence that an extra
+paged lookup is faster than the current direct packed-cell access. A split
+paged timestamp store therefore remains a **Hypothesis** requiring a controlled
+Ceno implementation; it is not adopted from architectural analogy alone.
+The profiling run is under
+`.codex-results/aot-tracking-20260810/memory-page-density-abi64/`.
+
+Under the selected “Best candidate” completion rule, the retained ABI-64
+deferred-MMIO change remains the best measured sound candidate. No additional
+experiment cleared the retention threshold, so the accepted production state
+is unchanged. The official ABI-64 Full median remains `5.999957665s`, still
+`0.999957665s` above the strict `<5.0s` endpoint; the endpoint acceptance
+therefore remains failed rather than being waived.
