@@ -282,7 +282,7 @@ Contingency reserve                  0.276s
 | `MemoryLatest` | Packed stamps and latest memory cycles | measured; ABI-63 guard cleanup inherited | `f12cb498` / `a38e…-abi63-memory-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact packed memory state | Packed `{ordinal,value}` update; block guard proves alignment/dense membership once | cold `5.663222366s` / provisional single sample | `+0.197676958s` | `+3.221356260s` | 0.600s | `0.197676958s` | `-0.595356260s` | exact hash/count/cycle and complete planner vector; `.codex-results/aot-tracking-20260810/memory-latest-abi63/` |
 | `MmioBounds` | Heap, stack, hints classification/extrema | retained; budget remains failed | `f12cb498` / `a38e…-abi63-mmio-bounds-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact extrema | Hoisted guard records two-bit region; body updates only that region without reclassification | cold `7.091111770s`, cached `7.816615748s` / provisional noisy samples | `+1.427889404s` (cold adjacent) | `+4.649245664s` | 0.100s | `1.427889404s` | `-2.023245664s` | exact hash/count/cycle/vector; complete emulator suite and assembly inspection pass; `.codex-results/aot-tracking-20260810/mmio-regions-abi63/` |
 | `EventCapacity` | Cursor, guards, growth, synchronization | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-event-capacity-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact capacity behavior, no events | Per-block capacity guards; trained tape has no growth | cold `7.840320821s` / provisional single sample | `+0.749209051s` | `+5.398454715s` | 0.100s | `0.749209051s` | `-2.772454715s` | exact hash/count/cycle/vector and capacity 18,973,696; ABI-64 trim rejected; `.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/` |
-| `RegisterEvents` | Register next-access events | pending | pending | Golden register-only tape | pending | pending | pending | pending | 0.150s | pending | pending | pending |
+| `RegisterEvents` | Register next-access events | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-register-events-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Golden register-only tape | Exact 24-byte first-touch entries; memory events absent | cold `7.922237605s` / provisional single sample | `+0.081916784s` | `+5.480371499s` | 0.150s | `0.081916784s` | `-2.854371499s` | exact 1,086-event tape and canonical state/vector; disassembly inspected; `.codex-results/aot-tracking-20260810/register-events-abi63/` |
 | `Full` | Memory next-access events and complete parity | endpoint emitter wired; canonical parity pending | distinct `full` identity implemented | Exact production Preflight state/tape | Byte-identical assembly to production block-plan emitter in focused test | pending | pending | pending | 0.350s | pending | pending | emitter equality test passes |
 
 Budget borrowing must be recorded in this ledger. Advancement stops if measured
@@ -644,3 +644,19 @@ retention thresholds, so the code and ABI bump were reverted. RegisterEvents
 and Full were never changed and retain their exact production growth guards.
 Raw evidence is under
 `.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/`.
+
+### RegisterEvents checkpoint (ABI 63)
+
+The existing register-event emitter measured `7.922237605s` cold
+(`6.276199104s` native and `1.646038501s` fallback). The exact adjacent
+marginal is `0.081916784s`, below the stage's `0.150s` allocation, so no
+speculative rewrite was justified. Cumulative overhead against Pure is
+`5.480371499s`, leaving `-2.854371499s` of nominal budget; the reconciliation
+residual is zero.
+
+The run finalized exactly 1,086 register events (32 initialization and 1,054
+non-initial), with capacity `18,973,696`, no growth, and no normal-access
+callbacks. Hash, exit status, instruction count, final cycle, planner state,
+and the full shard vector remain exact. Hot disassembly contains the expected
+three-field 24-byte register tape stores and no memory-event labels. Evidence
+is under `.codex-results/aot-tracking-20260810/register-events-abi63/`.
