@@ -274,10 +274,10 @@ Contingency reserve                  0.276s
 
 | Stage | Newly added work | Status | Revision / cache identity | Expected work | Observed work | Raw samples / median | Marginal | Cumulative | Allocated | Consumed | Remaining total budget | Correctness / artifacts |
 |---|---|---|---|---|---|---|---:|---:|---:|---:|---:|---|
-| `Pure` | Existing value-only execution | provisional smoke passed; canonical median pending | working tree / `a38e…-abi59-pure-x86_64-linux-cells268435456-cycles536870912` | Value-only execution | Value-only staged callback and native body | `2.441866106s` / provisional single sample | — | `0.000000000s` | — | `0.000000000s` | `2.626000000s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/pure-abi59-smoke.log` |
-| `Runtime` | Container, callback/syscall routing, synchronization shell | provisional smoke passed | working tree / `a38e…-abi59-runtime-x86_64-linux-cells268435456-cycles536870912` | Exact shell, no later-stage work | Preflight container with pure native execution and stage-safe syscall/fallback callback | `2.428137201s` / provisional single sample | `-0.013728905s` | `-0.013728905s` | `0.200s` | `0s` (negative delta retained as noise/slack) | `2.639728905s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/runtime-abi59-smoke.log` |
-| `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | working tree / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
-| `Planner` | Chip counts, bucket costs, admission, shard transitions | budget gate failed; optimization required | working tree / ABI 59 identities for `cells268435456` and canonical `cells4500000000` | Exact planner and 35 shards at 4.5B cells | Exact cycle/hash/count; canonical run reports 35 costs/shards and 36 boundary points | `5.359623084s` at 268M; `5.381945825s` at 4.5B / provisional single samples | `+2.574481280s` (268M adjacent) | `+2.917756978s` (268M) | `0.850s` cumulative | `2.917756978s` cumulative | `-0.291756978s` | 268M diagnostic: `.codex-results/aot-tracking-20260810/planner-abi59-smoke.log`; canonical-cell correctness: `.codex-results/aot-tracking-20260810/planner-abi59-cells4500m-smoke.log` |
+| `Pure` | Existing value-only execution | provisional smoke passed; canonical median pending | `f73dc3f4` / `a38e…-abi59-pure-x86_64-linux-cells268435456-cycles536870912` | Value-only execution | Value-only staged callback and native body | `2.441866106s` / provisional single sample | — | `0.000000000s` | — | `0.000000000s` | `2.626000000s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/pure-abi59-smoke.log` |
+| `Runtime` | Container, callback/syscall routing, synchronization shell | provisional smoke passed | `f73dc3f4` / `a38e…-abi59-runtime-x86_64-linux-cells268435456-cycles536870912` | Exact shell, no later-stage work | Preflight container with pure native execution and stage-safe syscall/fallback callback | `2.428137201s` / provisional single sample | `-0.013728905s` | `-0.013728905s` | `0.200s` | `0s` (negative delta retained as noise/slack) | `2.639728905s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/runtime-abi59-smoke.log` |
+| `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | `f73dc3f4` / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
+| `Planner` | Chip counts, bucket costs, admission, shard transitions | budget gate failed; compile-time descriptor specialization next | `f73dc3f4` / ABI 59 identities for `cells268435456` and canonical `cells4500000000` | Exact planner and 35 shards at 4.5B cells | Exact cycle/hash/count; canonical run reports 35 costs/shards and 36 boundary points | `5.359623084s` at 268M; `5.381945825s` at 4.5B / provisional single samples | `+2.574481280s` (268M adjacent) | `+2.917756978s` (268M) | `0.850s` cumulative | `2.917756978s` cumulative | `-0.291756978s` | 268M diagnostic: `.codex-results/aot-tracking-20260810/planner-abi59-smoke.log`; canonical-cell correctness: `.codex-results/aot-tracking-20260810/planner-abi59-cells4500m-smoke.log` |
 | `RegisterLatest` | Register first/latest state without events | pending | pending | Exact latest cycles/touched state | pending | pending | pending | pending | 0.200s | pending | pending | pending |
 | `MemoryLatest` | Packed stamps and latest memory cycles | pending | pending | Exact packed memory state | pending | pending | pending | pending | 0.600s | pending | pending | pending |
 | `MmioBounds` | Heap, stack, hints classification/extrema | pending | pending | Exact extrema | pending | pending | pending | pending | 0.100s | pending | pending | pending |
@@ -389,3 +389,40 @@ Rejected attempts:
 - A subsequent internal ExecutionState body retained the preflight ABI while
   eliminating per-instruction next-PC publication; it passed parity and was
   retained, reducing ExecutionState from 3.004557075s to 2.785141804s.
+
+### Planner attribution checkpoint
+
+The durable source revisions are Ceno `f73dc3f4` and benchmark/ledger
+`78dd9c43`. A cached canonical-cell Planner profile measured 5.353398779s with
+the exact hash, instruction count, final cycle and 35 shards. The untruncated
+999 Hz profile assigns 3,616 sampled periods to the Planner DSO versus 1,227
+for ExecutionState. The 2,389 added DSO periods are classified as:
+
+| Generated region | Planner periods | ExecutionState periods | Added periods |
+|---|---:|---:|---:|
+| Accounting | 1,059 | 0 | 1,059 |
+| Guest memory body | 1,054 | 673 | 381 |
+| Guest arithmetic/control body | 947 | 430 | 517 |
+| Guards | 393 | 72 | 321 |
+| Plan commit | 58 | 0 | 58 |
+| Dispatch | 103 | 52 | 51 |
+
+This is observed sampling evidence, not an elapsed-time decomposition. Full
+reports and logs are under
+`.codex-results/aot-tracking-20260810/planner-profile-abi59/` and
+`.codex-results/aot-tracking-20260810/execution-profile-abi59/`.
+
+ABI 60 temporarily reused the resident-next-PC ExecutionState body for
+Planner block-plan bodies. Focused tests passed, but the canonical block run
+trapped in the busy-loop guard before the target metric. The experiment is an
+invalid trim and was fully reverted; no timing result was accepted. The source
+returned byte-clean to `f73dc3f4`.
+
+Assembly inspection of a hot accounting region shows deterministic block
+contributions still loaded from descriptor/contribution tables and scanned in
+a runtime loop on every planned block entry. The next source-supported design
+is to place the cost-model identity in the cache key, generate those immutable
+block descriptors at AOT construction time, and specialize/unroll the common
+one- or two-chip admission path. This follows the compile-time descriptor
+architecture without repeating the failed register-only fusion, duplicate
+scan, or resident-base experiments.
