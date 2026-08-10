@@ -694,3 +694,34 @@ rebuild, tape growth, cumulative stage parity, exact memory access behavior,
 and the explicit production-selector assertion. The release host rebuild also
 passes. This completes the emitter migration but does not waive the failed
 Full timing gate recorded above.
+
+### Final endpoint sampling and acceptance
+
+Five alternating cached Pure/Full pairs were run pinned to CPU 0 at the
+canonical 4.5B-cell configuration on block 25580200. Pure samples were
+`2.261856554`, `2.276121873`, `2.261151004`, `2.255280818`, and
+`2.260647220s`, for a median of `2.261151004s`. Full samples were
+`7.848636767`, `7.966840759`, `7.827761296`, `7.893045972`, and
+`7.862198032s`, for a median of `7.862198032s`.
+
+The final median overhead is therefore exactly `5.601047028s`. Pure is
+`0.180715102s` (`7.40%`) faster than the original `2.441866106s` campaign
+sample, so the Pure-regression gate passes. Full is `2.862198032s` above the
+required `<5.0s` endpoint and the performance acceptance fails. Every sample
+preserved the exact hash, exit status, instruction count, final cycle, planner
+state, and complete shard vector.
+
+The cached Full hardware-counter run measured `7.931858747s` inside
+`run_to_halt`, 63,497,256,000 user cycles, 138,841,735,889 user instructions,
+16,201,130,057 user branches, 313,829,558 branch misses (`1.94%`), and
+1,722,698,939 cache misses. It remained exact.
+
+The secondary block 25687400 also passed exact execution using the same warm
+artifacts: Pure was `1.615723279s` for 663,258,404 instructions; Full was
+`5.476418397s`, produced 14,472,131 events without growth, ended at cycle
+2,653,033,620, and produced the exact 25-shard/26-boundary plan. These samples
+are correctness and transfer evidence, not a claim that the primary timing
+gate passed.
+
+Final logs and counters are under
+`.codex-results/aot-tracking-20260810/{final-alternating-abi63,secondary-25687400-abi63}/`.
