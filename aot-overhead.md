@@ -279,8 +279,8 @@ Contingency reserve                  0.276s
 | `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | `f73dc3f4` / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
 | `Planner` | Chip counts, bucket costs, admission, shard transitions | specialization retained; budget gate still failed, so advancement stopped | `7c79627d` / `a38e…-abi61-planner-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact planner and 35 shards at 4.5B cells | One/two-chip descriptors embedded and unrolled; larger descriptors retain the generic loop | cold `5.026433376s`, cached `4.825796107s` / provisional single samples | `+2.040654303s` (cached adjacent) | `+2.383930001s` | `0.850s` cumulative | `2.383930001s` cumulative | `0.242069999s` | exact hash/count/cycle, complete 36-point boundary vector and 35 costs/shards; `.codex-results/aot-tracking-20260810/planner-specialized-abi61/` |
 | `RegisterLatest` | Register first/latest state without events | retained; budget remains failed | `cb3cc5b9` / `a38e…-abi62-register-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact latest cycles/touched state | Initialized-register subset guard skips redundant first-touch probes; exact block-last commits remain | cold `5.529363466s`, cached `5.465545408s` / provisional samples | `+0.639749301s` | `+3.023679302s` | 0.200s | `0.639749301s` | `-0.397679302s` | exact hash/count/cycle and complete planner vector; 76 AOT tests pass; `.codex-results/aot-tracking-20260810/register-latest-mask-abi62/` |
-| `MemoryLatest` | Packed stamps and latest memory cycles | measured; existing emitter retained | `cb3cc5b9` / `a38e…-abi62-memory-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact packed memory state | Packed `{ordinal,value}` read/modify/write; later extrema/capacity/events absent | cold `5.780129189s`, cached `5.747544993s` / provisional samples | `+0.281999585s` | `+3.305678887s` | 0.600s | `0.281999585s` | `-0.679678887s` | exact hash/count/cycle and complete planner vector; hot disassembly inspected; `.codex-results/aot-tracking-20260810/memory-latest-abi62/` |
-| `MmioBounds` | Heap, stack, hints classification/extrema | pending | pending | Exact extrema | pending | pending | pending | pending | 0.100s | pending | pending | pending |
+| `MemoryLatest` | Packed stamps and latest memory cycles | measured; ABI-63 guard cleanup inherited | `f12cb498` / `a38e…-abi63-memory-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact packed memory state | Packed `{ordinal,value}` update; block guard proves alignment/dense membership once | cold `5.663222366s` / provisional single sample | `+0.197676958s` | `+3.221356260s` | 0.600s | `0.197676958s` | `-0.595356260s` | exact hash/count/cycle and complete planner vector; `.codex-results/aot-tracking-20260810/memory-latest-abi63/` |
+| `MmioBounds` | Heap, stack, hints classification/extrema | retained; budget remains failed | `f12cb498` / `a38e…-abi63-mmio-bounds-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact extrema | Hoisted guard records two-bit region; body updates only that region without reclassification | cold `7.091111770s`, cached `7.816615748s` / provisional noisy samples | `+1.427889404s` (cold adjacent) | `+4.649245664s` | 0.100s | `1.427889404s` | `-2.023245664s` | exact hash/count/cycle/vector; complete emulator suite and assembly inspection pass; `.codex-results/aot-tracking-20260810/mmio-regions-abi63/` |
 | `EventCapacity` | Cursor, guards, growth, synchronization | pending | pending | Exact capacity behavior, no events | pending | pending | pending | pending | 0.100s | pending | pending | pending |
 | `RegisterEvents` | Register next-access events | pending | pending | Golden register-only tape | pending | pending | pending | pending | 0.150s | pending | pending | pending |
 | `Full` | Memory next-access events and complete parity | endpoint emitter wired; canonical parity pending | distinct `full` identity implemented | Exact production Preflight state/tape | Byte-identical assembly to production block-plan emitter in focused test | pending | pending | pending | 0.350s | pending | pending | emitter equality test passes |
@@ -588,3 +588,39 @@ observed marginal is already below half its allocation and the earlier causal
 packed-stamp floor was approximately `0.444s`, no speculative stage-local
 rewrite was justified. Artifacts are under
 `.codex-results/aot-tracking-20260810/memory-latest-abi62/`.
+
+### MmioBounds hoisted-region reuse (ABI 63)
+
+Ceno commit `f12cb498` removes duplicate memory validation from block-planned
+native bodies. The block-entry guard remains authoritative for admission and
+records each of at most 32 memory accesses as a two-bit heap, stack, or hints
+region. Mmio code consumes that immutable map to update only the proven
+region's extrema; blocks outside the safe bound retain the generic path. The
+AOT ABI advances to 63.
+
+The unmodified ABI-62 cold baseline was `7.696334669s`. The ABI-63 cold
+candidate was `7.091111770s` (`5.581386519s` native and `1.509725251s`
+fallback), an improvement of `0.605222899s` (`7.86%`), clearing both retention
+thresholds. A subsequent cache-hit sample was noisy at `7.816615748s`; it is
+recorded as raw evidence and is not substituted for the controlled cold pair.
+
+Because ABI 63 also eliminates redundant alignment and dense-membership tests
+before MmioBounds, MemoryLatest was regenerated at the same ABI. Its cold
+execution was `5.663222366s`, making the cold adjacent Mmio marginal exactly
+`1.427889404s`. Relative to Pure, cumulative overhead is `4.649245664s`, with
+`-2.023245664s` nominal budget remaining. The reconciliation residual is zero:
+`7.091111770 - 5.663222366 = 1.427889404` and
+`7.091111770 - 2.441866106 = 4.649245664`.
+
+All canonical runs preserve the exact block hash, exit status 0,
+`994,896,527` instructions, final cycle `3,979,586,112`, and complete
+35-shard/36-boundary vector. The complete `ceno_emul` AOT suite passed (76
+tests, 1 ignored, plus 2 integration tests). Hot disassembly shows the encoded
+region load and selection with no repeated address alignment or region-range
+classification in the memory body; later capacity/event work remains absent.
+
+An ABI-64 experiment validated the six extrema pointers once and outlined rare
+extrema updates. It stayed exact but regressed cold execution to
+`7.278571988s`, so it was reverted and is not part of the retained commit. Raw
+logs and disassembly are under
+`.codex-results/aot-tracking-20260810/{memory-latest-abi63,mmio-regions-abi63,mmio-cold-updates-abi64}/`.
