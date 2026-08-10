@@ -281,7 +281,7 @@ Contingency reserve                  0.276s
 | `RegisterLatest` | Register first/latest state without events | retained; budget remains failed | `cb3cc5b9` / `a38e…-abi62-register-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact latest cycles/touched state | Initialized-register subset guard skips redundant first-touch probes; exact block-last commits remain | cold `5.529363466s`, cached `5.465545408s` / provisional samples | `+0.639749301s` | `+3.023679302s` | 0.200s | `0.639749301s` | `-0.397679302s` | exact hash/count/cycle and complete planner vector; 76 AOT tests pass; `.codex-results/aot-tracking-20260810/register-latest-mask-abi62/` |
 | `MemoryLatest` | Packed stamps and latest memory cycles | measured; ABI-63 guard cleanup inherited | `f12cb498` / `a38e…-abi63-memory-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact packed memory state | Packed `{ordinal,value}` update; block guard proves alignment/dense membership once | cold `5.663222366s` / provisional single sample | `+0.197676958s` | `+3.221356260s` | 0.600s | `0.197676958s` | `-0.595356260s` | exact hash/count/cycle and complete planner vector; `.codex-results/aot-tracking-20260810/memory-latest-abi63/` |
 | `MmioBounds` | Heap, stack, hints classification/extrema | retained; budget remains failed | `f12cb498` / `a38e…-abi63-mmio-bounds-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact extrema | Hoisted guard records two-bit region; body updates only that region without reclassification | cold `7.091111770s`, cached `7.816615748s` / provisional noisy samples | `+1.427889404s` (cold adjacent) | `+4.649245664s` | 0.100s | `1.427889404s` | `-2.023245664s` | exact hash/count/cycle/vector; complete emulator suite and assembly inspection pass; `.codex-results/aot-tracking-20260810/mmio-regions-abi63/` |
-| `EventCapacity` | Cursor, guards, growth, synchronization | pending | pending | Exact capacity behavior, no events | pending | pending | pending | pending | 0.100s | pending | pending | pending |
+| `EventCapacity` | Cursor, guards, growth, synchronization | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-event-capacity-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact capacity behavior, no events | Per-block capacity guards; trained tape has no growth | cold `7.840320821s` / provisional single sample | `+0.749209051s` | `+5.398454715s` | 0.100s | `0.749209051s` | `-2.772454715s` | exact hash/count/cycle/vector and capacity 18,973,696; ABI-64 trim rejected; `.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/` |
 | `RegisterEvents` | Register next-access events | pending | pending | Golden register-only tape | pending | pending | pending | pending | 0.150s | pending | pending | pending |
 | `Full` | Memory next-access events and complete parity | endpoint emitter wired; canonical parity pending | distinct `full` identity implemented | Exact production Preflight state/tape | Byte-identical assembly to production block-plan emitter in focused test | pending | pending | pending | 0.350s | pending | pending | emitter equality test passes |
 
@@ -624,3 +624,23 @@ extrema updates. It stayed exact but regressed cold execution to
 `7.278571988s`, so it was reverted and is not part of the retained commit. Raw
 logs and disassembly are under
 `.codex-results/aot-tracking-20260810/{memory-latest-abi63,mmio-regions-abi63,mmio-cold-updates-abi64}/`.
+
+### EventCapacity checkpoint (ABI 63)
+
+The existing emitter measured `7.840320821s` cold (`6.206596696s` native and
+`1.633724125s` fallback), an adjacent marginal of `0.749209051s` over the
+ABI-63 MmioBounds cold sample. Cumulative overhead against Pure is
+`5.398454715s`, leaving `-2.772454715s` of nominal budget. The run produced no
+events, retained the trained capacity of `18,973,696`, performed no growth,
+and preserved all canonical correctness fields and shard boundaries. The
+arithmetic reconciles exactly:
+`7.840320821 - 7.091111770 = 0.749209051` and
+`7.840320821 - 2.441866106 = 5.398454715`.
+
+An ABI-64 diagnostic-stage specialization omitted per-block capacity checks
+because the EventCapacity cursor never advances. It remained exact and
+measured `7.631286526s`, only `0.209034295s` (`2.67%`) faster. This missed both
+retention thresholds, so the code and ABI bump were reverted. RegisterEvents
+and Full were never changed and retain their exact production growth guards.
+Raw evidence is under
+`.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/`.
