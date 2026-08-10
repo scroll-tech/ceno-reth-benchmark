@@ -283,7 +283,7 @@ Contingency reserve                  0.276s
 | `MmioBounds` | Heap, stack, hints classification/extrema | retained; budget remains failed | `f12cb498` / `a38e…-abi63-mmio-bounds-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact extrema | Hoisted guard records two-bit region; body updates only that region without reclassification | cold `7.091111770s`, cached `7.816615748s` / provisional noisy samples | `+1.427889404s` (cold adjacent) | `+4.649245664s` | 0.100s | `1.427889404s` | `-2.023245664s` | exact hash/count/cycle/vector; complete emulator suite and assembly inspection pass; `.codex-results/aot-tracking-20260810/mmio-regions-abi63/` |
 | `EventCapacity` | Cursor, guards, growth, synchronization | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-event-capacity-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact capacity behavior, no events | Per-block capacity guards; trained tape has no growth | cold `7.840320821s` / provisional single sample | `+0.749209051s` | `+5.398454715s` | 0.100s | `0.749209051s` | `-2.772454715s` | exact hash/count/cycle/vector and capacity 18,973,696; ABI-64 trim rejected; `.codex-results/aot-tracking-20260810/event-capacity-abi{63,64}/` |
 | `RegisterEvents` | Register next-access events | measured; existing emitter retained | `f12cb498` / `a38e…-abi63-register-events-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Golden register-only tape | Exact 24-byte first-touch entries; memory events absent | cold `7.922237605s` / provisional single sample | `+0.081916784s` | `+5.480371499s` | 0.150s | `0.081916784s` | `-2.854371499s` | exact 1,086-event tape and canonical state/vector; disassembly inspected; `.codex-results/aot-tracking-20260810/register-events-abi63/` |
-| `Full` | Memory next-access events and complete parity | endpoint emitter wired; canonical parity pending | distinct `full` identity implemented | Exact production Preflight state/tape | Byte-identical assembly to production block-plan emitter in focused test | pending | pending | pending | 0.350s | pending | pending | emitter equality test passes |
+| `Full` | Memory next-access events and complete parity | measured; acceptance failed | `f12cb498` / `a38e…-abi63-full-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact production Preflight state/tape | 16,865,461-event tape; byte-identical production emitter | cold `7.845179490s` / provisional single sample | `-0.077058115s` | `+5.403313384s` | 0.350s | `0s` (negative delta retained as noise/layout) | `-2.777313384s` | exact hash/count/cycle/vector/tape counts; final `<5.0s` gate failed; `.codex-results/aot-tracking-20260810/full-abi63/` |
 
 Budget borrowing must be recorded in this ledger. Advancement stops if measured
 cumulative cost plus remaining minimum allocations projects above 2.626s.
@@ -660,3 +660,21 @@ callbacks. Hash, exit status, instruction count, final cycle, planner state,
 and the full shard vector remain exact. Hot disassembly contains the expected
 three-field 24-byte register tape stores and no memory-event labels. Evidence
 is under `.codex-results/aot-tracking-20260810/register-events-abi63/`.
+
+### Full checkpoint (ABI 63)
+
+The production-equal Full artifact measured `7.845179490s` cold
+(`6.315530745s` native and `1.529648745s` fallback). It finalized exactly
+`16,865,461` events (`14,172,036` initialization and `2,693,425`
+non-initial), matching training, with no growth or normal-access callbacks.
+Finalization remained outside `run_to_halt` and took `580.728909ms`.
+
+The adjacent delta from RegisterEvents is `-0.077058115s`, retained as
+measurement/layout noise rather than negative consumed work. Full cumulative
+overhead against Pure is exactly `5.403313384s`; nominal budget remaining is
+`-2.777313384s`, with zero arithmetic residual. The exact hash, exit status,
+instruction count, final cycle, planner state, and complete 35-shard vector
+all pass, and the focused assembly test proves staged Full is byte-identical
+to the production emitter. The endpoint performance acceptance fails:
+`7.845179490s` is `2.845179490s` above the required `<5.0s` threshold.
+Evidence is under `.codex-results/aot-tracking-20260810/full-abi63/`.
