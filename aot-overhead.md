@@ -278,7 +278,7 @@ Contingency reserve                  0.276s
 | `Runtime` | Container, callback/syscall routing, synchronization shell | provisional smoke passed | `f73dc3f4` / `a38e…-abi59-runtime-x86_64-linux-cells268435456-cycles536870912` | Exact shell, no later-stage work | Preflight container with pure native execution and stage-safe syscall/fallback callback | `2.428137201s` / provisional single sample | `-0.013728905s` | `-0.013728905s` | `0.200s` | `0s` (negative delta retained as noise/slack) | `2.639728905s` | exact hash, exit 0, 994,896,527 instructions; `.codex-results/aot-tracking-20260810/runtime-abi59-smoke.log` |
 | `ExecutionState` | Cycles, PC before/after, instruction kind, step publication | provisional smoke passed; borrowed `0.043275698s` cumulative | `f73dc3f4` / `a38e…-abi59-execution-state-x86_64-linux-cells268435456-cycles536870912` | Exact block-batched execution metadata | Exact cycle `3979586112`, PC transition and ECALL kind; preflight-ABI block body carries next PC resident and commits once | `2.785141804s` / provisional single sample | `+0.357004603s` | `+0.343275698s` | `0.300s` cumulative | `0.343275698s` cumulative | `2.282724302s` | exact hash, exit 0, instruction count; 5 focused tracking tests pass; `.codex-results/aot-tracking-20260810/execution-state-abi59-resident-smoke.log` |
 | `Planner` | Chip counts, bucket costs, admission, shard transitions | specialization retained; budget gate still failed, so advancement stopped | `7c79627d` / `a38e…-abi61-planner-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact planner and 35 shards at 4.5B cells | One/two-chip descriptors embedded and unrolled; larger descriptors retain the generic loop | cold `5.026433376s`, cached `4.825796107s` / provisional single samples | `+2.040654303s` (cached adjacent) | `+2.383930001s` | `0.850s` cumulative | `2.383930001s` cumulative | `0.242069999s` | exact hash/count/cycle, complete 36-point boundary vector and 35 costs/shards; `.codex-results/aot-tracking-20260810/planner-specialized-abi61/` |
-| `RegisterLatest` | Register first/latest state without events | pending | pending | Exact latest cycles/touched state | pending | pending | pending | pending | 0.200s | pending | pending | pending |
+| `RegisterLatest` | Register first/latest state without events | retained; budget remains failed | `cb3cc5b9` / `a38e…-abi62-register-latest-x86_64-linux-cost46a252…-cells4500000000-cycles536870912` | Exact latest cycles/touched state | Initialized-register subset guard skips redundant first-touch probes; exact block-last commits remain | cold `5.529363466s`, cached `5.465545408s` / provisional samples | `+0.639749301s` | `+3.023679302s` | 0.200s | `0.639749301s` | `-0.397679302s` | exact hash/count/cycle and complete planner vector; 76 AOT tests pass; `.codex-results/aot-tracking-20260810/register-latest-mask-abi62/` |
 | `MemoryLatest` | Packed stamps and latest memory cycles | pending | pending | Exact packed memory state | pending | pending | pending | pending | 0.600s | pending | pending | pending |
 | `MmioBounds` | Heap, stack, hints classification/extrema | pending | pending | Exact extrema | pending | pending | pending | pending | 0.100s | pending | pending | pending |
 | `EventCapacity` | Cursor, guards, growth, synchronization | pending | pending | Exact capacity behavior, no events | pending | pending | pending | pending | 0.100s | pending | pending | pending |
@@ -516,3 +516,55 @@ allocations. Advancement therefore stops at Planner. A region implementation
 must use the exact per-block path whenever every affected chip cannot remain
 inside its cached bucket or the complete region cannot fit the current shard,
 and must commit the exact executed prefix on early exit.
+
+### RegisterLatest initialized-register guard (ABI 62)
+
+The user explicitly directed the campaign to continue through the remaining
+ladder despite the failed Planner projection. This supersedes the procedural
+advancement stop, but does not relax the exactness or final `<5.0s` acceptance
+gates.
+
+The first unmodified ABI-61 `RegisterLatest` artifact measured
+`6.206094958s` cold and `6.166198925s` cached. Ceno commit `cb3cc5b9` makes the
+existing initialized-register mask effective in the no-event stage: if every
+register first-used by a block is already globally initialized, generated code
+skips all per-register zero probes and first-touch-length publication. The
+exact cold probe remains for unseen registers, and block-last latest-cycle
+commits are unchanged. The AOT ABI advances to 62.
+
+Canonical block-25580200 evidence at 4.5B cells:
+
+- Cold ABI-62 execution: `5.529363466s` total, `3.972288235s` native,
+  `1.557075231s` fallback.
+- Cached ABI-62 execution: `5.465545408s` total, `3.930704220s` native,
+  `1.534841188s` fallback.
+- Against the cached unmodified `6.166198925s` sample, the cached candidate is
+  `0.700653517s` (`11.36%`) faster, clearing both retention thresholds.
+- Both runs preserve the required hash, exit code 0, exactly `994,896,527`
+  instructions, final cycle `3,979,586,112`, all 35 shards, and the complete
+  unchanged 36-point boundary vector.
+- The cached adjacent marginal against Planner's provisional
+  `4.825796107s` is `+0.639749301s`; cumulative overhead against Pure is
+  `+3.023679302s`, leaving `-0.397679302s` of the nominal tracking budget.
+  These are provisional single-sample ledger values, not alternating medians.
+
+The separate `cycles:u` run measured `5.479519201s` and remained exact. Its
+untruncated 999 Hz generated-code classification assigns 28 samples to
+register-first checks and 171 to register-latest commits; accounting has 942,
+guards 403, and plan commit 52. Thus the retained change removes the intended
+first-touch work. The remaining stage delta is not wholly attributable to the
+register-labelled regions and includes generated-layout/body displacement;
+this is sampling evidence rather than an elapsed-time decomposition.
+
+Validation completed:
+
+- `cargo fmt --check`
+- complete `ceno_emul` suite with `aot-x86_64`: 76 passed, 1 ignored, with the
+  two integration tests also passing
+- cumulative tracking-stage parity and later-responsibility exclusion
+- finite-cell/cycle shards, direct-syscall parity, cache corruption/rebuild,
+  specialized planner parity, and production-`Full` emitter equality
+- release benchmark rebuild and exact cold/cached canonical executions
+
+Raw logs and the untruncated profile are under
+`.codex-results/aot-tracking-20260810/register-latest-mask-abi62/`.
