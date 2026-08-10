@@ -1164,6 +1164,29 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             let (shard_plan, next_access_tape) =
                                 vm.take_tracer().into_shard_plan();
                             let finalization_elapsed = finalization_started.elapsed();
+                            const PAGE_BYTES: u32 = 4096;
+                            let mut latest_page = None;
+                            let mut initial_memory_words = 0usize;
+                            let mut touched_memory_pages = 0usize;
+                            for event in next_access_tape.initialization_events() {
+                                let byte_addr = event.address.baddr().0;
+                                if !platform.can_write(byte_addr) {
+                                    continue;
+                                }
+                                initial_memory_words += 1;
+                                let page = byte_addr / PAGE_BYTES;
+                                if latest_page != Some(page) {
+                                    latest_page = Some(page);
+                                    touched_memory_pages += 1;
+                                }
+                            }
+                            let configured_memory_pages =
+                                [&platform.heap, &platform.hints, &platform.stack]
+                                    .into_iter()
+                                    .map(|region| {
+                                        (region.end - region.start).div_ceil(PAGE_BYTES) as usize
+                                    })
+                                    .sum::<usize>();
 
                             println!("aot-tracking stage: {}", stage.cache_name());
                             println!(
@@ -1187,6 +1210,15 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 "aot-tracking finalization: elapsed={:?} tape_events={}",
                                 finalization_elapsed,
                                 next_access_tape.len(),
+                            );
+                            println!(
+                                "aot-tracking memory-pages: page_bytes={} initial_words={} touched={} configured={} density={:.4}%",
+                                PAGE_BYTES,
+                                initial_memory_words,
+                                touched_memory_pages,
+                                configured_memory_pages,
+                                100.0 * touched_memory_pages as f64
+                                    / configured_memory_pages as f64,
                             );
                             println!(
                                 "aot-tracking execution: total={:?} native={:?} fallback={:?}",
