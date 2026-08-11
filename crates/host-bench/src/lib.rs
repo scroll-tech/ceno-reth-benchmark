@@ -51,17 +51,16 @@ use ceno_cli::sdk as ceno_sdk;
 #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 use ceno_emul::{
     aot::{AotProgram, PureAotTracer},
-    VMState,
+    IterAddresses, VMState,
 };
-use ceno_emul::{IterAddresses, Platform, Program, StepCellExtractor};
+use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-use ceno_zkvm::e2e::prepare_preflight_aot_program;
 use ceno_zkvm::e2e::{
-    analyze_shard_ram_light, emulate_program, generate_witness, replay_full_trace,
-    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, setup_program,
-    MultiProver, Preset,
+    analyze_shard_ram_light, emulate_program, generate_witness, run_e2e_full_trace_verify,
+    run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
 };
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+use ceno_zkvm::e2e::{prepare_preflight_aot_program, replay_full_trace};
 use gkr_iop::cpu::default_backend_config;
 
 struct SpanTiming {
@@ -630,7 +629,7 @@ fn env_flag_enabled(name: &str) -> bool {
     )
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 fn peak_rss_kib() -> Option<u64> {
     fs::read_to_string("/proc/self/status")
         .ok()?
