@@ -50,16 +50,17 @@ use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
 #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 use ceno_emul::{
-    aot::{AotProgram, PreflightAotStage, PureAotTracer},
-    PreflightTracer, PreflightTracerConfig, Tracer, VMState,
+    aot::{AotProgram, PureAotTracer},
+    VMState,
 };
 use ceno_emul::{IterAddresses, Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
 #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 use ceno_zkvm::e2e::prepare_preflight_aot_program;
 use ceno_zkvm::e2e::{
-    analyze_shard_ram_light, emulate_program, generate_witness, run_e2e_full_trace_verify,
-    run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
+    analyze_shard_ram_light, emulate_program, generate_witness, replay_full_trace,
+    run_e2e_full_trace_verify, run_e2e_single_shard_debug_verify, setup_platform, setup_program,
+    MultiProver, Preset,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -383,8 +384,8 @@ pub enum BenchMode {
     Execute,
     /// Benchmark-only value-correct AOT execution without proof tracking.
     AotPure,
-    /// Benchmark one cumulative compile-time Preflight tracking stage.
-    AotTracking,
+    /// Run production AOT preflight followed by bounded FullTracer replay.
+    AotFull,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
     /// Run full preflight and CPU witness assignment, without proving.
@@ -412,7 +413,7 @@ impl std::fmt::Display for BenchMode {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
             Self::AotPure => write!(f, "aot_pure"),
-            Self::AotTracking => write!(f, "aot_tracking"),
+            Self::AotFull => write!(f, "aot_full"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
             Self::Witness => write!(f, "witness"),
             Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
@@ -423,38 +424,6 @@ impl std::fmt::Display for BenchMode {
             Self::MakeInput => write!(f, "make_input"),
             Self::GenerateFixtures => write!(f, "generate_fixtures"),
             Self::ProveStarkOnly => write!(f, "prove_stark_only"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub enum AotTrackingStage {
-    Pure,
-    Runtime,
-    ExecutionState,
-    Planner,
-    RegisterLatest,
-    MemoryLatest,
-    MmioBounds,
-    EventCapacity,
-    RegisterEvents,
-    Full,
-}
-
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-impl From<AotTrackingStage> for PreflightAotStage {
-    fn from(stage: AotTrackingStage) -> Self {
-        match stage {
-            AotTrackingStage::Pure => Self::Pure,
-            AotTrackingStage::Runtime => Self::Runtime,
-            AotTrackingStage::ExecutionState => Self::ExecutionState,
-            AotTrackingStage::Planner => Self::Planner,
-            AotTrackingStage::RegisterLatest => Self::RegisterLatest,
-            AotTrackingStage::MemoryLatest => Self::MemoryLatest,
-            AotTrackingStage::MmioBounds => Self::MmioBounds,
-            AotTrackingStage::EventCapacity => Self::EventCapacity,
-            AotTrackingStage::RegisterEvents => Self::RegisterEvents,
-            AotTrackingStage::Full => Self::Full,
         }
     }
 }
@@ -471,10 +440,6 @@ pub struct HostArgs {
     /// The execution mode.
     #[clap(long, value_enum)]
     mode: BenchMode,
-
-    /// Cumulative responsibility set for `--mode aot-tracking`.
-    #[clap(long, value_enum, requires = "mode")]
-    aot_tracking_stage: Option<AotTrackingStage>,
 
     /// Optional path to the directory containing cached client input. A new cache file will be
     /// created from RPC data if it doesn't already exist.
@@ -701,11 +666,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     }
     init_tracing();
 
-    eyre::ensure!(
-        matches!(args.mode, BenchMode::AotTracking) == args.aot_tracking_stage.is_some(),
-        "--aot-tracking-stage is required exactly when --mode aot-tracking is selected"
-    );
-
     let client_input_from_path =
         args.input_path.as_ref().map(|path| try_load_input_from_path(path).unwrap());
 
@@ -886,7 +846,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
         args.mode,
         BenchMode::Execute |
             BenchMode::AotPure |
-            BenchMode::AotTracking |
+            BenchMode::AotFull |
             BenchMode::Witness |
             BenchMode::AnalyzeShardRam |
             BenchMode::ProveApp |
@@ -1046,13 +1006,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             );
                         }
                     }
-                    BenchMode::AotTracking => {
+                    BenchMode::AotFull => {
                         #[cfg(not(all(
                             feature = "aot",
                             target_arch = "x86_64",
                             target_os = "linux"
                         )))]
-                        eyre::bail!("aot-tracking requires --features aot on x86_64 Linux");
+                        eyre::bail!("aot-full requires --features aot on x86_64 Linux");
 
                         #[cfg(all(
                             feature = "aot",
@@ -1060,23 +1020,9 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             target_os = "linux"
                         ))]
                         {
-                            let stage_arg = args.aot_tracking_stage.ok_or_else(|| {
-                                eyre::eyre!(
-                                    "--mode aot-tracking requires --aot-tracking-stage <stage>"
-                                )
-                            })?;
-                            let stage = PreflightAotStage::from(stage_arg);
-                            let hints = prebuilt_hints.take().expect(
-                                "ceno hints should be initialized before aot-tracking",
-                            );
-                            let hint_words = Vec::<u32>::from(&hints);
-                            let init_memory = platform
-                                .hints
-                                .iter_addresses()
-                                .zip(hint_words.iter().copied())
-                                .map(|(addr, value)| (addr.into(), value))
-                                .collect::<Vec<_>>();
-
+                            let hints = prebuilt_hints
+                                .take()
+                                .expect("ceno hints should be initialized before aot-full");
                             let multi_prover =
                                 MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
                             let program_ctx = setup_program::<ff_ext::BabyBearExt4>(
@@ -1084,63 +1030,66 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 platform.clone(),
                                 multi_prover.clone(),
                             );
+                            let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
                             let raw_step_cell_extractor =
                                 Arc::clone(&program_ctx.system_config.config);
                             let step_cell_extractor: Arc<dyn StepCellExtractor> =
                                 raw_step_cell_extractor;
-                            let tracer_config = PreflightTracerConfig::new(
-                                true,
-                                multi_prover.max_cell_per_shard,
-                                multi_prover.max_cycle_per_shard,
-                            )
-                            .with_step_cell_extractor(step_cell_extractor)
-                            .with_aot_stage(stage);
 
                             let artifact_started = std::time::Instant::now();
-                            let tracking_program = Arc::new(program.clone());
-                            let aot = AotProgram::load_or_train_tracking_with_config(
-                                &platform,
-                                tracking_program.clone(),
-                                init_memory.iter().copied(),
-                                tracer_config.clone(),
-                                stage,
-                            )
-                            .map_err(|err| {
-                                eyre::eyre!("{} AOT setup failed: {err:#}", stage.cache_name())
-                            })?;
-                            let artifact_elapsed = artifact_started.elapsed();
-                            let compile_report = aot.report();
-                            let cache_identity = aot.cache_identity();
-
-                            let mut vm = VMState::<PreflightTracer>::new_with_tracer_config(
-                                platform.clone(),
-                                tracking_program,
-                                tracer_config,
+                            let preflight_aot_program = prepare_preflight_aot_program(
+                                program_ctx.program.clone(),
+                                &program_ctx.platform,
+                                &program_ctx.multi_prover,
+                                step_cell_extractor.clone(),
+                                &init_full_mem,
                             );
-                            for (addr, value) in init_memory {
-                                vm.init_memory(addr, value);
-                            }
-                            let report = info_span!(
-                                "sdk.execute_aot_tracking",
-                                group = program_name,
-                                stage = stage.cache_name()
+                            let artifact_elapsed = artifact_started.elapsed();
+                            let compile_report = preflight_aot_program.report();
+                            let cache_identity = preflight_aot_program.cache_identity();
+
+                            let execution_started = std::time::Instant::now();
+                            let emul_result = info_span!(
+                                "sdk.execute_aot_full_preflight",
+                                group = program_name
                             )
                             .in_scope(|| {
-                                if stage <= PreflightAotStage::Runtime {
-                                    aot.run_pure_to_halt(&mut vm, max_steps)
-                                } else {
-                                    aot.run_to_halt(&mut vm, max_steps)
-                                }
-                            })
-                            .map_err(|err| {
-                                eyre::eyre!(
-                                    "{} AOT execution failed: {err:#}",
-                                    stage.cache_name()
+                                emulate_program(
+                                    program_ctx.program.clone(),
+                                    max_steps,
+                                    &init_full_mem,
+                                    [0; 8],
+                                    &program_ctx.platform,
+                                    &program_ctx.multi_prover,
+                                    step_cell_extractor,
+                                    Some(preflight_aot_program),
                                 )
+                            });
+                            let preflight_elapsed = execution_started.elapsed();
+                            let preflight_execution = emul_result.preflight_execution.ok_or_else(|| {
+                                eyre::eyre!("aot-full preflight did not report AOT execution timing")
                             })?;
-                            let exit_code = vm.halted_state().map(|state| state.exit_code);
-                            let digest_words = vm.committed_public_io().ok_or_else(|| {
-                                eyre::eyre!("tracking AOT guest did not commit a public digest")
+                            let boundaries = emul_result.shard_cycle_boundaries.clone();
+                            let max_step_shard = emul_result.full_tracer_config.max_step_shard;
+                            let tape_events = emul_result.shard_ctx_builder.next_accesses().len();
+                            let replay_started = std::time::Instant::now();
+                            let replay = info_span!(
+                                "sdk.execute_aot_full_replay",
+                                group = program_name
+                            )
+                            .in_scope(|| {
+                                replay_full_trace(
+                                    emul_result,
+                                    program_ctx.program.clone(),
+                                    &program_ctx.platform,
+                                    &init_full_mem,
+                                )
+                            });
+                            let replay_elapsed = replay_started.elapsed();
+                            let total_elapsed = execution_started.elapsed();
+
+                            let digest_words = replay.committed_public_io.ok_or_else(|| {
+                                eyre::eyre!("aot-full guest did not commit a public digest")
                             })?;
                             let digest = digest_words
                                 .into_iter()
@@ -1148,102 +1097,49 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 .collect::<Vec<_>>();
                             eyre::ensure!(
                                 digest.as_slice() == block_hash.0.as_slice(),
-                                "tracking AOT block hash mismatch: guest={} host={}",
+                                "aot-full block hash mismatch: guest={} host={}",
                                 hex::encode(&digest),
                                 ToHexExt::encode_hex(&block_hash),
                             );
                             eyre::ensure!(
-                                exit_code == Some(0),
-                                "tracking AOT guest exit code was {exit_code:?}"
+                                replay.exit_code == Some(0),
+                                "aot-full guest exit code was {:?}",
+                                replay.exit_code
                             );
 
-                            let final_cycle = vm.tracer().cycle();
-                            let last_pc = vm.tracer().last_pc_change();
-                            let last_kind = vm.tracer().last_insn_kind();
-                            let finalization_started = std::time::Instant::now();
-                            let (shard_plan, next_access_tape) =
-                                vm.take_tracer().into_shard_plan();
-                            let finalization_elapsed = finalization_started.elapsed();
-                            const PAGE_BYTES: u32 = 4096;
-                            let mut latest_page = None;
-                            let mut initial_memory_words = 0usize;
-                            let mut touched_memory_pages = 0usize;
-                            for event in next_access_tape.initialization_events() {
-                                let byte_addr = event.address.baddr().0;
-                                if !platform.can_write(byte_addr) {
-                                    continue;
-                                }
-                                initial_memory_words += 1;
-                                let page = byte_addr / PAGE_BYTES;
-                                if latest_page != Some(page) {
-                                    latest_page = Some(page);
-                                    touched_memory_pages += 1;
-                                }
-                            }
-                            let configured_memory_pages =
-                                [&platform.heap, &platform.hints, &platform.stack]
-                                    .into_iter()
-                                    .map(|region| {
-                                        (region.end - region.start).div_ceil(PAGE_BYTES) as usize
-                                    })
-                                    .sum::<usize>();
-
-                            println!("aot-tracking stage: {}", stage.cache_name());
                             println!(
-                                "aot-tracking block_hash: {}",
+                                "aot-full block_hash: {}",
                                 ToHexExt::encode_hex(&block_hash)
                             );
-                            println!("aot-tracking exit_code: {}", exit_code.unwrap_or_default());
-                            println!("aot-tracking instructions: {}", report.executed_steps);
                             println!(
-                                "aot-tracking state: cycle={} pc_before={} pc_after={} last_kind={:?}",
-                                final_cycle, last_pc.before.0, last_pc.after.0, last_kind,
+                                "aot-full exit_code: {}",
+                                replay.exit_code.unwrap_or_default()
+                            );
+                            println!("aot-full instructions: {}", replay.executed_steps);
+                            println!(
+                                "aot-full preflight-aot: total={:?} native={:?} fallback={:?} fallback_steps={}",
+                                preflight_execution.execute_time,
+                                preflight_execution.native_time(),
+                                preflight_execution.fallback_time,
+                                preflight_execution.fallback_steps,
                             );
                             println!(
-                                "aot-tracking planner: num_shards={} boundary_points={} max_step_shard={} boundaries={:?}",
-                                shard_plan.predicted_shard_costs().len(),
-                                shard_plan.shard_cycle_boundaries().len(),
-                                shard_plan.max_step_shard(),
-                                shard_plan.shard_cycle_boundaries(),
+                                "aot-full planner: num_shards={} boundary_points={} max_step_shard={} boundaries={:?}",
+                                replay.replayed_shards,
+                                boundaries.len(),
+                                max_step_shard,
+                                boundaries,
                             );
                             println!(
-                                "aot-tracking finalization: elapsed={:?} tape_events={}",
-                                finalization_elapsed,
-                                next_access_tape.len(),
+                                "aot-full tracking: tape_events={} syscall_witnesses={}",
+                                tape_events, replay.syscall_witnesses,
                             );
                             println!(
-                                "aot-tracking memory-pages: page_bytes={} initial_words={} touched={} configured={} density={:.4}%",
-                                PAGE_BYTES,
-                                initial_memory_words,
-                                touched_memory_pages,
-                                configured_memory_pages,
-                                100.0 * touched_memory_pages as f64
-                                    / configured_memory_pages as f64,
+                                "aot-full execution: total={:?} preflight={:?} replay={:?}",
+                                total_elapsed, preflight_elapsed, replay_elapsed,
                             );
                             println!(
-                                "aot-tracking execution: total={:?} native={:?} fallback={:?}",
-                                report.execute_time,
-                                report.native_time(),
-                                report.fallback_time
-                            );
-                            println!(
-                                "aot-tracking fallbacks: total={} dynamic_pc={} memory_guard={} ecall_by_code={:?} exceptional={}",
-                                report.fallback_steps,
-                                report.fallback.dynamic_pc_miss,
-                                report.fallback.memory_guard,
-                                report.fallback.ecall_by_code,
-                                report.fallback.exceptional_jump_or_trap,
-                            );
-                            println!(
-                                "aot-tracking events: len={} capacity={} growths={} growth_bytes={} growth_time={:?}",
-                                report.next_access_events,
-                                report.next_access_capacity,
-                                report.next_access_growths,
-                                report.next_access_growth_bytes,
-                                report.next_access_growth_time,
-                            );
-                            println!(
-                                "aot-tracking artifact: abi={} cache_identity={} setup={:?} load_or_compile={:?} blocks={} reachable_instructions={}",
+                                "aot-full artifact: abi={} cache_identity={} setup={:?} load_or_compile={:?} blocks={} reachable_instructions={}",
                                 AotProgram::abi_version(),
                                 cache_identity,
                                 artifact_elapsed,
@@ -1252,7 +1148,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 compile_report.reachable_instruction_count,
                             );
                             println!(
-                                "aot-tracking peak_rss_kib: {}",
+                                "aot-full peak_rss_kib: {}",
                                 peak_rss_kib().unwrap_or_default()
                             );
                         }
