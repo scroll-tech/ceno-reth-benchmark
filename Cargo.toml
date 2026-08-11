@@ -59,12 +59,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/extract_aot_bb_workload" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/extract_aot_bb_workload" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/extract_aot_bb_workload" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/extract_aot_bb_workload" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/extract_aot_bb_workload" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/extract_aot_bb_workload" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
 
@@ -204,9 +204,9 @@ opt-level = 3
 inherits = "release"
 debug = 1
 
-[patch."https://github.com/scroll-tech/ceno.git"]
-ceno_emul = { path = "../ceno/ceno_emul" }
-ceno_host = { path = "../ceno/ceno_host" }
-ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-gkr_iop = { path = "../ceno/gkr_iop" }
-ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
+#[patch."https://github.com/scroll-tech/ceno.git"]
+#ceno_emul = { path = "../ceno/ceno_emul" }
+#ceno_host = { path = "../ceno/ceno_host" }
+#ceno_zkvm = { path = "../ceno/ceno_zkvm" }
+#gkr_iop = { path = "../ceno/gkr_iop" }
+#ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }

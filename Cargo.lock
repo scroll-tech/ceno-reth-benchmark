@@ -1431,6 +1431,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1562,6 +1563,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "glob",
 ]
@@ -1588,12 +1590,14 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "anyhow",
  "ceno_rt",
  "ceno_syscall",
  "elf",
  "ff_ext",
+ "halo2curves-axiom",
  "itertools 0.13.0",
  "k256 0.13.4 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "libloading 0.8.9",
@@ -1605,6 +1609,7 @@ dependencies = [
  "p256 0.13.2 (git+https://github.com/scroll-tech/elliptic-curves?branch=ceno%2Fk256-13.4)",
  "rayon",
  "rrs-succinct",
+ "ruint",
  "rustc-hash 2.1.1",
  "secp",
  "serde",
@@ -1622,6 +1627,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1634,6 +1640,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion_v2"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "bincode 1.3.3",
  "bincode 2.0.1",
@@ -1687,6 +1694,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1699,6 +1707,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1712,6 +1721,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#48f82923
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "arrayref",
  "base64",
@@ -2485,6 +2495,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3208,6 +3219,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fextract_aot_bb_workload#67d9c15bc01fb2ed7260b1422e16988ab70d9d21"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
