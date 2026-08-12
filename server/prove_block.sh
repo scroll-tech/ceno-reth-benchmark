@@ -112,6 +112,12 @@ post_status() {
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
 echo "[prove_block.sh] Job dir: $job_dir" >&2
+if [[ -f /app/ceno-revision.txt ]]; then
+  echo "[prove_block.sh] Ceno revision: $(cat /app/ceno-revision.txt)" >&2
+fi
+if [[ -f /app/guest-elf.sha256 ]]; then
+  echo "[prove_block.sh] Guest ELF: $(cat /app/guest-elf.sha256)" >&2
+fi
 wait_for_gpu
 
 # Determine block number: either override or fetch latest via RPC.

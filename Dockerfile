@@ -35,12 +35,30 @@ RUN rustup toolchain install nightly-2025-11-20 \
   && rustup component add rust-src --toolchain nightly-2025-11-20 \
   && rustup default nightly-2025-11-20
 
-RUN JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
-    cargo install --git https://github.com/scroll-tech/ceno.git --features jemalloc --features nightly-features cargo-ceno
-
 WORKDIR /app
 # Copy only Rust workspace files to keep build cache stable when server/ changes
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+
+# Build the guest with the exact cargo-ceno revision used by the host graph.
+# Keeping this after Cargo.lock is copied also invalidates the Docker layer when
+# the pinned Ceno revision changes.
+RUN set -eu; \
+    CENO_REV="$(awk ' \
+      $0 == "[[package]]" { in_package = 0 } \
+      $0 == "name = \"cargo-ceno\"" { in_package = 1; next } \
+      in_package && /^source = "git\+https:\/\/github.com\/scroll-tech\/ceno(\.git)?\?/ { \
+        source = $0; \
+        sub(/^.*#/, "", source); \
+        sub(/".*$/, "", source); \
+        print source; \
+        exit \
+      }' Cargo.lock)"; \
+    printf '%s' "$CENO_REV" | grep -Eq '^[0-9a-f]{40}$'; \
+    printf '%s\n' "$CENO_REV" > /app/ceno-revision.txt; \
+    JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
+      cargo install --git https://github.com/scroll-tech/ceno.git --rev "$CENO_REV" \
+        --features jemalloc --features nightly-features --locked cargo-ceno
+
 COPY crates/ ./crates/
 COPY bin/ ./bin/
 COPY rustfmt.toml ./
@@ -52,9 +70,16 @@ RUN --mount=type=secret,id=sshkey \
     set -e; \
     KEY=/run/secrets/sshkey; \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
-    cargo --config net.git-fetch-with-cli=true ceno build --release \
+    LOCKED_CENO_REV="$(cat /app/ceno-revision.txt)"; \
+    GUEST_CENO_REVS="$(grep '^source = "git+https://github.com/scroll-tech/ceno?' Cargo.lock \
+      | sed -E 's/.*#([0-9a-f]{40})"/\1/' | sort -u)"; \
+    test "$GUEST_CENO_REVS" = "$LOCKED_CENO_REV"; \
+    cargo --config net.git-fetch-with-cli=true ceno build --release --locked \
+  && GUEST_ELF=/app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth \
+  && readelf -SW "$GUEST_ELF" | grep -q '[.]llvm_bb_addr_map' \
   && mkdir -p ../ceno-host/elf \
-  && cp /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth ../ceno-host/elf/
+  && cp "$GUEST_ELF" ../ceno-host/elf/ \
+  && sha256sum "$GUEST_ELF" > /app/guest-elf.sha256
 
 # Build host binary
 WORKDIR /app
@@ -67,7 +92,7 @@ RUN --mount=type=secret,id=sshkey \
     set -e; \
     KEY=/run/secrets/sshkey; \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
-    cargo +nightly-2025-11-20 build --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
+    cargo +nightly-2025-11-20 build --locked --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
@@ -93,6 +118,8 @@ COPY --from=builder /app/target/release/ceno-reth-benchmark-bin /usr/local/bin/c
 COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/elf/ceno-client-eth
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
+COPY --from=builder /app/ceno-revision.txt /app/ceno-revision.txt
+COPY --from=builder /app/guest-elf.sha256 /app/guest-elf.sha256
 COPY server /app/server
 RUN mkdir -p /app/jobs \
   && chmod +x /app/server/check_gpu.sh /app/server/entrypoint.sh
