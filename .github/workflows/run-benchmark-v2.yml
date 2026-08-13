@@ -122,6 +122,11 @@ on:
           - "sequential"
           - "concurrent"
           - "two-stream"
+      chip_proving_lanes:
+        description: "Value for CENO_CHIP_PROVING_LANES (two-stream mode only)"
+        required: false
+        type: string
+        default: "2"
       gpu_mem_tracking:
         description: "Value for CENO_GPU_MEM_TRACKING"
         required: false
@@ -313,6 +318,7 @@ jobs:
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_CHIP_PROVING_MODE=${{ inputs.chip_proving_mode }} \
+          CENO_CHIP_PROVING_LANES=${{ inputs.chip_proving_lanes }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
@@ -516,6 +522,7 @@ jobs:
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_CHIP_PROVING_MODE=${{ inputs.chip_proving_mode }} \
+          CENO_CHIP_PROVING_LANES=${{ inputs.chip_proving_lanes }} \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           RUST_MIN_STACK=536870912 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
