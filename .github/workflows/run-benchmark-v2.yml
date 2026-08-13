@@ -114,7 +114,7 @@ on:
           - "0"
           - "1"
       chip_proving_mode:
-        description: "Value for CENO_CHIP_PROVING_MODE"
+        description: "Chip scheduler mode; suffixed two-stream values select an explicit lane count"
         required: false
         type: choice
         default: "concurrent"
@@ -122,11 +122,10 @@ on:
           - "sequential"
           - "concurrent"
           - "two-stream"
-      chip_proving_lanes:
-        description: "Value for CENO_CHIP_PROVING_LANES (two-stream mode only)"
-        required: false
-        type: string
-        default: "2"
+          - "two-stream-1"
+          - "two-stream-2"
+          - "two-stream-3"
+          - "two-stream-4"
       gpu_mem_tracking:
         description: "Value for CENO_GPU_MEM_TRACKING"
         required: false
@@ -203,6 +202,12 @@ jobs:
         id: run_gpu_mem_verify
         run: |
           block_number="${{ inputs.block_number }}"
+          chip_proving_mode="${{ inputs.chip_proving_mode }}"
+          chip_proving_lanes="2"
+          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-4])$ ]]; then
+            chip_proving_lanes="${BASH_REMATCH[1]}"
+            chip_proving_mode="two-stream"
+          fi
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
           if [ "${CENO_USE_PINNED}" = "true" ]; then
@@ -317,8 +322,8 @@ jobs:
           # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
-          CENO_CHIP_PROVING_MODE=${{ inputs.chip_proving_mode }} \
-          CENO_CHIP_PROVING_LANES=${{ inputs.chip_proving_lanes }} \
+          CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
+          CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
@@ -409,6 +414,12 @@ jobs:
         id: run_benchmark
         run: |
           block_number="${{ inputs.block_number }}"
+          chip_proving_mode="${{ inputs.chip_proving_mode }}"
+          chip_proving_lanes="2"
+          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-4])$ ]]; then
+            chip_proving_lanes="${BASH_REMATCH[1]}"
+            chip_proving_mode="two-stream"
+          fi
           # Install Ceno CLI
           echo "Installing Ceno CLI..."
           if [ "${CENO_USE_PINNED}" = "true" ]; then
@@ -521,8 +532,8 @@ jobs:
           set +e
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
-          CENO_CHIP_PROVING_MODE=${{ inputs.chip_proving_mode }} \
-          CENO_CHIP_PROVING_LANES=${{ inputs.chip_proving_lanes }} \
+          CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
+          CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           RUST_MIN_STACK=536870912 \
           CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
