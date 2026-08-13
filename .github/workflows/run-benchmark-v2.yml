@@ -105,27 +105,21 @@ on:
         required: false
         type: string
         default: "3048"
-      concurrent_chip_proving:
-        description: "Value for CENO_CONCURRENT_CHIP_PROVING"
-        required: false
-        type: choice
-        default: "1"
-        options:
-          - "0"
-          - "1"
       chip_proving_mode:
-        description: "Chip scheduler mode; suffixed two-stream values select an explicit lane count"
+        description: "Bounded chip scheduler lane count, or sequential control"
         required: false
         type: choice
-        default: "concurrent"
+        default: "two-stream-4"
         options:
           - "sequential"
-          - "concurrent"
-          - "two-stream"
           - "two-stream-1"
           - "two-stream-2"
           - "two-stream-3"
           - "two-stream-4"
+          - "two-stream-5"
+          - "two-stream-6"
+          - "two-stream-7"
+          - "two-stream-8"
       gpu_mem_tracking:
         description: "Value for CENO_GPU_MEM_TRACKING"
         required: false
@@ -203,8 +197,8 @@ jobs:
         run: |
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
-          chip_proving_lanes="2"
-          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-4])$ ]]; then
+          chip_proving_lanes="4"
+          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-8])$ ]]; then
             chip_proving_lanes="${BASH_REMATCH[1]}"
             chip_proving_mode="two-stream"
           fi
@@ -319,9 +313,8 @@ jobs:
           ulimit -s 1048576
           set +e
 
-          # Note: `CENO_GPU_MEM_TRACKING=1 CENO_CONCURRENT_CHIP_PROVING=0` to check GPU memory estimation
+          # Use `CENO_GPU_MEM_TRACKING=1` to check GPU memory estimation.
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
-          CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
@@ -415,8 +408,8 @@ jobs:
         run: |
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
-          chip_proving_lanes="2"
-          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-4])$ ]]; then
+          chip_proving_lanes="4"
+          if [[ "${chip_proving_mode}" =~ ^two-stream-([1-8])$ ]]; then
             chip_proving_lanes="${BASH_REMATCH[1]}"
             chip_proving_mode="two-stream"
           fi
@@ -531,7 +524,6 @@ jobs:
           ulimit -s 1048576
           set +e
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
-          CENO_CONCURRENT_CHIP_PROVING=${{ inputs.concurrent_chip_proving }} \
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
