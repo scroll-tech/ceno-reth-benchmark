@@ -993,7 +993,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frollback_degree_3#13250d16457344066588bdd2755993ae3f1df037"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Faot_block_agnostic#6f6bc870b3416d584b5b8f15deb8f3d42e6b4422"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frollback_degree_3#13250d16457344066588bdd2755993ae3f1df037"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Faot_block_agnostic#6f6bc870b3416d584b5b8f15deb8f3d42e6b4422"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -1025,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frollback_degree_3#13250d16457344066588bdd2755993ae3f1df037"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Faot_block_agnostic#6f6bc870b3416d584b5b8f15deb8f3d42e6b4422"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frollback_degree_3#13250d16457344066588bdd2755993ae3f1df037"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Faot_block_agnostic#6f6bc870b3416d584b5b8f15deb8f3d42e6b4422"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1047,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Frollback_degree_3#13250d16457344066588bdd2755993ae3f1df037"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Faot_block_agnostic#6f6bc870b3416d584b5b8f15deb8f3d42e6b4422"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
