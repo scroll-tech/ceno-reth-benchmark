@@ -59,12 +59,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/aot_block_agnostic" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/aot_block_agnostic" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/aot_block_agnostic" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/aot_block_agnostic" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/aot_block_agnostic" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/aot_block_agnostic" }
+ceno_emul = { git = "https://github.com/hero78119/ceno", branch = "feat/opt_scheduler" }
+ceno_host = { git = "https://github.com/hero78119/ceno", branch = "feat/opt_scheduler" }
+ceno_zkvm = { git = "https://github.com/hero78119/ceno", branch = "feat/opt_scheduler" }
+ceno_cli = { git = "https://github.com/hero78119/ceno", package = "cargo-ceno", branch = "feat/opt_scheduler" }
+ceno_recursion = { git = "https://github.com/hero78119/ceno", branch = "feat/opt_scheduler" }
+gkr_iop = { git = "https://github.com/hero78119/ceno", branch = "feat/opt_scheduler" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
 
