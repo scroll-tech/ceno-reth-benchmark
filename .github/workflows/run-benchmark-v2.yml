@@ -156,6 +156,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -229,7 +231,7 @@ jobs:
             --force \
             "${CENO_PACKAGE}"
 
-          RPC_1=${{ secrets.RPC_URL_1 }}
+          export RPC_1=${{ secrets.RPC_URL_1 }}
 
           # Build client binary
           cd bin/ceno-client-eth
@@ -328,7 +330,6 @@ jobs:
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
-            --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache \
             --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
@@ -367,6 +368,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -440,7 +443,7 @@ jobs:
             --force \
             "${CENO_PACKAGE}"
 
-          RPC_1=${{ secrets.RPC_URL_1 }}
+          export RPC_1=${{ secrets.RPC_URL_1 }}
 
           # Build client binary
           cd bin/ceno-client-eth
@@ -537,7 +540,6 @@ jobs:
             --release --bin ceno-reth-benchmark-bin -- \
             --mode prove-stark \
             --block-number $block_number \
-            --rpc-url ${{ secrets.RPC_URL_1 }} \
             --output-dir output \
             --cache-dir rpc-cache \
             --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
