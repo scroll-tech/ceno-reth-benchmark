@@ -34,6 +34,11 @@ docker run --gpus all \
   reth-server:latest
 ```
 
+The server leaves `CENO_CHIP_PROVING_MODE` and `CENO_CHIP_PROVING_LANES`
+unset by default, so the pinned Ceno revision owns the scheduler defaults.
+Set either variable only for an explicit override. The removed
+`CENO_CONCURRENT_CHIP_PROVING` setting is not supported.
+
 If the host GPU goes offline and later recovers, an existing container can keep
 stale NVIDIA device bindings and report `Failed to initialize NVML: Unknown
 Error`. The server exits with status 75 after detecting this condition. Delete

@@ -210,4 +210,3 @@ debug = 1
 #ceno_zkvm = { path = "../ceno/ceno_zkvm" }
 #gkr_iop = { path = "../ceno/gkr_iop" }
 #ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }
-#ceno_recursion = { path = "../ceno/ceno_recursion" }

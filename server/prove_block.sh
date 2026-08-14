@@ -11,7 +11,8 @@ CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
 CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-1}"
 CENO_GPU_ENABLE_WITGEN="${CENO_GPU_ENABLE_WITGEN:-0}"
-CENO_CONCURRENT_CHIP_PROVING="${CENO_CONCURRENT_CHIP_PROVING:-1}"
+CENO_CHIP_PROVING_MODE="${CENO_CHIP_PROVING_MODE:-}"
+CENO_CHIP_PROVING_LANES="${CENO_CHIP_PROVING_LANES:-}"
 CENO_GPU_MEM_TRACKING="${CENO_GPU_MEM_TRACKING:-0}"
 # Validated on blocks 23817600, 25580200, 25586000, and 25586200 on a 24GB RTX 4090.
 CENO_MAX_CELL_PER_SHARD="${CENO_MAX_CELL_PER_SHARD:-4500000000}"
@@ -23,6 +24,9 @@ GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
 GPU_READY_MAX_ATTEMPTS="${GPU_READY_MAX_ATTEMPTS:-6}"
 PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
 GPU_UNAVAILABLE_EXIT_CODE=75
+
+# Remove the obsolete scheduler switch inherited from older deployments.
+unset CENO_CONCURRENT_CHIP_PROVING
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -119,6 +123,13 @@ post_status() {
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
 echo "[prove_block.sh] Job dir: $job_dir" >&2
+echo "[prove_block.sh] Chip scheduler overrides: mode=${CENO_CHIP_PROVING_MODE:-<rust-default>} lanes=${CENO_CHIP_PROVING_LANES:-<rust-default>}" >&2
+if [[ -f /app/ceno-revision.txt ]]; then
+  echo "[prove_block.sh] Ceno revision: $(cat /app/ceno-revision.txt)" >&2
+fi
+if [[ -f /app/guest-elf.sha256 ]]; then
+  echo "[prove_block.sh] Guest ELF: $(cat /app/guest-elf.sha256)" >&2
+fi
 wait_for_gpu
 
 # Determine block number: either override or fetch latest via RPC.
@@ -244,7 +255,16 @@ OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
 export CENO_GPU_ENABLE_WITGEN
-export CENO_CONCURRENT_CHIP_PROVING
+if [[ -n "$CENO_CHIP_PROVING_MODE" ]]; then
+  export CENO_CHIP_PROVING_MODE
+else
+  unset CENO_CHIP_PROVING_MODE
+fi
+if [[ -n "$CENO_CHIP_PROVING_LANES" ]]; then
+  export CENO_CHIP_PROVING_LANES
+else
+  unset CENO_CHIP_PROVING_LANES
+fi
 export CENO_GPU_MEM_TRACKING
 export CENO_MAX_CELL_PER_SHARD
 export CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT

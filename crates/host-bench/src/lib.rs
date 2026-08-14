@@ -48,13 +48,20 @@ use tracing::{info, info_span};
 
 use cargo_metadata::MetadataCommand;
 use ceno_cli::sdk as ceno_sdk;
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+use ceno_emul::{
+    aot::{AotProgram, PureAotTracer},
+    IterAddresses, VMState,
+};
 use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-use ceno_zkvm::e2e::prepare_preflight_aot_program;
 use ceno_zkvm::e2e::{
     analyze_shard_ram_light, emulate_program, generate_witness, run_e2e_full_trace_verify,
     run_e2e_single_shard_debug_verify, setup_platform, setup_program, MultiProver, Preset,
+};
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+use ceno_zkvm::e2e::{
+    prepare_fulltracer_aot_program, prepare_preflight_aot_program, replay_full_trace,
 };
 use gkr_iop::cpu::default_backend_config;
 
@@ -376,6 +383,10 @@ pub enum BenchMode {
     ExecuteHost,
     /// Execute the VM without generating a proof.
     Execute,
+    /// Benchmark-only value-correct AOT execution without proof tracking.
+    AotPure,
+    /// Run production AOT preflight followed by bounded FullTracer replay.
+    AotFull,
     /// Execute the VM with metering to get segments information.
     ExecuteMetered,
     /// Run full preflight and CPU witness assignment, without proving.
@@ -402,6 +413,8 @@ impl std::fmt::Display for BenchMode {
         match self {
             Self::ExecuteHost => write!(f, "execute_host"),
             Self::Execute => write!(f, "execute"),
+            Self::AotPure => write!(f, "aot_pure"),
+            Self::AotFull => write!(f, "aot_full"),
             Self::ExecuteMetered => write!(f, "execute_metered"),
             Self::Witness => write!(f, "witness"),
             Self::AnalyzeShardRam => write!(f, "analyze_shard_ram"),
@@ -618,6 +631,18 @@ fn env_flag_enabled(name: &str) -> bool {
     )
 }
 
+#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
+fn peak_rss_kib() -> Option<u64> {
+    fs::read_to_string("/proc/self/status")
+        .ok()?
+        .lines()
+        .find_map(|line| line.strip_prefix("VmHWM:"))?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()
+}
+
 fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecursionV2Prover> {
     sdk.init_agg_prover().map_err(|err| eyre::eyre!("{err:?}"))
 }
@@ -821,6 +846,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     let needs_ceno_hints = matches!(
         args.mode,
         BenchMode::Execute |
+            BenchMode::AotPure |
+            BenchMode::AotFull |
             BenchMode::Witness |
             BenchMode::AnalyzeShardRam |
             BenchMode::ProveApp |
@@ -835,7 +862,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
     };
     #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
     if let (Some(ceno_sdk), Some(hints)) = (prebuilt_jagged_sdk.as_mut(), prebuilt_hints.as_ref()) {
-        info_span!("sdk.prepare_preflight_aot").in_scope(|| ceno_sdk.prepare_preflight_aot(hints));
+        info_span!("sdk.prepare_preflight_aot")
+            .in_scope(|| ceno_sdk.prepare_preflight_aot(hints, true));
     }
 
     run_with_metric_collection("OUTPUT_PATH", || {
@@ -872,6 +900,264 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                 }
 
                 match args.mode {
+                    BenchMode::AotPure => {
+                        #[cfg(not(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        )))]
+                        eyre::bail!("aot-pure requires --features aot on x86_64 Linux");
+
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        {
+                            let hints = prebuilt_hints
+                                .take()
+                                .expect("ceno hints should be initialized before aot-pure");
+                            let hint_words = Vec::<u32>::from(&hints);
+                            let init_memory = platform
+                                .hints
+                                .iter_addresses()
+                                .zip(hint_words.iter().copied())
+                                .map(|(addr, value)| (addr.into(), value))
+                                .collect::<Vec<_>>();
+
+                            let artifact_started = std::time::Instant::now();
+                            let pure_program = Arc::new(program.clone());
+                            let aot = AotProgram::load_or_train_pure(
+                                &platform,
+                                pure_program.clone(),
+                                init_memory.iter().copied(),
+                            )
+                            .map_err(|err| eyre::eyre!("pure AOT setup failed: {err:#}"))?;
+                            let artifact_elapsed = artifact_started.elapsed();
+                            let compile_report = aot.report();
+                            let cache_identity = aot.cache_identity();
+
+                            let mut vm = VMState::<PureAotTracer>::new_with_tracer(
+                                platform.clone(),
+                                pure_program,
+                            );
+                            for (addr, value) in init_memory {
+                                vm.init_memory(addr, value);
+                            }
+
+                            let report = info_span!("sdk.execute_aot_pure", group = program_name)
+                                .in_scope(|| aot.run_pure_to_halt(&mut vm, max_steps))
+                                .map_err(|err| eyre::eyre!("pure AOT execution failed: {err:#}"))?;
+                            let exit_code = vm.halted_state().map(|state| state.exit_code);
+                            let digest_words = vm.committed_public_io().ok_or_else(|| {
+                                eyre::eyre!("pure AOT guest did not commit a public digest")
+                            })?;
+                            let digest = digest_words
+                                .into_iter()
+                                .flat_map(u32::to_le_bytes)
+                                .collect::<Vec<_>>();
+                            eyre::ensure!(
+                                digest.as_slice() == block_hash.0.as_slice(),
+                                "pure AOT block hash mismatch: guest={} host={}",
+                                hex::encode(&digest),
+                                ToHexExt::encode_hex(&block_hash),
+                            );
+                            eyre::ensure!(
+                                exit_code == Some(0),
+                                "pure AOT guest exit code was {exit_code:?}"
+                            );
+
+                            let native_time = report.native_time();
+                            let throughput = report.executed_steps as f64
+                                / report.execute_time.as_secs_f64()
+                                / 1_000_000.0;
+                            println!("aot-pure diagnostic only: proof_compatible=false");
+                            println!(
+                                "aot-pure block_hash: {}",
+                                ToHexExt::encode_hex(&block_hash)
+                            );
+                            println!("aot-pure exit_code: {}", exit_code.unwrap_or_default());
+                            println!(
+                                "aot-pure instructions: {} throughput_minst_per_s={throughput:.3}",
+                                report.executed_steps
+                            );
+                            println!(
+                                "aot-pure execution: total={:?} native={:?} fallback={:?}",
+                                report.execute_time, native_time, report.fallback_time
+                            );
+                            println!(
+                                "aot-pure fallbacks: total={} dynamic_pc={} memory_guard={} ecall_by_code={:?} exceptional={}",
+                                report.fallback_steps,
+                                report.fallback.dynamic_pc_miss,
+                                report.fallback.memory_guard,
+                                report.fallback.ecall_by_code,
+                                report.fallback.exceptional_jump_or_trap,
+                            );
+                            println!(
+                                "aot-pure artifact: abi={} cache_identity={} setup={:?} load_or_compile={:?} blocks={} reachable_instructions={}",
+                                AotProgram::abi_version(),
+                                cache_identity,
+                                artifact_elapsed,
+                                compile_report.compile_load_time,
+                                compile_report.block_count,
+                                compile_report.reachable_instruction_count,
+                            );
+                            println!(
+                                "aot-pure peak_rss_kib: {}",
+                                peak_rss_kib().unwrap_or_default()
+                            );
+                        }
+                    }
+                    BenchMode::AotFull => {
+                        #[cfg(not(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        )))]
+                        eyre::bail!("aot-full requires --features aot on x86_64 Linux");
+
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        {
+                            let hints = prebuilt_hints
+                                .take()
+                                .expect("ceno hints should be initialized before aot-full");
+                            let multi_prover =
+                                MultiProver::new(0, 1, max_cell_per_shard, MAX_CYCLE_PER_SHARD);
+                            let program_ctx = setup_program::<ff_ext::BabyBearExt4>(
+                                program.clone(),
+                                platform.clone(),
+                                multi_prover.clone(),
+                            );
+                            let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                            let raw_step_cell_extractor =
+                                Arc::clone(&program_ctx.system_config.config);
+                            let step_cell_extractor: Arc<dyn StepCellExtractor> =
+                                raw_step_cell_extractor;
+
+                            let artifact_started = std::time::Instant::now();
+                            let preflight_aot_program = prepare_preflight_aot_program(
+                                program_ctx.program.clone(),
+                                &program_ctx.platform,
+                                &program_ctx.multi_prover,
+                                step_cell_extractor.clone(),
+                                &init_full_mem,
+                            );
+                            let fulltracer_aot_program =
+                                prepare_fulltracer_aot_program(&preflight_aot_program);
+                            let artifact_elapsed = artifact_started.elapsed();
+                            let compile_report = preflight_aot_program.report();
+                            let cache_identity = preflight_aot_program.cache_identity();
+
+                            let execution_started = std::time::Instant::now();
+                            let emul_result = info_span!(
+                                "sdk.execute_aot_full_preflight",
+                                group = program_name
+                            )
+                            .in_scope(|| {
+                                emulate_program(
+                                    program_ctx.program.clone(),
+                                    max_steps,
+                                    &init_full_mem,
+                                    [0; 8],
+                                    &program_ctx.platform,
+                                    &program_ctx.multi_prover,
+                                    step_cell_extractor,
+                                    Some(preflight_aot_program),
+                                    Some(fulltracer_aot_program),
+                                )
+                            });
+                            let preflight_elapsed = execution_started.elapsed();
+                            let preflight_execution = emul_result.preflight_execution.ok_or_else(|| {
+                                eyre::eyre!("aot-full preflight did not report AOT execution timing")
+                            })?;
+                            let boundaries = emul_result.shard_cycle_boundaries.clone();
+                            let max_step_shard = emul_result.full_tracer_config.max_step_shard;
+                            let tape_events = emul_result.shard_ctx_builder.next_accesses().len();
+                            let replay_started = std::time::Instant::now();
+                            let replay = info_span!(
+                                "sdk.execute_aot_full_replay",
+                                group = program_name
+                            )
+                            .in_scope(|| {
+                                replay_full_trace(
+                                    emul_result,
+                                    program_ctx.program.clone(),
+                                    &program_ctx.platform,
+                                    &init_full_mem,
+                                )
+                            });
+                            let replay_elapsed = replay_started.elapsed();
+                            let total_elapsed = execution_started.elapsed();
+
+                            let digest_words = replay.committed_public_io.ok_or_else(|| {
+                                eyre::eyre!("aot-full guest did not commit a public digest")
+                            })?;
+                            let digest = digest_words
+                                .into_iter()
+                                .flat_map(u32::to_le_bytes)
+                                .collect::<Vec<_>>();
+                            eyre::ensure!(
+                                digest.as_slice() == block_hash.0.as_slice(),
+                                "aot-full block hash mismatch: guest={} host={}",
+                                hex::encode(&digest),
+                                ToHexExt::encode_hex(&block_hash),
+                            );
+                            eyre::ensure!(
+                                replay.exit_code == Some(0),
+                                "aot-full guest exit code was {:?}",
+                                replay.exit_code
+                            );
+
+                            println!(
+                                "aot-full block_hash: {}",
+                                ToHexExt::encode_hex(&block_hash)
+                            );
+                            println!(
+                                "aot-full exit_code: {}",
+                                replay.exit_code.unwrap_or_default()
+                            );
+                            println!("aot-full instructions: {}", replay.executed_steps);
+                            println!(
+                                "aot-full preflight-aot: total={:?} native={:?} fallback={:?} fallback_steps={}",
+                                preflight_execution.execute_time,
+                                preflight_execution.native_time(),
+                                preflight_execution.fallback_time,
+                                preflight_execution.fallback_steps,
+                            );
+                            println!(
+                                "aot-full planner: num_shards={} boundary_points={} max_step_shard={} boundaries={:?}",
+                                replay.replayed_shards,
+                                boundaries.len(),
+                                max_step_shard,
+                                boundaries,
+                            );
+                            println!(
+                                "aot-full tracking: tape_events={} syscall_witnesses={}",
+                                tape_events, replay.syscall_witnesses,
+                            );
+                            println!(
+                                "aot-full execution: total={:?} preflight={:?} replay={:?}",
+                                total_elapsed, preflight_elapsed, replay_elapsed,
+                            );
+                            println!(
+                                "aot-full artifact: abi={} cache_identity={} setup={:?} load_or_compile={:?} blocks={} reachable_instructions={}",
+                                AotProgram::abi_version(),
+                                cache_identity,
+                                artifact_elapsed,
+                                compile_report.compile_load_time,
+                                compile_report.block_count,
+                                compile_report.reachable_instruction_count,
+                            );
+                            println!(
+                                "aot-full peak_rss_kib: {}",
+                                peak_rss_kib().unwrap_or_default()
+                            );
+                        }
+                    }
                     BenchMode::Execute => {
                         let hints = prebuilt_hints
                             .take()
@@ -894,13 +1180,20 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             target_arch = "x86_64",
                             target_os = "linux"
                         ))]
-                        let preflight_aot_program = Some(prepare_preflight_aot_program(
+                        let preflight_aot_program = prepare_preflight_aot_program(
                             program_ctx.program.clone(),
                             &program_ctx.platform,
                             &program_ctx.multi_prover,
                             step_cell_extractor.clone(),
                             &init_full_mem,
-                        ));
+                        );
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let fulltracer_aot_program =
+                            prepare_fulltracer_aot_program(&preflight_aot_program);
                         let report = info_span!("sdk.execute", group = program_name).in_scope(|| {
                             emulate_program(
                                 program_ctx.program.clone(),
@@ -915,7 +1208,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                     target_arch = "x86_64",
                                     target_os = "linux"
                                 ))]
-                                preflight_aot_program,
+                                Some(preflight_aot_program),
+                                #[cfg(all(
+                                    feature = "aot",
+                                    target_arch = "x86_64",
+                                    target_os = "linux"
+                                ))]
+                                Some(fulltracer_aot_program),
                             )
                         });
                         println!("ceno executed instructions: {}", report.executed_steps);
@@ -941,13 +1240,20 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             target_arch = "x86_64",
                             target_os = "linux"
                         ))]
-                        let preflight_aot_program = Some(prepare_preflight_aot_program(
+                        let preflight_aot_program = prepare_preflight_aot_program(
                             program_ctx.program.clone(),
                             &program_ctx.platform,
                             &program_ctx.multi_prover,
                             step_cell_extractor.clone(),
                             &init_full_mem,
-                        ));
+                        );
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let fulltracer_aot_program =
+                            prepare_fulltracer_aot_program(&preflight_aot_program);
                         let emul_result = emulate_program(
                             program_ctx.program.clone(),
                             max_steps,
@@ -961,7 +1267,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 target_arch = "x86_64",
                                 target_os = "linux"
                             ))]
-                            preflight_aot_program,
+                            Some(preflight_aot_program),
+                            #[cfg(all(
+                                feature = "aot",
+                                target_arch = "x86_64",
+                                target_os = "linux"
+                            ))]
+                            Some(fulltracer_aot_program),
                         );
                         let target_shard_id = args.shard_id.map_or(0, |value| value as usize);
                         let mut witnesses = generate_witness(
@@ -992,6 +1304,39 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             multi_prover,
                         );
                         let init_full_mem = program_ctx.setup_init_mem(&Vec::from(&hints));
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let raw_step_cell_extractor =
+                            Arc::clone(&program_ctx.system_config.config);
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let step_cell_extractor: Arc<dyn StepCellExtractor> =
+                            raw_step_cell_extractor;
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let preflight_aot_program = prepare_preflight_aot_program(
+                            program_ctx.program.clone(),
+                            &program_ctx.platform,
+                            &program_ctx.multi_prover,
+                            step_cell_extractor,
+                            &init_full_mem,
+                        );
+                        #[cfg(all(
+                            feature = "aot",
+                            target_arch = "x86_64",
+                            target_os = "linux"
+                        ))]
+                        let fulltracer_aot_program =
+                            prepare_fulltracer_aot_program(&preflight_aot_program);
                         let reports = info_span!("sdk.analyze_shard_ram", group = program_name)
                             .in_scope(|| {
                                 analyze_shard_ram_light(
@@ -1006,7 +1351,13 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                         target_arch = "x86_64",
                                         target_os = "linux"
                                     ))]
-                                    program_ctx.preflight_aot_program.clone(),
+                                    Some(preflight_aot_program),
+                                    #[cfg(all(
+                                        feature = "aot",
+                                        target_arch = "x86_64",
+                                        target_os = "linux"
+                                    ))]
+                                    Some(fulltracer_aot_program),
                                 )
                             });
                         for report in reports {

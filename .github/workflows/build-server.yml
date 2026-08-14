@@ -92,4 +92,3 @@ jobs:
           echo "- Tag: ${{ steps.meta.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- Pushed: ${{ inputs.push }}" >> $GITHUB_STEP_SUMMARY
 
-
