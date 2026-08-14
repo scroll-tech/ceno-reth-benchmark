@@ -33,9 +33,9 @@ docker run --gpus all \
   reth-server:latest
 ```
 
-The image defaults to the bounded GPU scheduler with
-`CENO_CHIP_PROVING_MODE=lanes` and `CENO_CHIP_PROVING_LANES=4`. Override the
-lane count explicitly only for a measured benchmark. The removed
+The server leaves `CENO_CHIP_PROVING_MODE` and `CENO_CHIP_PROVING_LANES`
+unset by default, so the pinned Ceno revision owns the scheduler defaults.
+Set either variable only for an explicit override. The removed
 `CENO_CONCURRENT_CHIP_PROVING` setting is not supported.
 
 Mounting `/app/jobs` persists `block_data` and logs between runs. Set `CENO_STATUS_API_BASE_URL`, `CENO_STATUS_API_KEY`, and `CENO_CLUSTER_ID` to report queue/proving/proved events to the API (omit them to skip the HTTP hooks). Configure any other env vars (APP_PK_URI, AGG_PK_URI, JOBS_DIR, etc.) as needed.
