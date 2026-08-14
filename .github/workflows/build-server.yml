@@ -45,6 +45,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Validate server scripts
+        run: |
+          bash -n server/entrypoint.sh server/prove_block.sh server/test_prove_block_scheduler.sh
+          server/test_prove_block_scheduler.sh
+
       - name: Determine image metadata
         id: meta
         shell: bash
@@ -80,6 +85,8 @@ jobs:
           file: ./Dockerfile
           push: ${{ inputs.push == true }}
           tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+          build-args: |
+            SOURCE_REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
@@ -91,5 +98,3 @@ jobs:
           echo "- Image: ${{ steps.meta.outputs.image }}" >> $GITHUB_STEP_SUMMARY
           echo "- Tag: ${{ steps.meta.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
           echo "- Pushed: ${{ inputs.push }}" >> $GITHUB_STEP_SUMMARY
-
-
