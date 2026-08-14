@@ -86,7 +86,6 @@ WORKDIR /app
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
 ARG FEATURES="metrics,jemalloc,gpu,aot,parallel"
 ARG PROFILE="release"
-ARG SOURCE_REVISION="unknown"
 ENV CUDA_ARCH="89"
 ENV RUSTFLAGS="-C target-feature=+avx2"
 RUN --mount=type=secret,id=sshkey \
@@ -97,7 +96,6 @@ RUN --mount=type=secret,id=sshkey \
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
-ARG SOURCE_REVISION="unknown"
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     gcc \
@@ -134,9 +132,6 @@ ENV RUST_LOG="info,p3_=warn" \
     OUTPUT_PATH="metrics.json" \
     JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true" \
     CENO_GPU_CACHE_LEVEL="1" \
-    CENO_CHIP_PROVING_MODE="lanes" \
-    CENO_CHIP_PROVING_LANES="4" \
-    CENO_RETH_BENCHMARK_REVISION="${SOURCE_REVISION}" \
     KZG_PARAMS_DIR="/root/.openvm/params"
 
 # Useful mounts for cache/params

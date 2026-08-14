@@ -23,26 +23,8 @@ CHAIN_ID="${CHAIN_ID:-1}"
 GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
 PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
 
-case "$CENO_CHIP_PROVING_MODE" in
-  lanes|sequential) ;;
-  *)
-    echo "[prove_block.sh] Invalid CENO_CHIP_PROVING_MODE=$CENO_CHIP_PROVING_MODE; expected lanes or sequential" >&2
-    exit 2
-    ;;
-esac
-if ! [[ "$CENO_CHIP_PROVING_LANES" =~ ^[1-8]$ ]]; then
-  echo "[prove_block.sh] Invalid CENO_CHIP_PROVING_LANES=$CENO_CHIP_PROVING_LANES; expected 1..=8" >&2
-  exit 2
-fi
-if ! [[ "$CHAIN_ID" =~ ^[0-9]+$ ]]; then
-  echo "[prove_block.sh] Invalid CHAIN_ID=$CHAIN_ID; expected an unsigned integer" >&2
-  exit 2
-fi
-# Do not leak the removed scheduler switch into older or newer prover binaries.
+# Remove the obsolete scheduler switch inherited from older deployments.
 unset CENO_CONCURRENT_CHIP_PROVING
-rpc_env_name="RPC_${CHAIN_ID}"
-printf -v "$rpc_env_name" '%s' "$ETH_RPC_URL"
-export "$rpc_env_name"
 
 # Wrapper around the Ceno benchmark binary to allow post-processing
 # after proving completes. All arguments are forwarded to the binary.
@@ -219,6 +201,7 @@ else
   "$BIN_PATH" \
     --mode make-input \
     --block-number "$BLOCK_NUMBER" \
+    --rpc-url "$ETH_RPC_URL" \
     --generated-input-path "$cache_root" \
     --chain-id "$CHAIN_ID"
 
@@ -281,6 +264,7 @@ set +e
   --block-number "$BLOCK_NUMBER" \
   --input-path "$INPUT_PATH" \
   --cache-dir "$cache_root" \
+  --rpc-url "$ETH_RPC_URL" \
   --output-dir "$job_dir" \
   --skip-comparison \
   --chain-id "$CHAIN_ID"
@@ -356,25 +340,6 @@ fi
 if [[ -f "$OUTPUT_PATH" ]]; then
   if ! python3 "$SCRIPT_DIR/metrics_to_markdown.py" "$OUTPUT_PATH" "$METRICS_MD" --block-number "$BLOCK_NUMBER"; then
     echo "[prove_block.sh] Warning: failed to convert metrics.json to markdown" >&2
-  elif [[ -f "$METRICS_MD" ]]; then
-    ceno_revision="unknown"
-    if [[ -f /app/ceno-revision.txt ]]; then
-      ceno_revision="$(tr -d '[:space:]' < /app/ceno-revision.txt)"
-    fi
-    benchmark_revision="${CENO_RETH_BENCHMARK_REVISION:-unknown}"
-    {
-      echo
-      echo "## Prover Configuration"
-      echo
-      echo "| Setting | Value |"
-      echo "| --- | --- |"
-      printf '| Ceno revision | `%s` |\n' "$ceno_revision"
-      printf '| Benchmark revision | `%s` |\n' "$benchmark_revision"
-      printf '| Chip proving mode | `%s` |\n' "$CENO_CHIP_PROVING_MODE"
-      printf '| Chip proving lanes | `%s` |\n' "$CENO_CHIP_PROVING_LANES"
-      printf '| GPU memory tracking | `%s` |\n' "$CENO_GPU_MEM_TRACKING"
-      printf '| GPU cache level | `%s` |\n' "$CENO_GPU_CACHE_LEVEL"
-    } >> "$METRICS_MD"
   fi
 fi
 
