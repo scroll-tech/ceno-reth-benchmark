@@ -21,7 +21,9 @@ CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB="${CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB:-
 RUST_MIN_STACK="${RUST_MIN_STACK:-536870912}"
 CHAIN_ID="${CHAIN_ID:-1}"
 GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
+GPU_READY_MAX_ATTEMPTS="${GPU_READY_MAX_ATTEMPTS:-6}"
 PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
+GPU_UNAVAILABLE_EXIT_CODE=75
 
 # Remove the obsolete scheduler switch inherited from older deployments.
 unset CENO_CONCURRENT_CHIP_PROVING
@@ -51,12 +53,13 @@ job_dir="${JOBS_DIR}/${PROOF_UUID}"
 mkdir -p "$job_dir"
 
 wait_for_gpu() {
-  local gpu_check_error gpu_check_status gpu_count gpu_uuids
+  local gpu_check_attempt=0 gpu_check_error gpu_check_status gpu_count gpu_uuids
   if [[ "$PROVE_BLOCK_GPU_CHECK" != "1" ]]; then
     return 0
   fi
 
   while true; do
+    gpu_check_attempt=$((gpu_check_attempt + 1))
     gpu_check_error=""
     if ! command -v nvidia-smi >/dev/null 2>&1; then
       gpu_check_error="nvidia-smi is not installed or not in PATH"
@@ -76,6 +79,10 @@ wait_for_gpu() {
       else
         gpu_check_error="nvidia-smi UUID query returned no devices"
       fi
+    fi
+    if (( gpu_check_attempt >= GPU_READY_MAX_ATTEMPTS )); then
+      echo "[prove_block.sh] GPU unavailable after ${gpu_check_attempt} attempt(s): ${gpu_check_error}; container recreation required" >&2
+      return "$GPU_UNAVAILABLE_EXIT_CODE"
     fi
     echo "[prove_block.sh] GPU unavailable: ${gpu_check_error}; polling again in ${GPU_READY_POLL_INTERVAL_SEC}s" >&2
     sleep "${GPU_READY_POLL_INTERVAL_SEC}"
