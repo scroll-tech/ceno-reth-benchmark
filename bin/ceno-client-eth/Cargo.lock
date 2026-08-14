@@ -993,7 +993,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#c576f3af8410a53fc5249d9974b18d0cc287c7d2"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#9d5f8c1af23ea5942f716b535f0fcbd8512c971b"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#c576f3af8410a53fc5249d9974b18d0cc287c7d2"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#9d5f8c1af23ea5942f716b535f0fcbd8512c971b"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -1025,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#c576f3af8410a53fc5249d9974b18d0cc287c7d2"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#9d5f8c1af23ea5942f716b535f0fcbd8512c971b"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#c576f3af8410a53fc5249d9974b18d0cc287c7d2"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#9d5f8c1af23ea5942f716b535f0fcbd8512c971b"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1047,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#c576f3af8410a53fc5249d9974b18d0cc287c7d2"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fopt_scheduler#9d5f8c1af23ea5942f716b535f0fcbd8512c971b"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
