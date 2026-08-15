@@ -22,9 +22,11 @@ Select features via `--build-arg FEATURES=...`:
 
 ### Run
 
+Use the host-side wrapper so an unrecoverable container GPU binding is replaced
+with a fresh container automatically:
+
 ```bash
-docker run --gpus all \
-  --name reth-server \
+./server/run_container.sh --gpus all \
   -p 8000:8000 \
   -v /path/on/host/jobs:/app/jobs \
   -e CENO_STATUS_API_BASE_URL="https://staging--ethproofs.netlify.app/api/v0" \
@@ -41,19 +43,22 @@ Set either variable only for an explicit override. The removed
 
 If the host GPU goes offline and later recovers, an existing container can keep
 stale NVIDIA device bindings and report `Failed to initialize NVML: Unknown
-Error`. The server exits with status 75 after detecting this condition. Delete
-and recreate the container; restarting processes inside it cannot restore the
-device binding:
+Error`. The server polls briefly for a transient recovery, then exits with status
+75. `run_container.sh` removes that container and creates a fresh one after 10
+seconds. Override the container name or delay with `CONTAINER_NAME` and
+`GPU_RECREATE_DELAY_SEC`. If host `nvidia-smi` is available, the wrapper waits
+for it to recover before creating the replacement; configure that polling with
+`HOST_GPU_POLL_INTERVAL_SEC`.
 
 ```bash
-docker rm -f reth-server
-# Repeat the docker run command above.
+CONTAINER_NAME=reth-server GPU_RECREATE_DELAY_SEC=30 \
+  ./server/run_container.sh --gpus all ... reth-server:latest
 ```
 
-CI or another host-side supervisor should perform the same remove-and-recreate
-operation when the container exits with status 75. A plain in-container retry
-loop is intentionally not used for this failure mode.
+The wrapper must run on the Docker host. Mounting the Docker socket into the
+container is intentionally not required.
 
 Mounting `/app/jobs` persists `block_data` and logs between runs. Set `CENO_STATUS_API_BASE_URL`, `CENO_STATUS_API_KEY`, and `CENO_CLUSTER_ID` to report queue/proving/proved events to the API (omit them to skip the HTTP hooks). Configure any other env vars (APP_PK_URI, AGG_PK_URI, JOBS_DIR, etc.) as needed.
 
-To debug a specific block instead of the latest, append `-e BLOCK_NUMBER="<BLOCKNUM>"` to the `docker run` command.
+To debug a specific block instead of the latest, append
+`-e BLOCK_NUMBER="<BLOCKNUM>"` to the wrapper command.

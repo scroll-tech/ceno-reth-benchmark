@@ -29,6 +29,9 @@ handle_usr1() {
 matches_cuda_error() {
     local line="$1"
     local pattern
+    if [[ "$line" == *"[prove_block.sh] gpu unavailable:"* ]]; then
+        return 1
+    fi
     for pattern in "${CUDA_ERROR_PATTERNS[@]}"; do
         [[ -z "$pattern" ]] && continue
         if [[ "$line" == *"$pattern"* ]]; then

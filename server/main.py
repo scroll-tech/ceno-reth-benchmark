@@ -16,6 +16,7 @@ app = FastAPI()
 JOBS_ROOT = Path(os.environ.get("JOBS_DIR", "/app/jobs"))
 JOB_RETRY_DELAY_SEC = int(os.environ.get("JOB_RETRY_DELAY_SEC", "300"))
 JOB_SUCCESS_DELAY_SEC = int(os.environ.get("JOB_SUCCESS_DELAY_SEC", "1"))
+GPU_UNAVAILABLE_EXIT_CODE = 75
 RECOVER_JOB_STATUSES = set(
     os.environ.get("RECOVER_JOB_STATUSES", "pending,running,error,waiting")
     .replace(" ", "")
@@ -186,6 +187,13 @@ class Job:
                 self.iteration += 1
                 status = "waiting" if exit_code == 0 else "error"
                 self._persist_status(status)
+                if exit_code == GPU_UNAVAILABLE_EXIT_CODE:
+                    print(
+                        f"[job:{self.proof_uuid}] GPU binding is unavailable; "
+                        "terminating server for container recreation",
+                        flush=True,
+                    )
+                    os._exit(GPU_UNAVAILABLE_EXIT_CODE)
                 if exit_code != 0:
                     retry_delay = JOB_RETRY_DELAY_SEC
             except Exception as exc:  # noqa: BLE001
