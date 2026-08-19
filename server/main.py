@@ -17,6 +17,16 @@ JOBS_ROOT = Path(os.environ.get("JOBS_DIR", "/app/jobs"))
 JOB_RETRY_DELAY_SEC = int(os.environ.get("JOB_RETRY_DELAY_SEC", "300"))
 JOB_SUCCESS_DELAY_SEC = int(os.environ.get("JOB_SUCCESS_DELAY_SEC", "1"))
 GPU_UNAVAILABLE_EXIT_CODE = 75
+GPU_ERROR_PATTERNS = tuple(
+    pattern.encode()
+    for pattern in os.environ.get(
+        "GPU_ERROR_PATTERNS",
+        "no CUDA-capable device|failed to initialize NVML|nvidia-smi UUID query failed|cudaErrorNoDevice",
+    )
+    .lower()
+    .split("|")
+    if pattern
+)
 RECOVER_JOB_STATUSES = set(
     os.environ.get("RECOVER_JOB_STATUSES", "pending,running,error,waiting")
     .replace(" ", "")
@@ -170,13 +180,31 @@ class Job:
 
     def _run_once(self) -> int:
         args = [str(self.script_path), self.proof_uuid]
+        stderr_start = self.stderr_path.stat().st_size if self.stderr_path.exists() else 0
         with self.stdout_path.open("a") as stdout_f, self.stderr_path.open("a") as stderr_f:
             proc = subprocess.Popen(args, stdout=stdout_f, stderr=stderr_f, text=True)
             self.current_proc = proc
             self.pid = proc.pid
             self._persist_status("running")
             proc.wait()
-            return proc.returncode
+            exit_code = proc.returncode
+        if exit_code != 0 and self._has_new_gpu_error(stderr_start):
+            print(
+                f"[job:{self.proof_uuid}] detected a CUDA/NVML failure in this attempt; "
+                f"mapping exit code {exit_code} to {GPU_UNAVAILABLE_EXIT_CODE}",
+                flush=True,
+            )
+            return GPU_UNAVAILABLE_EXIT_CODE
+        return exit_code
+
+    def _has_new_gpu_error(self, stderr_start: int) -> bool:
+        with self.stderr_path.open("rb") as stderr_f:
+            stderr_f.seek(stderr_start)
+            return any(
+                pattern in line.lower()
+                for line in stderr_f
+                for pattern in GPU_ERROR_PATTERNS
+            )
 
     def _run_loop(self) -> None:
         while not self.stop_event.is_set():
