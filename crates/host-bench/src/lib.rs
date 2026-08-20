@@ -429,6 +429,127 @@ impl std::fmt::Display for BenchMode {
     }
 }
 
+fn consume_selected_witnesses<I, T, F>(
+    witnesses: I,
+    target_shard_id: Option<usize>,
+    consume: F,
+) -> eyre::Result<Vec<usize>>
+where
+    I: Iterator<Item = T>,
+    F: FnMut(T) -> eyre::Result<usize>,
+{
+    match target_shard_id {
+        Some(target_shard_id) => consume_witness_stream(
+            witnesses.skip(target_shard_id).take(1),
+            Some(target_shard_id),
+            consume,
+        ),
+        None => consume_witness_stream(witnesses, None, consume),
+    }
+}
+
+fn consume_witness_stream<I, T, F>(
+    witnesses: I,
+    target_shard_id: Option<usize>,
+    mut consume: F,
+) -> eyre::Result<Vec<usize>>
+where
+    I: Iterator<Item = T>,
+    F: FnMut(T) -> eyre::Result<usize>,
+{
+    let mut shard_ids = Vec::new();
+    for witness in witnesses {
+        let shard_id = consume(witness)?;
+        let expected_shard_id = target_shard_id.unwrap_or(shard_ids.len());
+        eyre::ensure!(
+            shard_id == expected_shard_id,
+            "witness-only yielded shard {shard_id}, expected {expected_shard_id}"
+        );
+        shard_ids.push(shard_id);
+    }
+    eyre::ensure!(
+        !shard_ids.is_empty(),
+        target_shard_id.map_or_else(
+            || "witness-only produced no shards".to_string(),
+            |shard_id| format!("requested shard {shard_id} did not produce a witness"),
+        )
+    );
+    Ok(shard_ids)
+}
+
+#[cfg(feature = "gpu")]
+fn is_gpu_witgen_enabled() -> bool {
+    matches!(env::var("CENO_GPU_ENABLE_WITGEN").as_deref(), Ok("1"))
+}
+
+#[cfg(not(feature = "gpu"))]
+fn is_gpu_witgen_enabled() -> bool {
+    false
+}
+
+#[cfg(feature = "gpu")]
+fn release_witness_gpu_memory(shard_id: usize, baseline: Option<u64>) -> eyre::Result<()> {
+    use gkr_iop::gpu::{get_cuda_hal, CudaHal};
+
+    let baseline =
+        baseline.ok_or_else(|| eyre::eyre!("GPU witgen shard {shard_id} has no pool baseline"))?;
+    ceno_zkvm::instructions::gpu::cache::release_all_shard_gpu_caches();
+    let hal = get_cuda_hal().map_err(|err| eyre::eyre!(err))?;
+    hal.inner()
+        .synchronize()
+        .map_err(|err| eyre::eyre!("CUDA synchronize after shard {shard_id}: {err:?}"))?;
+    let post_release = hal
+        .inner()
+        .mem_pool()
+        .get_used_size()
+        .map_err(|err| eyre::eyre!("read GPU pool use after shard {shard_id}: {err:?}"))?;
+    eyre::ensure!(
+        post_release <= baseline,
+        "shard {shard_id} GPU pool usage grew after release: baseline={baseline} B, \
+         post_release={post_release} B, delta={} B",
+        post_release as i128 - baseline as i128,
+    );
+    let delta = post_release as i128 - baseline as i128;
+    println!(
+        "[witgen pool restoration] shard {shard_id}: baseline={baseline} B, \
+         post_release={post_release} B, delta={delta} B"
+    );
+    hal.print_mem_info()
+        .map_err(|err| eyre::eyre!("cudaMemGetInfo after shard {shard_id}: {err:?}"))?;
+    Ok(())
+}
+
+#[cfg(feature = "gpu")]
+fn trim_witness_gpu_pool() -> eyre::Result<()> {
+    use gkr_iop::gpu::{get_cuda_hal, CudaHal};
+
+    let hal = get_cuda_hal().map_err(|err| eyre::eyre!(err))?;
+    hal.inner()
+        .synchronize()
+        .map_err(|err| eyre::eyre!("CUDA synchronize before witness pool trim: {err:?}"))?;
+    let pre_trim = hal
+        .inner()
+        .mem_pool()
+        .get_used_size()
+        .map_err(|err| eyre::eyre!("read GPU pool use before witness trim: {err:?}"))?;
+    println!("[witgen pool trim] before: pool_used={pre_trim} B");
+    hal.print_mem_info()
+        .map_err(|err| eyre::eyre!("cudaMemGetInfo before witness trim: {err:?}"))?;
+    hal.inner().trim_mem_pool().map_err(|err| eyre::eyre!("trim witness GPU pool: {err:?}"))?;
+    hal.inner()
+        .synchronize()
+        .map_err(|err| eyre::eyre!("CUDA synchronize after witness pool trim: {err:?}"))?;
+    let post_trim = hal
+        .inner()
+        .mem_pool()
+        .get_used_size()
+        .map_err(|err| eyre::eyre!("read GPU pool use after witness trim: {err:?}"))?;
+    println!("[witgen pool trim] after: pool_used={post_trim} B");
+    hal.print_mem_info()
+        .map_err(|err| eyre::eyre!("cudaMemGetInfo after witness trim: {err:?}"))?;
+    Ok(())
+}
+
 /// The arguments for the host executable.
 #[derive(Debug, Parser)]
 pub struct HostArgs {
@@ -1275,22 +1396,42 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             ))]
                             Some(fulltracer_aot_program),
                         );
-                        let target_shard_id = args.shard_id.map_or(0, |value| value as usize);
-                        let mut witnesses = generate_witness(
+                        let target_shard_id = args.shard_id.map(|value| value as usize);
+                        let witnesses = generate_witness(
                             &program_ctx.system_config,
                             emul_result,
                             program_ctx.program.clone(),
                             &program_ctx.platform,
                             &init_full_mem,
-                            Some(target_shard_id),
+                            target_shard_id,
                         );
-                        let _ = info_span!(
-                            "sdk.generate_witness_only",
-                            shard_id = target_shard_id
-                        )
-                        .in_scope(|| witnesses.next())
-                        .expect("requested shard did not produce a witness");
-                        println!("ceno witness-only completed shard {target_shard_id}");
+                        let gpu_witgen_enabled = is_gpu_witgen_enabled();
+                        let shard_ids = info_span!("sdk.generate_witness_only").in_scope(|| {
+                            consume_selected_witnesses(
+                                witnesses,
+                                target_shard_id,
+                                |(zkvm_witness, shard_ctx, pi, witgen_mem_baseline)| {
+                                    let shard_id = shard_ctx.shard_id;
+                                    drop(zkvm_witness);
+                                    drop(shard_ctx);
+                                    drop(pi);
+                                    if gpu_witgen_enabled {
+                                        #[cfg(feature = "gpu")]
+                                        release_witness_gpu_memory(
+                                            shard_id,
+                                            witgen_mem_baseline,
+                                        )?;
+                                    }
+                                    println!("ceno witness-only completed shard {shard_id}");
+                                    Ok(shard_id)
+                                },
+                            )
+                        })?;
+                        if gpu_witgen_enabled {
+                            #[cfg(feature = "gpu")]
+                            trim_witness_gpu_pool()?;
+                        }
+                        println!("ceno witness-only completed shards {shard_ids:?}");
                     }
                     BenchMode::AnalyzeShardRam => {
                         let hints = prebuilt_hints
@@ -1941,5 +2082,50 @@ fn try_load_input_from_path(path: &PathBuf) -> eyre::Result<ClientExecutorInput>
         let client_input: ClientExecutorInput =
             bincode::serde::decode_from_std_read(&mut file, bincode::config::standard())?;
         Ok(client_input)
+    }
+}
+
+#[cfg(test)]
+mod closure_driver_tests {
+    use super::consume_selected_witnesses;
+
+    fn select(ids: &[usize], target: Option<usize>) -> eyre::Result<Vec<usize>> {
+        consume_selected_witnesses(ids.iter().copied(), target, Ok)
+    }
+
+    #[test]
+    fn witness_selection_absent_consumes_all_contiguous_ids() {
+        assert_eq!(select(&[0, 1, 2], None).unwrap(), vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn witness_selection_target_zero_selects_real_zero() {
+        assert_eq!(select(&[0, 1], Some(0)).unwrap(), vec![0]);
+    }
+
+    #[test]
+    fn witness_selection_target_one_skips_placeholder() {
+        assert_eq!(select(&[0, 1], Some(1)).unwrap(), vec![1]);
+    }
+
+    #[test]
+    fn witness_selection_missing_target_fails() {
+        assert!(select(&[0], Some(1)).is_err());
+    }
+
+    #[test]
+    fn witness_selection_wrong_yielded_id_fails() {
+        assert!(select(&[0, 2], Some(1)).is_err());
+    }
+
+    #[test]
+    fn witness_selection_duplicate_or_noncontiguous_ids_fail() {
+        assert!(select(&[0, 0], None).is_err());
+        assert!(select(&[0, 2], None).is_err());
+    }
+
+    #[test]
+    fn witness_selection_empty_all_shard_stream_fails() {
+        assert!(select(&[], None).is_err());
     }
 }
