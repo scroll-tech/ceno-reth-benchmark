@@ -92,14 +92,6 @@ on:
         required: false
         type: boolean
         default: "false"
-      gpu_enable_witgen:
-        description: "Value for CENO_GPU_ENABLE_WITGEN"
-        required: false
-        type: choice
-        default: "0"
-        options:
-          - "0"
-          - "1"
       gpu_large_task_booking_margin_mb:
         description: "Value for CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB"
         required: false
@@ -318,7 +310,6 @@ jobs:
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
-          CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           RUST_MIN_STACK=536870912 \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
@@ -527,7 +518,6 @@ jobs:
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
           CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
           RUST_MIN_STACK=536870912 \
-          CENO_GPU_ENABLE_WITGEN=${{ inputs.gpu_enable_witgen }} \
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
