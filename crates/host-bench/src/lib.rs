@@ -51,7 +51,7 @@ use ceno_cli::sdk as ceno_sdk;
 #[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
 use ceno_emul::{
     aot::{AotProgram, PureAotTracer},
-    EmuContext, IterAddresses, VMState,
+    IterAddresses, VMState,
 };
 use ceno_emul::{Platform, Program, StepCellExtractor};
 use ceno_host::{CenoStdin, Item, WORD_ALIGNMENT};
@@ -71,14 +71,6 @@ struct SpanTiming {
 }
 
 struct SpanMetricsLayer;
-
-fn layered_replay_invocation_steps(layer: &str, remaining: usize) -> usize {
-    if layer == "L7" {
-        remaining.min(1 << 18)
-    } else {
-        remaining
-    }
-}
 
 impl<S> tracing_subscriber::Layer<S> for SpanMetricsLayer
 where
@@ -772,44 +764,6 @@ fn peak_rss_kib() -> Option<u64> {
         .ok()
 }
 
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-fn current_rss_kib() -> Option<u64> {
-    fs::read_to_string("/proc/self/status")
-        .ok()?
-        .lines()
-        .find_map(|line| line.strip_prefix("VmRSS:"))?
-        .split_whitespace()
-        .next()?
-        .parse()
-        .ok()
-}
-
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-#[repr(C)]
-struct MallInfo2 {
-    arena: usize,
-    ordblks: usize,
-    smblks: usize,
-    hblks: usize,
-    hblkhd: usize,
-    usmblks: usize,
-    fsmblks: usize,
-    uordblks: usize,
-    fordblks: usize,
-    keepcost: usize,
-}
-
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-unsafe extern "C" {
-    fn mallinfo2() -> MallInfo2;
-}
-
-#[cfg(all(feature = "aot", target_arch = "x86_64", target_os = "linux"))]
-fn allocated_bytes() -> usize {
-    // SAFETY: glibc returns this structure by value and owns all allocator state.
-    unsafe { mallinfo2().uordblks }
-}
-
 fn init_ceno_agg_prover(sdk: &CenoBenchSdk) -> eyre::Result<ceno_sdk::CenoRecursionV2Prover> {
     sdk.init_agg_prover().map_err(|err| eyre::eyre!("{err:?}"))
 }
@@ -1218,42 +1172,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             let artifact_elapsed = artifact_started.elapsed();
                             let compile_report = preflight_aot_program.report();
                             let cache_identity = preflight_aot_program.cache_identity();
-                            let experiment_layer =
-                                std::env::var_os("CENO_FULLTRACER_EXPERIMENT_LAYER");
-                            let pure_layer = match experiment_layer.as_deref() {
-                                None => None,
-                                Some(value) if value == "L0" => Some("L0"),
-                                Some(value) if value == "L1" => Some("L1"),
-                                Some(value) if value == "L1C" => Some("L1C"),
-                                Some(value) if value == "L2" => Some("L2"),
-                                Some(value) if value == "L2C" => Some("L2C"),
-                                Some(value) if value == "L3" => Some("L3"),
-                                Some(value) if value == "L3C" => Some("L3C"),
-                                Some(value) if value == "L4" => Some("L4"),
-                                Some(value) if value == "L4C" => Some("L4C"),
-                                Some(value) if value == "L5" => Some("L5"),
-                                Some(value) if value == "L5C" => Some("L5C"),
-                                Some(value) if value == "L6C" => Some("L6C"),
-                                Some(value) if value == "L7" => Some("L7"),
-                                Some(value) => eyre::bail!(
-                                    "CENO_FULLTRACER_EXPERIMENT_LAYER must be L0, L1, L1C, L2, L2C, L3, L3C, L4, L4C, L5, L5C, L6C, or L7, got {:?}",
-                                    value
-                                ),
-                            };
-                            let expected_stop = match std::env::var_os("CENO_EXPECTED_REPLAY_STOP")
-                            {
-                                None => false,
-                                Some(value) if value == "I061-R" => true,
-                                Some(value) => eyre::bail!(
-                                    "CENO_EXPECTED_REPLAY_STOP must be exactly I061-R when set, got {:?}",
-                                    value
-                                ),
-                            };
-                            eyre::ensure!(
-                                pure_layer.is_none() || expected_stop,
-                                "layered pure replay requires CENO_EXPECTED_REPLAY_STOP=I061-R"
-                            );
-
                             let execution_started = std::time::Instant::now();
                             let emul_result = info_span!(
                                 "sdk.execute_aot_full_preflight",
@@ -1277,145 +1195,8 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 eyre::eyre!("aot-full preflight did not report AOT execution timing")
                             })?;
                             let boundaries = emul_result.shard_cycle_boundaries.clone();
-                            let expected_end_pc = emul_result.pi.end_pc;
                             let max_step_shard = emul_result.full_tracer_config.max_step_shard;
                             let tape_events = emul_result.shard_ctx_builder.next_accesses().len();
-                            let replay_alloc_before = allocated_bytes();
-                            let replay_rss_before = current_rss_kib().unwrap_or_default();
-                            if let Some(layer) = pure_layer {
-                                let expected_steps = emul_result.executed_steps;
-                                let expected_exit = emul_result.exit_code;
-                                let expected_end_cycle = emul_result.pi.end_cycle;
-                                let replay_aot = emul_result.replay_aot_program.clone();
-                                let next_accesses = matches!(layer, "L5" | "L5C" | "L6C" | "L7")
-                                    .then(|| emul_result.shard_ctx_builder.next_accesses());
-                                let mut vm = VMState::<PureAotTracer>::new_with_tracer_config_and_next_accesses(
-                                    program_ctx.platform.clone(),
-                                    program_ctx.program.clone(),
-                                    (),
-                                    next_accesses,
-                                );
-                                for record in &init_full_mem.hints {
-                                    vm.init_memory(record.addr.into(), record.value);
-                                }
-                                let replay_started = std::time::Instant::now();
-                                let mut replayed_steps = 0usize;
-                                let mut fallback_steps = 0usize;
-                                let mut fallback_time = std::time::Duration::ZERO;
-                                for (shard_id, window) in boundaries.windows(2).enumerate() {
-                                    let shard_steps = usize::try_from((window[1] - window[0]) / 4)
-                                        .expect("L0 shard step count must fit usize");
-                                    let mut shard_replayed = 0usize;
-                                    while shard_replayed < shard_steps {
-                                        let remaining = shard_steps - shard_replayed;
-                                        let invocation_steps = layered_replay_invocation_steps(
-                                            layer,
-                                            remaining,
-                                        );
-                                        let report = replay_aot
-                                            .run_pure_to_halt(&mut vm, invocation_steps)
-                                            .map_err(|err| eyre::eyre!(
-                                                "{layer} layered replay failed in shard {shard_id} after {replayed_steps} rows: {err:#}"
-                                            ))?;
-                                        eyre::ensure!(
-                                            report.executed_steps == invocation_steps,
-                                            "{layer} shard {shard_id} stopped at {} of {invocation_steps} invocation steps after {replayed_steps} rows",
-                                            report.executed_steps
-                                        );
-                                        println!(
-                                            "i061-r-{} replay shard={shard_id} invocation_start={} steps={} total={:?} native={:?} scalar={:?} fallback_steps={}",
-                                            layer.to_ascii_lowercase(),
-                                            replayed_steps,
-                                            report.executed_steps,
-                                            report.execute_time,
-                                            report.native_time(),
-                                            report.fallback_time,
-                                            report.fallback_steps,
-                                        );
-                                        shard_replayed += report.executed_steps;
-                                        replayed_steps += report.executed_steps;
-                                        fallback_steps += report.fallback_steps;
-                                        fallback_time += report.fallback_time;
-                                    }
-                                }
-                                let replay_elapsed = replay_started.elapsed();
-                                let replay_alloc_after = allocated_bytes();
-                                let replay_rss_after = current_rss_kib().unwrap_or_default();
-                                let exit_code = vm.halted_state().map(|state| state.exit_code);
-                                let digest_words = vm.committed_public_io().ok_or_else(|| {
-                                    eyre::eyre!("{layer} replay did not commit a public digest")
-                                })?;
-                                let digest = digest_words
-                                    .into_iter()
-                                    .flat_map(u32::to_le_bytes)
-                                    .collect::<Vec<_>>();
-                                eyre::ensure!(replayed_steps == expected_steps);
-                                eyre::ensure!(exit_code == expected_exit);
-                                eyre::ensure!(vm.get_pc().0 == expected_end_pc);
-                                eyre::ensure!(
-                                    (replayed_steps as u64 + 1) * 4 == expected_end_cycle
-                                );
-                                eyre::ensure!(digest.as_slice() == block_hash.0.as_slice());
-                                let records = if layer == "L0" { 0 } else { replayed_steps };
-                                let chunks = usize::from(records != 0) * (boundaries.len() - 1);
-                                if matches!(
-                                    layer,
-                                    "L2C" | "L3C" | "L4C" | "L5C" | "L6C" | "L7"
-                                ) {
-                                    println!(
-                                        "i061-r-{} replay total={:?} native={:?} scalar={:?} fallback_steps={} physical_bytes_source=emulator-shard-tags records={} chunks={} rss_before_kib={} rss_after_kib={} rss_growth_kib={} allocation_before_bytes={} allocation_after_bytes={} allocation_growth_bytes={}",
-                                        layer.to_ascii_lowercase(),
-                                        replay_elapsed,
-                                        replay_elapsed.saturating_sub(fallback_time),
-                                        fallback_time,
-                                        fallback_steps,
-                                        records,
-                                        chunks,
-                                        replay_rss_before,
-                                        replay_rss_after,
-                                        replay_rss_after as i64 - replay_rss_before as i64,
-                                        replay_alloc_before,
-                                        replay_alloc_after,
-                                        replay_alloc_after as i128 - replay_alloc_before as i128,
-                                    );
-                                } else {
-                                    let bytes_per_record = if layer == "L1C" {
-                                        16
-                                    } else {
-                                        std::mem::size_of::<ceno_emul::StepRecord>()
-                                    };
-                                    let record_bytes = records.saturating_mul(bytes_per_record);
-                                    println!(
-                                        "i061-r-{} replay total={:?} native={:?} scalar={:?} fallback_steps={} bytes_written={} records={} chunks={} rss_before_kib={} rss_after_kib={} rss_growth_kib={} allocation_before_bytes={} allocation_after_bytes={} allocation_growth_bytes={}",
-                                        layer.to_ascii_lowercase(),
-                                        replay_elapsed,
-                                        replay_elapsed.saturating_sub(fallback_time),
-                                        fallback_time,
-                                        fallback_steps,
-                                        record_bytes,
-                                        records,
-                                        chunks,
-                                        replay_rss_before,
-                                        replay_rss_after,
-                                        replay_rss_after as i64 - replay_rss_before as i64,
-                                        replay_alloc_before,
-                                        replay_alloc_after,
-                                        replay_alloc_after as i128 - replay_alloc_before as i128,
-                                    );
-                                }
-                                println!(
-                                    "CENO_EXPECTED_REPLAY_STOP I061-R layer={} shards={} instructions={} cycles={} pc={:#010x} exit={} records={} chunks={}",
-                                    layer,
-                                    boundaries.len() - 1,
-                                    replayed_steps,
-                                    expected_end_cycle,
-                                    vm.get_pc().0,
-                                    exit_code.unwrap_or_default(),
-                                    records,
-                                    chunks,
-                                );
-                                return Ok(());
-                            }
                             let replay_started = std::time::Instant::now();
                             let replay = info_span!(
                                 "sdk.execute_aot_full_replay",
@@ -1430,8 +1211,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 )
                             });
                             let replay_elapsed = replay_started.elapsed();
-                            let replay_alloc_after = allocated_bytes();
-                            let replay_rss_after = current_rss_kib().unwrap_or_default();
                             let total_elapsed = execution_started.elapsed();
 
                             let digest_words = replay.committed_public_io.ok_or_else(|| {
@@ -1497,35 +1276,6 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                 "aot-full peak_rss_kib: {}",
                                 peak_rss_kib().unwrap_or_default()
                             );
-                            if expected_stop {
-                                let record_bytes = replay
-                                    .executed_steps
-                                    .saturating_mul(std::mem::size_of::<ceno_emul::StepRecord>());
-                                println!(
-                                    "i061-r-control replay total={:?} bytes_written={} records={} chunks={} rss_before_kib={} rss_after_kib={} rss_growth_kib={} allocation_before_bytes={} allocation_after_bytes={} allocation_growth_bytes={}",
-                                    replay_elapsed,
-                                    record_bytes,
-                                    replay.executed_steps,
-                                    replay.replayed_shards,
-                                    replay_rss_before,
-                                    replay_rss_after,
-                                    replay_rss_after as i64 - replay_rss_before as i64,
-                                    replay_alloc_before,
-                                    replay_alloc_after,
-                                    replay_alloc_after as i128 - replay_alloc_before as i128,
-                                );
-                                println!(
-                                    "CENO_EXPECTED_REPLAY_STOP I061-R layer=CONTROL shards={} instructions={} cycles={} pc={:#010x} exit={} records={} chunks={}",
-                                    replay.replayed_shards,
-                                    replay.executed_steps,
-                                    boundaries.last().copied().unwrap_or_default(),
-                                    expected_end_pc,
-                                    replay.exit_code.unwrap_or_default(),
-                                    replay.executed_steps,
-                                    replay.replayed_shards,
-                                );
-                                return Ok(());
-                            }
                         }
                     }
                     BenchMode::Execute => {
@@ -1659,7 +1409,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             consume_selected_witnesses(
                                 witnesses,
                                 target_shard_id,
-                                |(zkvm_witness, shard_ctx, pi, witgen_mem_baseline)| {
+                                |(zkvm_witness, shard_ctx, pi, _witgen_mem_baseline)| {
                                     let shard_id = shard_ctx.shard_id;
                                     drop(zkvm_witness);
                                     drop(shard_ctx);
@@ -1668,7 +1418,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                                         #[cfg(feature = "gpu")]
                                         release_witness_gpu_memory(
                                             shard_id,
-                                            witgen_mem_baseline,
+                                            _witgen_mem_baseline,
                                         )?;
                                     }
                                     println!("ceno witness-only completed shard {shard_id}");
@@ -2336,7 +2086,7 @@ fn try_load_input_from_path(path: &PathBuf) -> eyre::Result<ClientExecutorInput>
 
 #[cfg(test)]
 mod closure_driver_tests {
-    use super::{consume_selected_witnesses, layered_replay_invocation_steps};
+    use super::consume_selected_witnesses;
 
     fn select(ids: &[usize], target: Option<usize>) -> eyre::Result<Vec<usize>> {
         consume_selected_witnesses(ids.iter().copied(), target, Ok)
@@ -2376,12 +2126,5 @@ mod closure_driver_tests {
     #[test]
     fn witness_selection_empty_all_shard_stream_fails() {
         assert!(select(&[], None).is_err());
-    }
-
-    #[test]
-    fn l7_layered_replay_stops_at_the_18_bit_range_boundary() {
-        assert_eq!(layered_replay_invocation_steps("L7", 262_145), 262_144);
-        assert_eq!(layered_replay_invocation_steps("L7", 1), 1);
-        assert_eq!(layered_replay_invocation_steps("L6C", 262_145), 262_145);
     }
 }

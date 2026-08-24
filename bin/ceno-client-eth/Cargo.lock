@@ -993,7 +993,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#61033bf4bac65b5c15fc15528b9b2f377c88af20"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#e6c3a121f3116c2d427162dfa453b6bd61897a67"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#61033bf4bac65b5c15fc15528b9b2f377c88af20"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#e6c3a121f3116c2d427162dfa453b6bd61897a67"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -1025,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#61033bf4bac65b5c15fc15528b9b2f377c88af20"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#e6c3a121f3116c2d427162dfa453b6bd61897a67"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#61033bf4bac65b5c15fc15528b9b2f377c88af20"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#e6c3a121f3116c2d427162dfa453b6bd61897a67"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1047,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#61033bf4bac65b5c15fc15528b9b2f377c88af20"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#e6c3a121f3116c2d427162dfa453b6bd61897a67"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",
