@@ -85,6 +85,16 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
             benchmark_cargo,
         )
 
+    # The GPU feature in Ceno patches the mock HAL with the real CUDA HAL.
+    # Keep that patch on the same feature branch as the Ceno/GKR dependencies;
+    # using ceno-gpu/main reintroduces an incompatible alpha35 GKR graph.
+    benchmark_text = re.sub(
+        r'(ceno_gpu\s*=\s*\{[^\n]*?git\s*=\s*"ssh://git@github\.com/scroll-tech/ceno-gpu\.git",\s*package\s*=\s*"cuda_hal",\s*)(?:branch\s*=\s*"[^"]+"|rev\s*=\s*"[^"]+")',
+        r'\1branch = "feat/gpu-witness-assignment-20260824"',
+        benchmark_text,
+        count=1,
+    )
+
     benchmark_cargo.write_text(benchmark_text)
 
 
