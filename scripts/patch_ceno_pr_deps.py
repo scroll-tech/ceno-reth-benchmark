@@ -21,6 +21,11 @@ GUEST_CENO_CRATES: dict[str, dict[str, object]] = {
     "ceno_crypto": {"default-features": False},
 }
 GKR_CRATES = ("ff_ext", "mpcs")
+COMMIT_SHA = re.compile(r"^[0-9a-fA-F]{7,40}$")
+
+
+def requested_ref_kind(ceno_ref: str) -> str:
+    return "rev" if COMMIT_SHA.fullmatch(ceno_ref) else "branch"
 
 
 def load_toml(path: Path) -> dict:
@@ -55,12 +60,13 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
     benchmark_text = benchmark_cargo.read_text()
     ceno_toml = load_toml(ceno_cargo)
     ceno_workspace_deps = ceno_toml["workspace"]["dependencies"]
+    ref_kind = requested_ref_kind(ceno_ref)
 
     for dep_name, extra in CENO_WORKSPACE_CRATES.items():
         items: list[tuple[str, object]] = [("git", CENO_GIT)]
         if "package" in extra:
             items.append(("package", extra["package"]))
-        items.append(("rev", ceno_ref))
+        items.append((ref_kind, ceno_ref))
         benchmark_text = replace_inline_dep(
             benchmark_text,
             dep_name,
@@ -89,8 +95,9 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
 
 def patch_guest_cargo(guest_cargo: Path, ceno_ref: str) -> None:
     guest_text = guest_cargo.read_text()
+    ref_kind = requested_ref_kind(ceno_ref)
     for dep_name, extra in GUEST_CENO_CRATES.items():
-        items: list[tuple[str, object]] = [("git", CENO_GIT), ("rev", ceno_ref)]
+        items: list[tuple[str, object]] = [("git", CENO_GIT), (ref_kind, ceno_ref)]
         for key, value in extra.items():
             items.append((key, value))
         guest_text = replace_inline_dep(
