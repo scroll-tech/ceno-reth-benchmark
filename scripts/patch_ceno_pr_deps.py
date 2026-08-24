@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 import tomllib
@@ -119,8 +120,14 @@ def main() -> int:
     if not benchmark_cargo.exists() or not guest_cargo.exists() or not ceno_cargo.exists():
         raise SystemExit("Required Cargo.toml file is missing")
 
-    patch_workspace_cargo(benchmark_cargo, ceno_cargo, args.ceno_ref)
-    patch_guest_cargo(guest_cargo, args.ceno_ref)
+    # Cargo's `rev` requires an object ID, while the workflow also accepts a
+    # branch name. Resolve the already checked-out source so both forms are
+    # reproducible and guest dependencies never try to fetch a branch as a rev.
+    ceno_commit = subprocess.check_output(
+        ["git", "-C", str(ceno_root), "rev-parse", "HEAD"], text=True
+    ).strip()
+    patch_workspace_cargo(benchmark_cargo, ceno_cargo, ceno_commit)
+    patch_guest_cargo(guest_cargo, ceno_commit)
     return 0
 
 
