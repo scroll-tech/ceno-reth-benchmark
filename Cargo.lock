@@ -1431,7 +1431,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1563,7 +1563,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "glob",
 ]
@@ -1590,7 +1590,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1627,7 +1627,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1640,7 +1640,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion_v2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "bincode 1.3.3",
  "bincode 2.0.1",
@@ -1694,7 +1694,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1707,7 +1707,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1721,7 +1721,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#48f82923
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "arrayref",
  "base64",
@@ -2231,7 +2231,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#de7951f12c2576e6070c24e85d8d6e1a905824a7"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#e3539579a3074fdaf833a6186d0f84da0c2772da"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2497,7 +2497,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -3221,7 +3221,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#81bdb5b4bd6b7263f068f44b11643e7b785c587f"
+source = "git+https://github.com/scroll-tech/ceno?branch=feat%2Fgpu-witness-assignment-20260824#5974339b3f9b68a5037cb3f74512bdf907cf19fd"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -7695,7 +7695,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#de7951f12c2576e6070c24e85d8d6e1a905824a7"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#e3539579a3074fdaf833a6186d0f84da0c2772da"
 dependencies = [
  "cc",
  "which",
@@ -7704,7 +7704,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#de7951f12c2576e6070c24e85d8d6e1a905824a7"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#e3539579a3074fdaf833a6186d0f84da0c2772da"
 dependencies = [
  "cc",
  "ff_ext",
