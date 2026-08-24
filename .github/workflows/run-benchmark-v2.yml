@@ -313,8 +313,11 @@ jobs:
           ulimit -s 1048576
           set +e
 
+          cuda_arch=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
+          echo "Detected CUDA compute capability: ${cuda_arch}"
+
           # Use `CENO_GPU_MEM_TRACKING=1` to check GPU memory estimation.
-          CUDA_ARCH=120 \
+          CUDA_ARCH="${cuda_arch}" \
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
@@ -523,7 +526,10 @@ jobs:
           export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
           ulimit -s 1048576
           set +e
-          CUDA_ARCH=120 \
+
+          cuda_arch=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
+          echo "Detected CUDA compute capability: ${cuda_arch}"
+          CUDA_ARCH="${cuda_arch}" \
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
           CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
