@@ -59,14 +59,14 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "master" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "master" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.35" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/gpu-witness-assignment-20260824" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/gpu-witness-assignment-20260824" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/gpu-witness-assignment-20260824" }
 
 # reth
 reth-primitives-traits = { version = "=0.4.1", default-features = false }
@@ -165,7 +165,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { path = "../ceno-gpu/cuda_hal", package = "cuda_hal", default-features = false, features = ["bb31"] }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "feat/gpu-witness-assignment-20260824", default-features = false, features = ["bb31"] }
 
 [patch."https://github.com/axiom-crypto/openvm-kzg.git"]
 openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
@@ -203,10 +203,3 @@ opt-level = 3
 [profile.bench-with-debug]
 inherits = "release"
 debug = 1
-
-[patch."https://github.com/scroll-tech/ceno.git"]
-ceno_emul = { path = "../ceno/ceno_emul" }
-ceno_host = { path = "../ceno/ceno_host" }
-ceno_zkvm = { path = "../ceno/ceno_zkvm" }
-gkr_iop = { path = "../ceno/gkr_iop" }
-ceno_cli = { path = "../ceno/ceno_cli", package = "cargo-ceno" }

@@ -96,7 +96,7 @@ on:
         description: "Value for CENO_GPU_ENABLE_WITGEN"
         required: false
         type: choice
-        default: "0"
+        default: "1"
         options:
           - "0"
           - "1"
