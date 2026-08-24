@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import re
-import subprocess
 import sys
 from pathlib import Path
 import tomllib
@@ -22,6 +21,11 @@ GUEST_CENO_CRATES: dict[str, dict[str, object]] = {
     "ceno_crypto": {"default-features": False},
 }
 GKR_CRATES = ("ff_ext", "mpcs")
+COMMIT_SHA = re.compile(r"^[0-9a-fA-F]{7,40}$")
+
+
+def requested_ref_kind(ceno_ref: str) -> str:
+    return "rev" if COMMIT_SHA.fullmatch(ceno_ref) else "branch"
 
 
 def load_toml(path: Path) -> dict:
@@ -56,12 +60,13 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
     benchmark_text = benchmark_cargo.read_text()
     ceno_toml = load_toml(ceno_cargo)
     ceno_workspace_deps = ceno_toml["workspace"]["dependencies"]
+    ref_kind = requested_ref_kind(ceno_ref)
 
     for dep_name, extra in CENO_WORKSPACE_CRATES.items():
         items: list[tuple[str, object]] = [("git", CENO_GIT)]
         if "package" in extra:
             items.append(("package", extra["package"]))
-        items.append(("rev", ceno_ref))
+        items.append((ref_kind, ceno_ref))
         benchmark_text = replace_inline_dep(
             benchmark_text,
             dep_name,
@@ -85,23 +90,14 @@ def patch_workspace_cargo(benchmark_cargo: Path, ceno_cargo: Path, ceno_ref: str
             benchmark_cargo,
         )
 
-    # The GPU feature in Ceno patches the mock HAL with the real CUDA HAL.
-    # Keep that patch on the same feature branch as the Ceno/GKR dependencies;
-    # using ceno-gpu/main reintroduces an incompatible alpha35 GKR graph.
-    benchmark_text = re.sub(
-        r'(ceno_gpu\s*=\s*\{[^\n]*?git\s*=\s*"ssh://git@github\.com/scroll-tech/ceno-gpu\.git",\s*package\s*=\s*"cuda_hal",\s*)(?:branch\s*=\s*"[^"]+"|rev\s*=\s*"[^"]+")',
-        r'\1branch = "feat/gpu-witness-assignment-20260824"',
-        benchmark_text,
-        count=1,
-    )
-
     benchmark_cargo.write_text(benchmark_text)
 
 
 def patch_guest_cargo(guest_cargo: Path, ceno_ref: str) -> None:
     guest_text = guest_cargo.read_text()
+    ref_kind = requested_ref_kind(ceno_ref)
     for dep_name, extra in GUEST_CENO_CRATES.items():
-        items: list[tuple[str, object]] = [("git", CENO_GIT), ("rev", ceno_ref)]
+        items: list[tuple[str, object]] = [("git", CENO_GIT), (ref_kind, ceno_ref)]
         for key, value in extra.items():
             items.append((key, value))
         guest_text = replace_inline_dep(
@@ -130,14 +126,8 @@ def main() -> int:
     if not benchmark_cargo.exists() or not guest_cargo.exists() or not ceno_cargo.exists():
         raise SystemExit("Required Cargo.toml file is missing")
 
-    # Cargo's `rev` requires an object ID, while the workflow also accepts a
-    # branch name. Resolve the already checked-out source so both forms are
-    # reproducible and guest dependencies never try to fetch a branch as a rev.
-    ceno_commit = subprocess.check_output(
-        ["git", "-C", str(ceno_root), "rev-parse", "HEAD"], text=True
-    ).strip()
-    patch_workspace_cargo(benchmark_cargo, ceno_cargo, ceno_commit)
-    patch_guest_cargo(guest_cargo, ceno_commit)
+    patch_workspace_cargo(benchmark_cargo, ceno_cargo, args.ceno_ref)
+    patch_guest_cargo(guest_cargo, args.ceno_ref)
     return 0
 
 
