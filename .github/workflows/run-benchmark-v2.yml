@@ -221,7 +221,7 @@ jobs:
               echo "Installing via --rev ${CENO_VERSION}"
             fi
           fi
-          cargo install --git "${CENO_GIT_URL}" \
+          RUSTFLAGS="-A warnings" cargo install --git "${CENO_GIT_URL}" \
             ${CENO_REF_FLAG} \
             --features jemalloc \
             --features nightly-features \
@@ -431,7 +431,7 @@ jobs:
               echo "Installing via --rev ${CENO_VERSION}"
             fi
           fi
-          cargo install --git "${CENO_GIT_URL}" \
+          RUSTFLAGS="-A warnings" cargo install --git "${CENO_GIT_URL}" \
             ${CENO_REF_FLAG} \
             --features jemalloc \
             --features nightly-features \
