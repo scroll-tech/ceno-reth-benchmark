@@ -313,8 +313,9 @@ jobs:
           ulimit -s 1048576
           set +e
 
-          cuda_arch=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
-          echo "Detected CUDA compute capability: ${cuda_arch}"
+          cuda_compute_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
+          cuda_arch=${cuda_compute_cap//./}
+          echo "Detected CUDA compute capability: ${cuda_compute_cap} (CUDA_ARCH=${cuda_arch})"
 
           # Use `CENO_GPU_MEM_TRACKING=1` to check GPU memory estimation.
           CUDA_ARCH="${cuda_arch}" \
@@ -527,8 +528,9 @@ jobs:
           ulimit -s 1048576
           set +e
 
-          cuda_arch=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
-          echo "Detected CUDA compute capability: ${cuda_arch}"
+          cuda_compute_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -n 1)
+          cuda_arch=${cuda_compute_cap//./}
+          echo "Detected CUDA compute capability: ${cuda_compute_cap} (CUDA_ARCH=${cuda_arch})"
           CUDA_ARCH="${cuda_arch}" \
           CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
           CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
