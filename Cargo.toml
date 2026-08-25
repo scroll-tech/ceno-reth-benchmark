@@ -65,8 +65,8 @@ ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-wi
 ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "feat/gpu-witness-assignment-20260824" }
 ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
 gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "feat/gpu-witness-assignment-20260824" }
-ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/gpu-witness-assignment-20260824" }
-mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", branch = "feat/gpu-witness-assignment-20260824" }
+ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
+mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
 
 # reth
 reth-primitives-traits = { version = "=0.4.1", default-features = false }
