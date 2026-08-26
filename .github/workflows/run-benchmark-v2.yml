@@ -522,6 +522,7 @@ jobs:
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
+          CUDA_ARCH=89 \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
