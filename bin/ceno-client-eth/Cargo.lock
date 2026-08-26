@@ -993,7 +993,7 @@ dependencies = [
 [[package]]
 name = "ceno_crypto"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#7fa1eef41fb6dde87abbe6c56f62350228c83185"
+source = "git+https://github.com/scroll-tech/ceno?rev=e289d066#e289d066a0f6c5f860e92073188539b8f68ce4df"
 dependencies = [
  "ceno_keccak",
  "ceno_sha2",
@@ -1016,7 +1016,7 @@ dependencies = [
 [[package]]
 name = "ceno_keccak"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#7fa1eef41fb6dde87abbe6c56f62350228c83185"
+source = "git+https://github.com/scroll-tech/ceno?rev=e289d066#e289d066a0f6c5f860e92073188539b8f68ce4df"
 dependencies = [
  "ceno_syscall",
  "tiny-keccak",
@@ -1025,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#7fa1eef41fb6dde87abbe6c56f62350228c83185"
+source = "git+https://github.com/scroll-tech/ceno?rev=e289d066#e289d066a0f6c5f860e92073188539b8f68ce4df"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1038,7 +1038,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#7fa1eef41fb6dde87abbe6c56f62350228c83185"
+source = "git+https://github.com/scroll-tech/ceno?rev=e289d066#e289d066a0f6c5f860e92073188539b8f68ce4df"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1047,7 +1047,7 @@ dependencies = [
 [[package]]
 name = "ceno_sha2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#7fa1eef41fb6dde87abbe6c56f62350228c83185"
+source = "git+https://github.com/scroll-tech/ceno?rev=e289d066#e289d066a0f6c5f860e92073188539b8f68ce4df"
 dependencies = [
  "ceno_syscall",
  "digest 0.10.7",

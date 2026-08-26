@@ -59,12 +59,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", branch = "fix/pr1399-gpu-replay-owner" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", branch = "fix/pr1399-gpu-replay-owner" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", branch = "fix/pr1399-gpu-replay-owner" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", branch = "fix/pr1399-gpu-replay-owner" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", branch = "fix/pr1399-gpu-replay-owner" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", branch = "fix/pr1399-gpu-replay-owner" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "e289d066" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "e289d066" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "e289d066" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "e289d066" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "e289d066" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "e289d066" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
 
@@ -165,7 +165,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "feat/gpu-witness-assignment-20260824", default-features = false, features = ["bb31"] }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", branch = "perf/producer-pre-split", default-features = false, features = ["bb31"] }
 
 [patch."https://github.com/axiom-crypto/openvm-kzg.git"]
 openvm = { git = "https://github.com/scroll-tech/openvm.git", branch = "feat/v1.4.1-scroll-ext" }
