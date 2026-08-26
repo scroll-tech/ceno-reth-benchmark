@@ -18,8 +18,8 @@ serde.workspace = true
 bincode = { workspace = true, features = ["std"] }
 bitcode.workspace = true
 bumpalo.workspace = true
-metrics = "0.23.0"
-metrics-util = "0.17.0"
+metrics = "0.24.6"
+metrics-util = "0.20.1"
 hex = "0.4.3"
 serde_json.workspace = true
 

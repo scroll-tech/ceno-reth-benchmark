@@ -4326,7 +4326,7 @@ dependencies = [
  "itoa",
  "lockfree-object-pool",
  "metrics 0.23.1",
- "metrics-util",
+ "metrics-util 0.17.0",
  "once_cell",
  "tracing",
  "tracing-core",
@@ -4349,7 +4349,28 @@ dependencies = [
  "ordered-float 4.6.0",
  "quanta",
  "radix_trie",
- "sketches-ddsketch",
+ "sketches-ddsketch 0.2.2",
+]
+
+[[package]]
+name = "metrics-util"
+version = "0.20.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96f8722f8562635f92f8ed992f26df0532266eb03d5202607c20c0d7e9745e13"
+dependencies = [
+ "aho-corasick",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "hashbrown 0.16.1",
+ "indexmap 2.14.0",
+ "metrics 0.24.6",
+ "ordered-float 5.5.0",
+ "quanta",
+ "radix_trie",
+ "rand 0.9.5",
+ "rand_xoshiro",
+ "rapidhash",
+ "sketches-ddsketch 0.3.1",
 ]
 
 [[package]]
@@ -5165,8 +5186,8 @@ dependencies = [
  "gkr_iop",
  "halo2-axiom",
  "hex",
- "metrics 0.23.1",
- "metrics-util",
+ "metrics 0.24.6",
+ "metrics-util 0.20.4",
  "mpcs",
  "openvm-client-executor",
  "openvm-host-executor",
@@ -5250,7 +5271,7 @@ dependencies = [
  "hex-literal",
  "itertools 0.14.0",
  "metrics-tracing-context",
- "metrics-util",
+ "metrics-util 0.17.0",
  "num-bigint",
  "nvtx",
  "openvm-cpu-backend",
@@ -5301,6 +5322,15 @@ name = "ordered-float"
 version = "4.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7bb71e1b3fa6ca1c61f383464aaf2bb0e2f8e772a1f01d486832464de363b951"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "ordered-float"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c7c9e0d9b23589f26070720bac724174bfec1083e82f7854cdd0267518343c0"
 dependencies = [
  "num-traits",
 ]
@@ -6308,6 +6338,15 @@ name = "rand_xorshift"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "513962919efc330f829edb2535844d1b912b0fbe2ca165d613e4e8788bb05a5a"
+dependencies = [
+ "rand_core 0.9.5",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f703f4665700daf5512dcca5f43afa6af89f09db47fb56be587f80636bda2d41"
 dependencies = [
  "rand_core 0.9.5",
 ]
@@ -7752,6 +7791,12 @@ name = "sketches-ddsketch"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85636c14b73d81f541e525f585c0a2109e6744e1565b5c1668e31c70c10ed65c"
+
+[[package]]
+name = "sketches-ddsketch"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c6f73aeb92d671e0cc4dca167e59b2deb6387c375391bc99ee743f326994a2b"
 
 [[package]]
 name = "slab"
