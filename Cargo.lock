@@ -1463,7 +1463,7 @@ dependencies = [
 [[package]]
 name = "cargo-ceno"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -1595,7 +1595,7 @@ dependencies = [
 [[package]]
 name = "ceno-examples"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "glob",
 ]
@@ -1622,7 +1622,7 @@ dependencies = [
 [[package]]
 name = "ceno_emul"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "anyhow",
  "ceno_rt",
@@ -1659,7 +1659,7 @@ dependencies = [
 [[package]]
 name = "ceno_host"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "anyhow",
  "ceno_emul",
@@ -1672,7 +1672,7 @@ dependencies = [
 [[package]]
 name = "ceno_recursion_v2"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "bincode 1.3.3",
  "bincode 2.0.1",
@@ -1726,7 +1726,7 @@ dependencies = [
 [[package]]
 name = "ceno_rt"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "ceno_serde",
  "ceno_syscall",
@@ -1739,7 +1739,7 @@ dependencies = [
 [[package]]
 name = "ceno_serde"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "bytemuck",
  "serde",
@@ -1753,7 +1753,7 @@ source = "git+https://github.com/scroll-tech/ceno-patch.git?branch=main#48f82923
 [[package]]
 name = "ceno_zkvm"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "arrayref",
  "base64",
@@ -2274,7 +2274,7 @@ dependencies = [
 [[package]]
 name = "cuda_hal"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#5d91f54dc6481da43003e7549e72f43b065e7c91"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#2730b444a3c129a215657a6f94ebbaf3753f6abb"
 dependencies = [
  "anyhow",
  "cuda-runtime-sys",
@@ -2535,7 +2535,7 @@ dependencies = [
 [[package]]
 name = "derive"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -2912,7 +2912,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3270,7 +3270,7 @@ dependencies = [
 [[package]]
 name = "gkr_iop"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#b8917e8eb4185343fc49efbe08004f60d4464efc"
+source = "git+https://github.com/scroll-tech/ceno?branch=fix%2Fpr1399-gpu-replay-owner#2789fd2dd2f0418f3d57d6790b0e860a0e3b8774"
 dependencies = [
  "bincode 1.3.3",
  "cuda_hal",
@@ -3846,7 +3846,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6174,7 +6174,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7209,7 +7209,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.15",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -7222,7 +7222,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.12.1",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7279,7 +7279,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7838,7 +7838,7 @@ dependencies = [
 [[package]]
 name = "sppark"
 version = "0.1.11"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#5d91f54dc6481da43003e7549e72f43b065e7c91"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#2730b444a3c129a215657a6f94ebbaf3753f6abb"
 dependencies = [
  "cc",
  "which",
@@ -7847,7 +7847,7 @@ dependencies = [
 [[package]]
 name = "sppark_plug"
 version = "0.1.0"
-source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#5d91f54dc6481da43003e7549e72f43b065e7c91"
+source = "git+ssh://git@github.com/scroll-tech/ceno-gpu.git?branch=feat%2Fgpu-witness-assignment-20260824#2730b444a3c129a215657a6f94ebbaf3753f6abb"
 dependencies = [
  "cc",
  "ff_ext",
@@ -8074,7 +8074,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix 1.1.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8982,7 +8982,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
