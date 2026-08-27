@@ -136,6 +136,14 @@ jobs:
           # Inspired by https://github.com/rustls/rustls/blob/7159373401f253cbaacd276634508e0798a8849f/.github/workflows/icount-bench.yml#L37
           cat $MD_PATH >> $GITHUB_STEP_SUMMARY
 
+          echo "### Cycle Consistency Check" >> $GITHUB_STEP_SUMMARY
+          if python3 scripts/check_cycle_consistency.py $BASE_JSON $TARGET_JSON; then
+            echo "✅ Cycles are consistent" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Cycle mismatch detected!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Workflow Inputs" >> $GITHUB_STEP_SUMMARY
           echo "Base Ref: ${{ inputs.base_ref }}" >> $GITHUB_STEP_SUMMARY
