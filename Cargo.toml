@@ -165,7 +165,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "e13d771dbba0b7d75a2a09373ed15259079bcf94", default-features = false, features = ["bb31"] }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "a8101987e633ceb2eb1b5fa801756b5b14cc492c", default-features = false, features = ["bb31"] }
 
 [patch."https://github.com/openvm-org/stark-backend.git"]
 openvm-codec-derive = { git = "https://github.com/hero78119/stark-backend.git", rev = "ce6e2a483d036e34522953f4e9e995669fb1278d" }
