@@ -412,12 +412,35 @@ jobs:
         env:
           GPU_DEVICES: ${{ inputs.gpu_devices }}
         run: |
-          command -v nsys
           CENO_PROFILE_DIR="${RUNNER_TEMP}/ceno-nsys-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir "$CENO_PROFILE_DIR"
           export CENO_PROFILE_DIR
           echo "CENO_PROFILE_DIR=$CENO_PROFILE_DIR" >> "$GITHUB_ENV"
-          nsys --version | tee "$CENO_PROFILE_DIR/nsys-version.txt"
+          nsys_path="$(command -v nsys || true)"
+          if [[ -z "$nsys_path" ]]; then
+            echo "nsys is not on PATH; checking known installation locations"
+            shopt -s nullglob
+            for profiler in /opt/nvidia/nsight-systems*/bin/nsys /opt/nvidia/nsight-systems/*/bin/nsys /usr/local/cuda*/bin/nsys /usr/bin/nsys /usr/local/bin/nsys; do
+              if [[ -x "$profiler" ]]; then
+                readlink -f "$profiler"
+              fi
+            done > "$CENO_PROFILE_DIR/nsys-locations.txt"
+            shopt -u nullglob
+            sort -u "$CENO_PROFILE_DIR/nsys-locations.txt" > "$CENO_PROFILE_DIR/nsys-candidates.txt"
+            cat "$CENO_PROFILE_DIR/nsys-candidates.txt"
+            mapfile -t nsys_candidates < "$CENO_PROFILE_DIR/nsys-candidates.txt"
+            if [[ "${#nsys_candidates[@]}" != 1 ]]; then
+              echo "Expected one existing Nsight Systems installation; found ${#nsys_candidates[@]}" | tee "$CENO_PROFILE_DIR/nsys-discovery-error.txt"
+              exit 1
+            fi
+            nsys_path="${nsys_candidates[0]}"
+          fi
+          nsys_path="$(readlink -f "$nsys_path")"
+          printf '%s\n' "$nsys_path" > "$CENO_PROFILE_DIR/nsys-path.txt"
+          sha256sum "$nsys_path" > "$CENO_PROFILE_DIR/nsys.sha256"
+          "$nsys_path" --version > "$CENO_PROFILE_DIR/nsys-version.txt" 2>&1
+          cat "$CENO_PROFILE_DIR/nsys-version.txt"
+          export PATH="$(dirname "$nsys_path"):$PATH"
           sha256sum scripts/profile_benchmark.py > "$CENO_PROFILE_DIR/wrapper.sha256"
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
