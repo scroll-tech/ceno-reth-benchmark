@@ -568,6 +568,10 @@ jobs:
             echo "e2e proof generated successfully"
           fi
 
+      - name: Capture benchmark identity
+        if: always()
+        run: python3 scripts/capture_benchmark_identity.py
+
       - name: Upload guest program artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -582,6 +586,7 @@ jobs:
         with:
           name: benchmark-debug-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            output/identity/
             output/app_proof.bitcode
             output/*_root_proof.bin
             ${{ env.LOG_FILE }}
