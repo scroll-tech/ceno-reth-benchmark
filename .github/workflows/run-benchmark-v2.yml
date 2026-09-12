@@ -412,6 +412,13 @@ jobs:
         env:
           GPU_DEVICES: ${{ inputs.gpu_devices }}
         run: |
+          command -v nsys
+          CENO_PROFILE_DIR="${RUNNER_TEMP}/ceno-nsys-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir "$CENO_PROFILE_DIR"
+          export CENO_PROFILE_DIR
+          echo "CENO_PROFILE_DIR=$CENO_PROFILE_DIR" >> "$GITHUB_ENV"
+          nsys --version | tee "$CENO_PROFILE_DIR/nsys-version.txt"
+          sha256sum scripts/profile_benchmark.py > "$CENO_PROFILE_DIR/wrapper.sha256"
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
           chip_proving_lanes="4"
@@ -539,8 +546,7 @@ jobs:
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
           CUDA_ARCH=89,120 \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
-            --release --bin ceno-reth-benchmark-bin -- \
+          python3 scripts/profile_benchmark.py \
             --mode prove-stark \
             --block-number $block_number \
             --output-dir output \
@@ -591,6 +597,15 @@ jobs:
             output/*_root_proof.bin
             ${{ env.LOG_FILE }}
           if-no-files-found: warn
+
+      - name: Upload Nsight Systems diagnostic artifacts
+        if: ${{ always() && env.CENO_PROFILE_DIR != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-nsys-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.CENO_PROFILE_DIR }}/
+          if-no-files-found: warn
+          compression-level: 0
 
       - name: Profile trace from log file
         run: |
