@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: ""
+      gpu_source_rev:
+        description: "Exact ceno-gpu revision for the shared-factor comparison"
+        required: true
+        type: string
+        default: "48528a59ebb66e1fcf2e20a47193fcf40ab0c56d"
       source_repository:
         description: "Origin repository to comment back to"
         required: false
@@ -158,6 +163,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Pin GPU source for comparison
+        env:
+          GPU_SOURCE_REV: ${{ inputs.gpu_source_rev }}
+        run: |
+          python3 - <<'PYCODE'
+          import os, re
+          from pathlib import Path
+          revision = os.environ["GPU_SOURCE_REV"]
+          assert re.fullmatch(r"[0-9a-f]{40}", revision), "Exact GPU commit required"
+          path = Path("Cargo.toml")
+          text = path.read_text()
+          old = 'rev = "48528a59ebb66e1fcf2e20a47193fcf40ab0c56d"'
+          assert text.count(old) == 1
+          path.write_text(text.replace(old, f'rev = "{revision}"'))
+          print(f"Pinned ceno-gpu: {revision}")
+          PYCODE
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -371,6 +393,23 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Pin GPU source for comparison
+        env:
+          GPU_SOURCE_REV: ${{ inputs.gpu_source_rev }}
+        run: |
+          python3 - <<'PYCODE'
+          import os, re
+          from pathlib import Path
+          revision = os.environ["GPU_SOURCE_REV"]
+          assert re.fullmatch(r"[0-9a-f]{40}", revision), "Exact GPU commit required"
+          path = Path("Cargo.toml")
+          text = path.read_text()
+          old = 'rev = "48528a59ebb66e1fcf2e20a47193fcf40ab0c56d"'
+          assert text.count(old) == 1
+          path.write_text(text.replace(old, f'rev = "{revision}"'))
+          print(f"Pinned ceno-gpu: {revision}")
+          PYCODE
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
