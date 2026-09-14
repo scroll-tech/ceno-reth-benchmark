@@ -56,7 +56,7 @@ def main():
     (profile_dir / "binary.sha256").write_text(binary_hash + "  " + str(binary) + "\n")
     prefix = profile_dir / "proof"
     status = run("profile", [
-        "nsys", "profile", "--sample=none", "--cpuctxsw=none", "--trace=cuda,nvtx,osrt",
+        "nsys", "profile", "--sample=none", "--cpuctxsw=none", "--trace=cuda,nvtx",
         "--output=" + str(prefix), str(binary), *sys.argv[1:],
     ])
     if sha256(binary) != binary_hash:
