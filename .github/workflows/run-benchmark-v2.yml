@@ -72,11 +72,6 @@ on:
         description: "Recompile reth program"
         required: false
         type: boolean
-      reth_version:
-        description: "The git commit or branch of Reth program to compile from"
-        required: false
-        type: string
-        default: ""
       cleanup:
         description: "Cleanup after benchmark"
         required: false
