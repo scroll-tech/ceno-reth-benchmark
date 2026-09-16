@@ -140,7 +140,7 @@ COPY --from=builder /app/host-binary.sha256 /app/host-binary.sha256
 COPY --from=builder /app/guest-elf.sha256 /app/guest-elf.sha256
 COPY server /app/server
 RUN mkdir -p /app/jobs \
-  && chmod +x /app/server/check_gpu.sh /app/server/entrypoint.sh
+  && chmod +x /app/server/entrypoint.sh
 
 RUN python3 -m venv /opt/venv \
   && . /opt/venv/bin/activate \

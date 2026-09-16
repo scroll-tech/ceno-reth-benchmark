@@ -29,8 +29,7 @@ container-local logical GPU ordinals Ceno uses. It defaults to logical GPU `0`.
 Single-GPU proving with only host GPU 0 visible:
 
 ```bash
-docker run --gpus '"device=0"' \
-  --name reth-server \
+server/run_container.sh --gpus '"device=0"' \
   -p 8000:8000 \
   -v /path/on/host/jobs:/app/jobs \
   -e CENO_STATUS_API_BASE_URL="https://staging--ethproofs.netlify.app/api/v0" \
@@ -44,8 +43,7 @@ docker run --gpus '"device=0"' \
 Dual-GPU proving with host GPUs 0 and 1 visible:
 
 ```bash
-docker run --gpus '"device=0,1"' \
-  --name reth-server \
+server/run_container.sh --gpus '"device=0,1"' \
   -p 8000:8000 \
   -v /path/on/host/jobs:/app/jobs \
   -e CENO_STATUS_API_BASE_URL="https://staging--ethproofs.netlify.app/api/v0" \
@@ -60,8 +58,7 @@ The same pattern supports more GPUs. For example, expose four host GPUs and
 select all four logical devices:
 
 ```bash
-docker run --gpus '"device=0,1,2,3"' \
-  --name reth-server \
+server/run_container.sh --gpus '"device=0,1,2,3"' \
   -p 8000:8000 \
   -v /path/on/host/jobs:/app/jobs \
   -e ETH_RPC_URL="<RPC URL>" \
@@ -83,20 +80,24 @@ unset by default, so the pinned Ceno revision owns the scheduler defaults.
 Set either variable only for an explicit override. The removed
 `CENO_CONCURRENT_CHIP_PROVING` setting is not supported.
 
-If the host GPU goes offline and later recovers, an existing container can keep
-stale NVIDIA device bindings and report `Failed to initialize NVML: Unknown
-Error`. The server exits with status 75 after detecting this condition. Delete
-and recreate the container; restarting processes inside it cannot restore the
-device binding:
+Run these commands on the host in the foreground, under your host service
+manager if needed. `server/run_container.sh` owns the container name (default
+`reth-server`; override with `CONTAINER_NAME`) and lifecycle. Do not pass Docker's
+`-d`, `--name`, or `--restart` options to this wrapper.
 
-```bash
-docker rm -f reth-server
-# Repeat the docker run command above.
-```
+If the GPU goes offline, the watchdog detects CUDA/NVML failures in job stderr,
+including output written before a new log is discovered. The entrypoint gives
+prover processes up to `STACK_STOP_TIMEOUT_SEC` (default 10 seconds) to stop,
+then kills them and exits with status 75. The host wrapper removes the old
+container, waits for host GPU availability, and creates a new container with
+the same arguments and job volume. Other container exit codes are returned to
+the host service manager. Historical job errors are ignored on startup.
 
-CI or another host-side supervisor should perform the same remove-and-recreate
-operation when the container exits with status 75. A plain in-container retry
-loop is intentionally not used for this failure mode.
+Use the host wrapper for automatic recovery: plain `docker run` does not
+recreate a container on status 75. Restarting only the prover inside a container
+cannot repair stale NVIDIA device bindings. Host GPU checks require
+`nvidia-smi` and GNU `timeout`; without host `nvidia-smi`, the container's startup
+GPU check handles readiness.
 
 Mounting `/app/jobs` persists `block_data` and logs between runs. Set `CENO_STATUS_API_BASE_URL`, `CENO_STATUS_API_KEY`, and `CENO_CLUSTER_ID` to report queue/proving/proved events to the API (omit them to skip the HTTP hooks). Configure any other env vars (APP_PK_URI, AGG_PK_URI, JOBS_DIR, etc.) as needed.
 
@@ -106,4 +107,4 @@ two prover processes against the same GPUs concurrently is unsupported. Job logs
 include the locked Ceno and ceno-gpu revisions plus host, guest, and
 `Cargo.lock` hashes so a server failure can be compared exactly with CI.
 
-To debug a specific block instead of the latest, append `-e BLOCK_NUMBER="<BLOCKNUM>"` to the `docker run` command.
+To debug a specific block instead of the latest, append `-e BLOCK_NUMBER="<BLOCKNUM>"` to the `server/run_container.sh` command (before the image name).
