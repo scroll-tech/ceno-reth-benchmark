@@ -9,8 +9,8 @@ edition = "2021"
 # workspace
 openvm-client-executor = { path = "../../crates/executor/client" }
 ceno_syscall = { git = "https://github.com/scroll-tech/ceno-patch", branch = "main", default-features = false }
-ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61", default-features = false }
-ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61", default-features = false }
+ceno_rt = { git = "https://github.com/scroll-tech/ceno", rev = "31ce5e6baa3d1234028d3dde43e68487151a098b", default-features = false }
+ceno_crypto = { git = "https://github.com/scroll-tech/ceno", rev = "31ce5e6baa3d1234028d3dde43e68487151a098b", default-features = false }
 bincode = { version = "2.0.1", default-features = false, features = [
     "derive",
     "alloc",
