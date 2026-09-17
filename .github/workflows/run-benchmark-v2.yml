@@ -208,7 +208,7 @@ jobs:
           B_CENO: 18f3e33f652a2ab9d5547a66af299021d6830a78
           B_GPU: 35e50efaac3182237815aefb1b9d5a79fb8dc68a
         run: |
-          import hashlib, json, os, pathlib, resource, shutil, sqlite3, subprocess, time
+          import hashlib, http.client, io, json, os, pathlib, resource, shutil, sqlite3, subprocess, time, urllib.request, zipfile
           root = pathlib.Path.cwd()
           out = root / 'opcode-results'
           out.mkdir(exist_ok=True)
@@ -235,7 +235,15 @@ jobs:
                       result.update(chunk)
                   return result.hexdigest()
 
-          run(['nsys', '--version'])
+          # Extract NVIDIA's pinned CLI locally; no runner-image or system-package change.
+          tools = root / 'opcode-tools'
+          tools.mkdir(exist_ok=True)
+          package = tools / 'nsys.deb'
+          run(['curl','-fL','--max-time','120','--output',str(package),'https://developer.download.nvidia.com/devtools/repos/ubuntu2204/amd64/NsightSystems-linux-cli-public-2024.6.1.90-3490548.deb'])
+          assert digest(package) == '4b94bfd1cc0a0e3268777116d5043556f4ff2a7c0231f33722b8d5bd19c1414d'
+          run(['dpkg-deb','-x',str(package),str(tools/'nsys')])
+          env['PATH'] = str(tools/'nsys/opt/nvidia/nsight-systems-cli/2024.6.1/target-linux-x64') + ':' + env['PATH']
+          run(['nsys', '--version'],log=out/'nsys-version.txt')
           active = subprocess.check_output(['nvidia-smi','--query-compute-apps=pid','--format=csv,noheader'],text=True).strip()
           assert not active, 'GPU has another compute workload before diagnostic batch'
           run(['nvidia-smi', '-q'], log=out/'hardware.txt')
@@ -250,7 +258,16 @@ jobs:
               assert db.execute('select count(*) from CUPTI_ACTIVITY_KIND_MEMSET').fetchone()[0] > 0
 
           # Reuse the current, already-verified guest. No guest rebuild can change A/B work.
-          run(['gh','run','download','35194553362','--repo','scroll-tech/ceno-reth-benchmark','--name','guest-program-benchmark-35194553362-1','--dir',str(out/'guest')])
+          connection = http.client.HTTPSConnection('api.github.com',timeout=30)
+          connection.request('GET','/repos/scroll-tech/ceno-reth-benchmark/actions/artifacts/10486775959/zip',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'User-Agent':'ceno-opcode-diagnostic','Accept':'application/vnd.github+json'})
+          response = connection.getresponse()
+          assert response.status == 302, 'Cannot download pinned guest artifact: '+str(response.status)
+          location = response.getheader('Location')
+          connection.close()
+          # The redirected artifact request deliberately carries no GitHub credential.
+          with urllib.request.urlopen(location,timeout=60) as response:
+              with zipfile.ZipFile(io.BytesIO(response.read())) as archive:
+                  archive.extractall(out/'guest')
           guest = out/'guest/ceno-client-eth'
           assert digest(guest) == 'aa5dab3effd163111177d99966b3862a1127581d08fccc46b6c476315c8c0f46'
           input_file = root/'rpc-cache/input/1/23817600.bin'
