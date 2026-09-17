@@ -59,12 +59,12 @@ openvm-primitives = { path = "./crates/primitives" }
 openvm-reth-benchmark = { path = "./crates/host-bench", default-features = false }
 openvm-mpt = { path = "./crates/mpt" }
 # ceno
-ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
-ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
-ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
-ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
-ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
-gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "7dd5009dc6bb92f55f8fe571f4aa173ffdf77fec" }
+ceno_emul = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
+ceno_host = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
+ceno_zkvm = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
+ceno_cli = { git = "https://github.com/scroll-tech/ceno", package = "cargo-ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
+ceno_recursion = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
+gkr_iop = { git = "https://github.com/scroll-tech/ceno", rev = "bef0a5044264615aec590bf10980e538c0502c61" }
 ff_ext = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
 mpcs = { git = "https://github.com/scroll-tech/gkr-backend.git", tag = "v1.0.0-alpha.36" }
 
@@ -165,7 +165,7 @@ openvm-k256 = { git = "https://github.com/scroll-tech/openvm.git", package = "k2
 openvm-p256 = { git = "https://github.com/scroll-tech/openvm.git", package = "p256", branch = "feat/v1.4.1-scroll-ext" }
 
 [patch."https://github.com/scroll-tech/ceno-gpu-mock.git"]
-ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "c6406a5ee2e310bb798c7c39002c5d10fd4fde51" }
+ceno_gpu = { git = "ssh://git@github.com/scroll-tech/ceno-gpu.git", package = "cuda_hal", rev = "c27932992959941192e2c6c27971af8d93d57165" }
 
 [patch."https://github.com/openvm-org/stark-backend.git"]
 openvm-codec-derive = { git = "https://github.com/hero78119/stark-backend.git", rev = "ce6e2a483d036e34522953f4e9e995669fb1278d" }
