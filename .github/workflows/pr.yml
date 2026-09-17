@@ -112,7 +112,19 @@ jobs:
           RUST_BACKTRACE=1 CENO_GPU_CACHE_LEVEL=0 CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=23 \
           RUST_MIN_STACK=536870912 \
           RUSTFLAGS="-C target-feature=+avx2" \
+          OUTPUT_PATH="output/metrics.json" \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu" --config net.git-fetch-with-cli=true \
             --bin ceno-reth-benchmark-bin --profile release -- --block-number $BLOCK_NUM \
             --rpc-url $RPC_URL_1 --cache-dir block_data --output-dir output --mode prove-stark
+
+      - name: "Validate server metrics"
+        run: |
+          python3 - <<'PY'
+          import json
+          with open("output/metrics.json") as f:
+              gauges = {entry["metric"]: entry["value"] for entry in json.load(f)["gauge"]}
+          for name in ("cycles", "num_shards"):
+              value = str(gauges.get(name, ""))
+              assert value.isdigit() and int(value) > 0, f"Missing positive {name}: {value!r}"
+          PY

@@ -18,8 +18,9 @@ serde.workspace = true
 bincode = { workspace = true, features = ["std"] }
 bitcode.workspace = true
 bumpalo.workspace = true
-metrics = "0.24.6"
-metrics-util = "0.20.1"
+# Match Ceno's metrics API: different minor versions have separate global recorders.
+metrics = "0.23.1"
+metrics-util = "0.17.0"
 hex = "0.4.3"
 serde_json.workspace = true
 
@@ -58,7 +59,7 @@ halo2-axiom = { version = "0.5.0", default-features = false, optional = true }
 [features]
 default = ["jemalloc"]
 openvm-backend = []
-gpu = ["ceno_cli/gpu"]
+gpu = ["aot", "ceno_cli/gpu"]
 metrics = []
 tco = []
 aot = ["ceno_cli/aot-x86_64", "ceno_zkvm/aot-x86_64"]

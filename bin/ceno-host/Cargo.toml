@@ -17,7 +17,7 @@ workspace = true
 
 [features]
 default = ["jemalloc"]
-gpu = ["openvm-reth-benchmark/gpu"]
+gpu = ["aot", "openvm-reth-benchmark/gpu"]
 metrics = ["openvm-reth-benchmark/metrics"]
 evm-verify = ["openvm-reth-benchmark/evm-verify"]
 perf-metrics = ["openvm-reth-benchmark/perf-metrics"]

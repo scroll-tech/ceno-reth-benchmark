@@ -53,8 +53,21 @@ RUN set -eu; \
         print source; \
         exit \
       }' Cargo.lock)"; \
+    CENO_GPU_REV="$(awk ' \
+      $0 == "[[package]]" { in_package = 0 } \
+      $0 == "name = \"cuda_hal\"" { in_package = 1; next } \
+      in_package && /^source = "git\+/ { \
+        source = $0; \
+        sub(/^.*#/, "", source); \
+        sub(/".*$/, "", source); \
+        print source; \
+        exit \
+      }' Cargo.lock)"; \
     printf '%s' "$CENO_REV" | grep -Eq '^[0-9a-f]{40}$'; \
+    printf '%s' "$CENO_GPU_REV" | grep -Eq '^[0-9a-f]{40}$'; \
     printf '%s\n' "$CENO_REV" > /app/ceno-revision.txt; \
+    printf '%s\n' "$CENO_GPU_REV" > /app/ceno-gpu-revision.txt; \
+    sha256sum Cargo.lock > /app/cargo-lock.sha256; \
     JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,metadata_thp:always,thp:always,dirty_decay_ms:-1,muzzy_decay_ms:-1,abort_conf:true" \
       cargo install --git https://github.com/scroll-tech/ceno.git --rev "$CENO_REV" \
         --features jemalloc --features nightly-features --locked cargo-ceno
@@ -86,13 +99,14 @@ WORKDIR /app
 ENV JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
 ARG FEATURES="metrics,jemalloc,gpu,aot,parallel"
 ARG PROFILE="release"
-ENV CUDA_ARCH="89"
+ENV CUDA_ARCH="89,120"
 ENV RUSTFLAGS="-C target-feature=+avx2"
 RUN --mount=type=secret,id=sshkey \
     set -e; \
     KEY=/run/secrets/sshkey; \
     export GIT_SSH_COMMAND="ssh -i ${KEY} -o UserKnownHostsFile=/root/.ssh/known_hosts"; \
-    cargo +nightly-2025-11-20 build --locked --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES}
+    cargo +nightly-2025-11-20 build --locked --bin ceno-reth-benchmark-bin --profile=${PROFILE} --no-default-features --features=${FEATURES} \
+  && sha256sum target/${PROFILE}/ceno-reth-benchmark-bin > /app/host-binary.sha256
 
 # Runtime image
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04 AS runtime
@@ -102,6 +116,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libc6-dev \
     python3 \
     python3-venv \
+    util-linux \
     curl \
     tar \
     gzip \
@@ -119,10 +134,13 @@ COPY --from=builder /app/bin/ceno-host/elf/ceno-client-eth /app/bin/ceno-host/el
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY --from=builder /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth /app/bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth
 COPY --from=builder /app/ceno-revision.txt /app/ceno-revision.txt
+COPY --from=builder /app/ceno-gpu-revision.txt /app/ceno-gpu-revision.txt
+COPY --from=builder /app/cargo-lock.sha256 /app/cargo-lock.sha256
+COPY --from=builder /app/host-binary.sha256 /app/host-binary.sha256
 COPY --from=builder /app/guest-elf.sha256 /app/guest-elf.sha256
 COPY server /app/server
 RUN mkdir -p /app/jobs \
-  && chmod +x /app/server/check_gpu.sh /app/server/entrypoint.sh
+  && chmod +x /app/server/entrypoint.sh
 
 RUN python3 -m venv /opt/venv \
   && . /opt/venv/bin/activate \

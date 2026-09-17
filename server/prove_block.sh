@@ -10,7 +10,6 @@ CENO_STATUS_API_KEY="${CENO_STATUS_API_KEY:-}"
 CENO_CLUSTER_ID="${CENO_CLUSTER_ID:-}"
 VERIFIER_ID="${VERIFIER_ID:-0.1}"
 CENO_GPU_CACHE_LEVEL="${CENO_GPU_CACHE_LEVEL:-1}"
-CENO_GPU_ENABLE_WITGEN="${CENO_GPU_ENABLE_WITGEN:-0}"
 CENO_CHIP_PROVING_MODE="${CENO_CHIP_PROVING_MODE:-}"
 CENO_CHIP_PROVING_LANES="${CENO_CHIP_PROVING_LANES:-}"
 CENO_GPU_MEM_TRACKING="${CENO_GPU_MEM_TRACKING:-0}"
@@ -23,7 +22,13 @@ CHAIN_ID="${CHAIN_ID:-1}"
 GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
 GPU_READY_MAX_ATTEMPTS="${GPU_READY_MAX_ATTEMPTS:-6}"
 PROVE_BLOCK_GPU_CHECK="${PROVE_BLOCK_GPU_CHECK:-1}"
+CENO_GPU_DEVICES="${CENO_GPU_DEVICES:-}"
 GPU_UNAVAILABLE_EXIT_CODE=75
+
+GPU_DEVICE_ARGS=()
+if [[ -n "$CENO_GPU_DEVICES" ]]; then
+  GPU_DEVICE_ARGS+=(--gpu-devices "$CENO_GPU_DEVICES")
+fi
 
 # Remove the obsolete scheduler switch inherited from older deployments.
 unset CENO_CONCURRENT_CHIP_PROVING
@@ -123,9 +128,21 @@ post_status() {
 
 echo "[prove_block.sh] Starting proof at $(date -Is) with BIN=$BIN_PATH" >&2
 echo "[prove_block.sh] Job dir: $job_dir" >&2
+echo "[prove_block.sh] Ceno logical GPU devices: ${CENO_GPU_DEVICES:-0 (default)}" >&2
 echo "[prove_block.sh] Chip scheduler overrides: mode=${CENO_CHIP_PROVING_MODE:-<rust-default>} lanes=${CENO_CHIP_PROVING_LANES:-<rust-default>}" >&2
 if [[ -f /app/ceno-revision.txt ]]; then
   echo "[prove_block.sh] Ceno revision: $(cat /app/ceno-revision.txt)" >&2
+fi
+if [[ -f /app/ceno-gpu-revision.txt ]]; then
+  echo "[prove_block.sh] ceno-gpu revision: $(cat /app/ceno-gpu-revision.txt)" >&2
+fi
+if [[ -f /app/cargo-lock.sha256 ]]; then
+  echo "[prove_block.sh] Cargo.lock identity: $(cat /app/cargo-lock.sha256)" >&2
+fi
+if [[ -f /app/host-binary.sha256 ]]; then
+  echo "[prove_block.sh] Host binary identity: $(cat /app/host-binary.sha256)" >&2
+else
+  echo "[prove_block.sh] Host binary identity: $(sha256sum "$BIN_PATH")" >&2
 fi
 if [[ -f /app/guest-elf.sha256 ]]; then
   echo "[prove_block.sh] Guest ELF: $(cat /app/guest-elf.sha256)" >&2
@@ -234,6 +251,8 @@ fi
 
 INPUT_PATH="$GENERATED_INPUT_PATH"
 echo "[prove_block.sh] Using input: $INPUT_PATH" >&2
+echo "[prove_block.sh] Input identity: $(sha256sum "$INPUT_PATH") size=$(stat -c %s "$INPUT_PATH")" >&2
+echo "[prove_block.sh] Replay audit shard: ${CENO_MULTI_GPU_REPLAY_AUDIT_SHARD:-<disabled>}" >&2
 
 METRICS_MD="$job_dir/${BLOCK_NUMBER}_metrics.md"
 
@@ -247,6 +266,19 @@ if [[ -n "$CENO_STATUS_API_BASE_URL" ]]; then
   fi
 fi
 
+# A prover process assumes exclusive use of every selected GPU when it sizes
+# shard memory and creates device-local pools. The HTTP service can host more
+# than one proof UUID, so serialize only the GPU proving section across jobs.
+PROVER_LOCK_PATH="${JOBS_DIR}/.ceno-gpu-prover.lock"
+exec 9>"$PROVER_LOCK_PATH"
+echo "[prove_block.sh] Waiting for exclusive GPU prover slot: $PROVER_LOCK_PATH" >&2
+flock 9
+echo "[prove_block.sh] Acquired exclusive GPU prover slot" >&2
+if command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory \
+    --format=csv,noheader >&2 || true
+fi
+
 start_ts_ms=$(date +%s%3N)
 PROOF_JSON="$job_dir/${PROOF_FILENAME}"
 ROOT_PROOF_BIN="$job_dir/${ROOT_PROOF_FILENAME}"
@@ -254,7 +286,6 @@ ROOT_PROOF_BIN="$job_dir/${ROOT_PROOF_FILENAME}"
 OUTPUT_PATH="$job_dir/metrics.json"
 
 export CENO_GPU_CACHE_LEVEL
-export CENO_GPU_ENABLE_WITGEN
 if [[ -n "$CENO_CHIP_PROVING_MODE" ]]; then
   export CENO_CHIP_PROVING_MODE
 else
@@ -282,11 +313,14 @@ set +e
   --rpc-url "$ETH_RPC_URL" \
   --output-dir "$job_dir" \
   --skip-comparison \
+  "${GPU_DEVICE_ARGS[@]}" \
   --chain-id "$CHAIN_ID"
   # --app-pk-path /app/app_pk \
 
 status=$?
 set -e
+flock -u 9
+echo "[prove_block.sh] Released exclusive GPU prover slot" >&2
 
 end_ts_ms=$(date +%s%3N)
 duration_ms=$(( end_ts_ms - start_ts_ms ))

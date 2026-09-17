@@ -92,6 +92,16 @@ on:
         required: false
         type: boolean
         default: "false"
+      gpu_devices:
+        description: "Logical CUDA devices exposed inside the runner container; use 0 for one GPU or 0,1 for two GPUs"
+        required: false
+        type: string
+        default: "0"
+      gpu_runner_label:
+        description: "Self-hosted GPU runner label; use dual-gpu for a runner that exposes two GPUs"
+        required: false
+        type: string
+        default: "gpu"
       gpu_large_task_booking_margin_mb:
         description: "Value for CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB"
         required: false
@@ -144,7 +154,7 @@ on:
 jobs:
   check-gpu-mem-estimation:
     if: ${{ inputs.run_gpu_mem_estimation }}
-    runs-on: [self-hosted, x64, linux, gpu]
+    runs-on: [self-hosted, x64, linux, "${{ inputs.gpu_runner_label }}"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -186,6 +196,8 @@ jobs:
 
       - name: Run GPU memory tracking benchmark
         id: run_gpu_mem_verify
+        env:
+          GPU_DEVICES: ${{ inputs.gpu_devices }}
         run: |
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
@@ -314,7 +326,7 @@ jobs:
           RUST_MIN_STACK=536870912 \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
-          CUDA_ARCH=89 \
+          CUDA_ARCH=89,120 \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
@@ -322,6 +334,7 @@ jobs:
             --block-number $block_number \
             --output-dir output \
             --cache-dir rpc-cache \
+            --gpu-devices "$GPU_DEVICES" \
             --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e
@@ -352,7 +365,7 @@ jobs:
 
   benchmark:
     if: ${{ inputs.run_gpu_benchmark }}
-    runs-on: [self-hosted, x64, linux, gpu]
+    runs-on: [self-hosted, x64, linux, "${{ inputs.gpu_runner_label }}"]
     outputs:
       result_url: ${{ steps.result_link.outputs.url }}
     steps:
@@ -396,6 +409,8 @@ jobs:
       
       - name: Run benchmark locally
         id: run_benchmark
+        env:
+          GPU_DEVICES: ${{ inputs.gpu_devices }}
         run: |
           block_number="${{ inputs.block_number }}"
           chip_proving_mode="${{ inputs.chip_proving_mode }}"
@@ -522,7 +537,7 @@ jobs:
           CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
           CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
           CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
-          CUDA_ARCH=89 \
+          CUDA_ARCH=89,120 \
           RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
           cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
             --release --bin ceno-reth-benchmark-bin -- \
@@ -530,6 +545,7 @@ jobs:
             --block-number $block_number \
             --output-dir output \
             --cache-dir rpc-cache \
+            --gpu-devices "$GPU_DEVICES" \
             --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
           benchmark_status=$?
           set -e

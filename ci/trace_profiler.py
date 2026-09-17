@@ -117,6 +117,7 @@ def analyze_trace_log(file_path: str):
 
     # Module-level statistics for GPU operations breakdown
     module_operations = defaultdict(lambda: defaultdict(float))  # module_name -> {gpu_operation -> time}
+    explicit_app_prove_time = 0.0
 
     # E2E layer statistics
     e2e_stats = {
@@ -127,6 +128,12 @@ def analyze_trace_log(file_path: str):
         'emulator_time': 0.0,
         'app_prove_time': 0.0,
         'recursion_time': 0.0,
+        'recursion_mode': 'none',
+        'recursion_streaming_time': 0.0,
+        'recursion_worker_critical_time': 0.0,
+        'recursion_tail_time': 0.0,
+        'recursion_overlap_time': 0.0,
+        'create_proof_unattributed_time': 0.0,
         'sdk_setup_time': 0.0,
         'base_prover_setup_time': 0.0,
         'recursion_setup_time': 0.0,
@@ -173,6 +180,11 @@ def analyze_trace_log(file_path: str):
             if match:
                 e2e_stats['emulator_time'] = parse_time_to_seconds(match.group(1))
 
+        if 'host.execute' in clean_line or 'host_execute' in clean_line:
+            match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
+            if match:
+                e2e_stats['host_executor_time'] = parse_time_to_seconds(match.group(1))
+
         # Find app_prove.inner
         if 'app_prove.inner' in clean_line or 'app_prove_inner' in clean_line:
             match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
@@ -183,7 +195,7 @@ def analyze_trace_log(file_path: str):
         # Find recursion.compress_to_root_proof
         if 'recursion.compress_to_root_proof' in clean_line or 'compress_to_root_proof' in clean_line:
             match = re.search(r'\[\s*([0-9.]+(?:ns|ms|µs|s))\s*\|', clean_line)
-            if match:
+            if match and e2e_stats['recursion_time'] == 0.0:
                 e2e_stats['recursion_time'] = parse_time_to_seconds(match.group(1))
 
         # The benchmark binary prints explicit timings; parse them as
@@ -203,6 +215,25 @@ def analyze_trace_log(file_path: str):
             parsed = parse_duration_after(label, clean_line)
             if parsed > 0:
                 e2e_stats[key] = parsed
+                if key == 'app_prove_time':
+                    explicit_app_prove_time = parsed
+
+        streaming_time = parse_duration_after(
+            'ceno prove-stark recursion streaming time (gpu)', clean_line
+        )
+        if streaming_time > 0:
+            e2e_stats['recursion_streaming_time'] = streaming_time
+
+        if (
+            'streaming recursion worker complete' in clean_line
+            and 'phase: "recursion_worker_metrics"' in clean_line
+        ):
+            worker_total_match = re.search(r'total_ms(?:=|:)\s*([0-9.]+)', clean_line)
+            if worker_total_match:
+                worker_total = float(worker_total_match.group(1)) / 1000.0
+                e2e_stats['recursion_worker_critical_time'] = max(
+                    e2e_stats['recursion_worker_critical_time'], worker_total
+                )
 
         root_size_match = re.search(r'ceno root proof size:\s*(\d+)\s*bytes\s*\(([0-9.]+)\s*MiB\)', clean_line)
         if root_size_match:
@@ -213,6 +244,11 @@ def analyze_trace_log(file_path: str):
         if root_path_match:
             e2e_stats['root_proof_path'] = root_path_match.group(1)
 
+    if explicit_app_prove_time > 0.0:
+        # The benchmark timer is exact and may appear before the later rounded
+        # trace dump. Keep the span separately as the detailed-table denominator.
+        e2e_stats['app_prove_time'] = explicit_app_prove_time
+
     if app_prove_inner_time == 0.0 and e2e_stats['app_prove_time'] > 0.0:
         app_prove_inner_time = e2e_stats['app_prove_time']
 
@@ -220,6 +256,37 @@ def analyze_trace_log(file_path: str):
         e2e_stats['host_executor_time'] = (
             host_executor_finish - host_executor_start
         ).total_seconds()
+
+    if e2e_stats['recursion_streaming_time'] > 0.0:
+        e2e_stats['recursion_mode'] = 'streaming'
+        if (
+            e2e_stats['total_create_proof_time'] > 0.0
+            and e2e_stats['app_prove_time'] > 0.0
+        ):
+            e2e_stats['recursion_tail_time'] = max(
+                0.0,
+                e2e_stats['total_create_proof_time'] - e2e_stats['app_prove_time'],
+            )
+        e2e_stats['recursion_overlap_time'] = max(
+            0.0,
+            e2e_stats['recursion_worker_critical_time']
+            - e2e_stats['recursion_tail_time'],
+        )
+        # Keep recursion_time additive for existing report consumers. The whole
+        # streaming session overlaps the measured app proving interval and must
+        # never be added to it.
+        e2e_stats['recursion_time'] = e2e_stats['recursion_tail_time']
+    elif e2e_stats['recursion_time'] > 0.0:
+        e2e_stats['recursion_mode'] = 'sequential'
+        e2e_stats['recursion_tail_time'] = e2e_stats['recursion_time']
+
+    if e2e_stats['total_create_proof_time'] > 0.0:
+        e2e_stats['create_proof_unattributed_time'] = max(
+            0.0,
+            e2e_stats['total_create_proof_time']
+            - e2e_stats['app_prove_time']
+            - e2e_stats['recursion_tail_time'],
+        )
 
     if e2e_stats['reth_block_time'] == 0.0:
         setup_time = (
@@ -230,7 +297,6 @@ def analyze_trace_log(file_path: str):
         if e2e_stats['total_create_proof_time'] > 0.0:
             e2e_stats['reth_block_time'] = (
                 e2e_stats['host_executor_time']
-                + e2e_stats['emulator_time']
                 + setup_time
                 + e2e_stats['total_create_proof_time']
             )
@@ -363,31 +429,46 @@ def generate_summary_markdown(app_prove_inner_time: float,
     output.append(f"# Trace Profile Summary: block#{block_num}\n")
     output.append(f"**E2E Total Time: {e2e_time:.3f}s**\n")
 
-    # E2E Overview Table
-    output.append("## Table 1: E2E Overview\n")
-    output.append("| Layer | Time (s) | % of E2E |")
-    output.append("|-------|----------|----------|")
+    # E2E Overview Table. Top-level rows are exclusive; diagnostic rows are
+    # explicitly marked as nested so overlapping work is never summed twice.
+    output.append("## Table 1: E2E Overview (overlap-aware)\n")
+    output.append("| Layer | Time (s) | % of E2E | Accounting |")
+    output.append("|-------|----------|----------|------------|")
 
     emulator_time = e2e_stats.get('emulator_time', 0.0)
     host_executor_time = e2e_stats.get('host_executor_time', 0.0)
     app_prove_time = e2e_stats.get('app_prove_time', 0.0)
-    recursion_time = e2e_stats.get('recursion_time', 0.0)
+    total_create_proof_time = e2e_stats.get('total_create_proof_time', 0.0)
+    recursion_mode = e2e_stats.get('recursion_mode', 'none')
+    recursion_tail_time = e2e_stats.get('recursion_tail_time', 0.0)
+    recursion_worker_critical_time = e2e_stats.get('recursion_worker_critical_time', 0.0)
+    recursion_overlap_time = e2e_stats.get('recursion_overlap_time', 0.0)
+    unattributed_time = e2e_stats.get('create_proof_unattributed_time', 0.0)
 
     if e2e_time > 0:
-        if host_executor_time > 0 and e2e_stats.get('reth_block_time_synthesized', False):
-            output.append(f"| host_executor | {host_executor_time:.3f} | {(host_executor_time/e2e_time*100):.2f}% |")
+        output.append(f"| **reth_block_total** | **{e2e_time:.3f}** | **100.00%** | **authoritative E2E wall time** |")
+        if total_create_proof_time > 0:
+            output.append(f"| total_create_proof | {total_create_proof_time:.3f} | {(total_create_proof_time/e2e_time*100):.2f}% | exclusive top-level proof wall time |")
+        if host_executor_time > 0:
+            output.append(f"| host_executor | {host_executor_time:.3f} | {(host_executor_time/e2e_time*100):.2f}% | exclusive top-level execution |")
+        top_level_other = max(0.0, e2e_time - total_create_proof_time - host_executor_time)
+        if top_level_other > 0:
+            output.append(f"| other_e2e | {top_level_other:.3f} | {(top_level_other/e2e_time*100):.2f}% | exclusive uninstrumented E2E time |")
         if emulator_time > 0:
-            output.append(f"| emulator | {emulator_time:.3f} | {(emulator_time/e2e_time*100):.2f}% |")
-        output.append(f"| app_prove | {app_prove_time:.3f} | {(app_prove_time/e2e_time*100):.2f}% |")
-        output.append(f"| recursion | {recursion_time:.3f} | {(recursion_time/e2e_time*100):.2f}% |")
+            output.append(f"| emulator | {emulator_time:.3f} | {(emulator_time/e2e_time*100):.2f}% | nested in app_prove_interval |")
+        output.append(f"| app_prove_interval | {app_prove_time:.3f} | {(app_prove_time/e2e_time*100):.2f}% | measured app create_proof interval; nested in total_create_proof |")
+        if recursion_mode == 'streaming':
+            output.append(f"| recursion_tail | {recursion_tail_time:.3f} | {(recursion_tail_time/e2e_time*100):.2f}% | after app_prove_interval; nested in total_create_proof |")
+            if recursion_worker_critical_time > 0:
+                output.append(f"| recursion_worker_critical | {recursion_worker_critical_time:.3f} | {(recursion_worker_critical_time/e2e_time*100):.2f}% | diagnostic footprint; overlaps app_prove_interval and tail |")
+                output.append(f"| recursion_overlap | {recursion_overlap_time:.3f} | {(recursion_overlap_time/e2e_time*100):.2f}% | worker time hidden inside app_prove_interval |")
+        elif recursion_tail_time > 0:
+            output.append(f"| recursion_sequential | {recursion_tail_time:.3f} | {(recursion_tail_time/e2e_time*100):.2f}% | after app proving; nested in total_create_proof |")
+        if unattributed_time > 0:
+            output.append(f"| create_proof_other | {unattributed_time:.3f} | {(unattributed_time/e2e_time*100):.2f}% | nested remainder of total_create_proof |")
         if e2e_stats.get('root_verify_time', 0.0) > 0:
             root_verify_time = e2e_stats['root_verify_time']
-            output.append(f"| root_verify | {root_verify_time:.3f} | {(root_verify_time/e2e_time*100):.2f}% |")
-
-        total_layers = emulator_time + app_prove_time + recursion_time
-        if e2e_stats.get('reth_block_time_synthesized', False):
-            total_layers += host_executor_time
-        output.append(f"| **TOTAL** | **{total_layers:.3f}** | **{(total_layers/e2e_time*100):.2f}%** |")
+            output.append(f"| root_verify | {root_verify_time:.3f} | {(root_verify_time/e2e_time*100):.2f}% | nested in total_create_proof |")
 
     output.append("")  # Empty line
 
@@ -398,6 +479,10 @@ def generate_summary_markdown(app_prove_inner_time: float,
         ('recursion_leaf_aggregation', e2e_stats.get('recursion_leaf_time', 0.0)),
         ('recursion_internal_aggregation', e2e_stats.get('recursion_internal_time', 0.0)),
         ('recursion_root_proving', e2e_stats.get('recursion_root_time', 0.0)),
+        ('recursion_streaming_session', e2e_stats.get('recursion_streaming_time', 0.0)),
+        ('recursion_worker_critical', e2e_stats.get('recursion_worker_critical_time', 0.0)),
+        ('recursion_tail', e2e_stats.get('recursion_tail_time', 0.0)),
+        ('recursion_overlap', e2e_stats.get('recursion_overlap_time', 0.0)),
         ('root_verify', e2e_stats.get('root_verify_time', 0.0)),
         ('total_create_proof', e2e_stats.get('total_create_proof_time', 0.0)),
     ]

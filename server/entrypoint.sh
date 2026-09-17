@@ -12,6 +12,9 @@ STARTUP_GPU_CHECK="${STARTUP_GPU_CHECK:-1}"
 GPU_READY_POLL_INTERVAL_SEC="${GPU_READY_POLL_INTERVAL_SEC:-10}"
 GPU_READY_MAX_ATTEMPTS="${GPU_READY_MAX_ATTEMPTS:-6}"
 GPU_UNAVAILABLE_EXIT_CODE=75
+STACK_STOP_TIMEOUT_SEC="${STACK_STOP_TIMEOUT_SEC:-10}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+WATCH_READY_DIR="$(mktemp -d)"
 
 wait_for_gpu() {
     local gpu_check_attempt=0 gpu_check_error gpu_check_status gpu_count gpu_uuids
@@ -25,7 +28,7 @@ wait_for_gpu() {
         if ! command -v nvidia-smi >/dev/null 2>&1; then
             gpu_check_error="nvidia-smi is not installed or not in PATH"
         else
-            if gpu_uuids="$(nvidia-smi --query-gpu=uuid --format=csv,noheader 2>&1)"; then
+            if gpu_uuids="$(timeout -k 1s 10s nvidia-smi --query-gpu=uuid --format=csv,noheader 2>&1)"; then
                 gpu_check_status=0
             else
                 gpu_check_status=$?
@@ -51,21 +54,48 @@ wait_for_gpu() {
 }
 
 terminate_current_stack() {
+    local deadline=$((SECONDS + STACK_STOP_TIMEOUT_SEC))
     if [[ -n "${CHECK_PID:-}" ]]; then
         kill "${CHECK_PID}" 2>/dev/null || true
     fi
     if [[ -n "${UVICORN_PID:-}" ]]; then
         kill -- "-${UVICORN_PID}" 2>/dev/null || true
         kill "${UVICORN_PID}" 2>/dev/null || true
+        while kill -0 -- "-${UVICORN_PID}" 2>/dev/null || kill -0 "${UVICORN_PID}" 2>/dev/null; do
+            if (( SECONDS >= deadline )); then
+                echo "[entrypoint] server shutdown timed out; killing remaining processes" >&2
+                kill -KILL -- "-${UVICORN_PID}" 2>/dev/null || true
+                kill -KILL "${UVICORN_PID}" 2>/dev/null || true
+                break
+            fi
+            sleep 0.1
+        done
     fi
+    if [[ -n "${CHECK_PID:-}" ]]; then
+        kill -KILL "${CHECK_PID}" 2>/dev/null || true
+    fi
+    # Never wait indefinitely for a process stuck in the GPU driver. Exiting
+    # PID 1 lets the host supervisor recreate the container and its bindings.
+    CHECK_PID=""
+    UVICORN_PID=""
 }
-trap 'terminate_current_stack; exit 0' INT TERM
+trap 'terminate_current_stack; rm -rf -- "$WATCH_READY_DIR"' EXIT
+trap 'exit 0' INT TERM
 
 while true; do
     wait_for_gpu
 
-    /app/server/check_gpu.sh &
+    rm -f -- "$WATCH_READY_DIR/ready"
+    GPU_WATCH_READY_FILE="$WATCH_READY_DIR/ready" python3 "$SCRIPT_DIR/check_gpu.py" &
     CHECK_PID=$!
+    ready_deadline=$((SECONDS + 10))
+    until [[ -f "$WATCH_READY_DIR/ready" ]]; do
+        if ! kill -0 "$CHECK_PID" 2>/dev/null || (( SECONDS >= ready_deadline )); then
+            echo "[entrypoint] GPU watcher failed to become ready" >&2
+            exit 1
+        fi
+        sleep 0.05
+    done
 
     setsid "${CMD[@]}" &
     UVICORN_PID=$!
@@ -76,10 +106,6 @@ while true; do
     set -e
 
     terminate_current_stack
-    wait "${UVICORN_PID}" 2>/dev/null || true
-    wait "${CHECK_PID}" 2>/dev/null || true
-    CHECK_PID=""
-    UVICORN_PID=""
 
     if [[ "$status" -eq "$GPU_UNAVAILABLE_EXIT_CODE" ]]; then
         echo "[entrypoint] GPU binding is unusable; exiting with status=${status} so the container can be recreated" >&2
