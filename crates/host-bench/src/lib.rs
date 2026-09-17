@@ -1451,9 +1451,11 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         // println!("Number of segments: {}", segments.len());
                     }
                     BenchMode::ProveApp => {
-                        let mut ceno_sdk = prebuilt_jagged_sdk
+                        let ceno_sdk = prebuilt_jagged_sdk
                             .take()
                             .expect("ceno sdk should be initialized before reth-block");
+                        #[cfg(feature = "gpu")]
+                        let mut ceno_sdk = ceno_sdk;
                         let hints = prebuilt_hints
                             .take()
                             .expect("ceno hints should be initialized before reth-block");
@@ -1503,67 +1505,70 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                         });
                     }
                     BenchMode::ProveStark => {
-                        let mut jagged_sdk = prebuilt_jagged_sdk
-                            .take()
-                            .expect("ceno sdk should be initialized before reth-block");
-                        let hints = prebuilt_hints
-                            .take()
-                            .expect("ceno hints should be initialized before reth-block");
-                        let pub_io_digest = unsafe {
-                            core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
-                        };
-                        let streaming_output = info_span!("app.prove").in_scope(|| {
-                            #[cfg(feature = "gpu")]
-                            return jagged_sdk
-                                .generate_streaming_recursion_proof(
-                                    hints,
-                                    pub_io_digest,
-                                    max_steps,
-                                )
-                                .map_err(|error| eyre::eyre!(error));
-                            #[cfg(not(feature = "gpu"))]
-                            eyre::bail!("ceno streaming recursion proving requires the gpu feature")
-                        })?;
-                        let proofs = streaming_output.base_proofs;
-                        metrics::gauge!("num_shards").set(proofs.len() as f64);
-                        println!(
-                            "ceno prove-stark app create_proof time: {:?}",
-                            streaming_output.timings.base_proving
-                        );
+                        #[cfg(not(feature = "gpu"))]
+                        eyre::bail!("ceno streaming recursion proving requires the gpu feature");
 
-                        if let Some(output_dir) = args.output_dir.as_ref() {
-                            fs::create_dir_all(output_dir)?;
-                            let mut path = output_dir.clone();
-                            path.push("app_proof.bitcode");
-                            fs::write(path, bitcode::serialize(&proofs)?)?;
-                        };
+                        #[cfg(feature = "gpu")]
+                        {
+                            let mut jagged_sdk = prebuilt_jagged_sdk
+                                .take()
+                                .expect("ceno sdk should be initialized before reth-block");
+                            let hints = prebuilt_hints
+                                .take()
+                                .expect("ceno hints should be initialized before reth-block");
+                            let pub_io_digest = unsafe {
+                                core::mem::transmute::<[u8; 32], [u32; 8]>(block_hash.0)
+                            };
+                            let streaming_output = info_span!("app.prove").in_scope(|| {
+                                jagged_sdk
+                                    .generate_streaming_recursion_proof(
+                                        hints,
+                                        pub_io_digest,
+                                        max_steps,
+                                    )
+                                    .map_err(|error| eyre::eyre!(error))
+                            })?;
+                            let proofs = streaming_output.base_proofs;
+                            metrics::gauge!("num_shards").set(proofs.len() as f64);
+                            println!(
+                                "ceno prove-stark app create_proof time: {:?}",
+                                streaming_output.timings.base_proving
+                            );
 
-                        println!(
-                            "ceno prove-stark recursion streaming time ({mode}): {:?}",
-                            streaming_output.timings.recursion_streaming,
-                            mode = ceno_recursion_backend
-                        );
-                        println!(
-                            "ceno prove-stark root verify time: {:?}",
-                            streaming_output.timings.root_verification
-                        );
-                        println!(
-                            "ceno prove-stark recursion worker count ({mode}): {}",
-                            streaming_output.worker_metrics.len(),
-                            mode = ceno_recursion_backend
-                        );
+                            if let Some(output_dir) = args.output_dir.as_ref() {
+                                fs::create_dir_all(output_dir)?;
+                                let mut path = output_dir.clone();
+                                path.push("app_proof.bitcode");
+                                fs::write(path, bitcode::serialize(&proofs)?)?;
+                            };
 
-                        handle_ceno_root_proof(
-                            args.output_dir.as_ref(),
-                            args.block_number,
-                            &streaming_output.root_output.root_proof,
-                        )?;
+                            println!(
+                                "ceno prove-stark recursion streaming time ({mode}): {:?}",
+                                streaming_output.timings.recursion_streaming,
+                                mode = ceno_recursion_backend
+                            );
+                            println!(
+                                "ceno prove-stark root verify time: {:?}",
+                                streaming_output.timings.root_verification
+                            );
+                            println!(
+                                "ceno prove-stark recursion worker count ({mode}): {}",
+                                streaming_output.worker_metrics.len(),
+                                mode = ceno_recursion_backend
+                            );
 
-                        println!(
-                            "ceno prove-stark total create_proof time ({mode}): {:?}",
-                            streaming_output.timings.total,
-                            mode = ceno_recursion_backend
-                        );
+                            handle_ceno_root_proof(
+                                args.output_dir.as_ref(),
+                                args.block_number,
+                                &streaming_output.root_output.root_proof,
+                            )?;
+
+                            println!(
+                                "ceno prove-stark total create_proof time ({mode}): {:?}",
+                                streaming_output.timings.total,
+                                mode = ceno_recursion_backend
+                            );
+                        }
                     }
                     BenchMode::ProveStarkOnly => {
                         let agg_prover = prebuilt_agg_prover
