@@ -151,779 +151,182 @@ on:
         type: string
         default: "23"
 
+# Diagnostic branch: reuse the benchmark job for one pinned paired comparison.
 jobs:
-  check-gpu-mem-estimation:
-    if: ${{ inputs.run_gpu_mem_estimation }}
-    runs-on: [self-hosted, x64, linux, "${{ inputs.gpu_runner_label }}"]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: nightly-2025-11-20 # keep it same with ceno repo
-          components: rust-src
-          cache: false
-
-      - name: Resolve ceno source
-        run: |
-          python3 scripts/resolve_ceno_source.py \
-            --benchmark-root . \
-            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
-
-      - name: Checkout ceno at requested version
-        if: ${{ env.CENO_USE_PINNED == 'false' }}
-        uses: actions/checkout@v4
-        with:
-          repository: scroll-tech/ceno
-          ref: ${{ env.CENO_REQUESTED_VERSION }}
-          path: ceno-src
-
-      - name: Patch local ceno dependencies
-        if: ${{ env.CENO_USE_PINNED == 'false' }}
-        run: |
-          python3 scripts/patch_ceno_pr_deps.py \
-            --benchmark-root . \
-            --ceno-root ./ceno-src \
-            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
-
-      - name: Give Github Action access to ceno-gpu
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.SECRET_FOR_CENO_GPU }}
-
-      - name: Run GPU memory tracking benchmark
-        id: run_gpu_mem_verify
-        env:
-          GPU_DEVICES: ${{ inputs.gpu_devices }}
-        run: |
-          block_number="${{ inputs.block_number }}"
-          chip_proving_mode="${{ inputs.chip_proving_mode }}"
-          chip_proving_lanes="4"
-          if [[ "${chip_proving_mode}" =~ ^lanes-([1-8])$ ]]; then
-            chip_proving_lanes="${BASH_REMATCH[1]}"
-            chip_proving_mode="lanes"
-          fi
-          # Install Ceno CLI
-          echo "Installing Ceno CLI..."
-          if [ "${CENO_USE_PINNED}" = "true" ]; then
-            echo "Using pinned ceno_cli source from Cargo.toml"
-            CENO_GIT_URL="${CENO_PINNED_GIT}"
-            CENO_PACKAGE="${CENO_PINNED_PACKAGE}"
-            CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
-          else
-            CENO_VERSION="${CENO_REQUESTED_VERSION}"
-            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
-            CENO_PACKAGE="cargo-ceno"
-            CENO_REF_FLAG="--rev ${CENO_VERSION}"
-            if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
-              echo "Detected branch '${CENO_VERSION}', installing via --branch"
-              CENO_REF_FLAG="--branch ${CENO_VERSION}"
-            else
-              echo "Installing via --rev ${CENO_VERSION}"
-            fi
-          fi
-          cargo install --git "${CENO_GIT_URL}" \
-            ${CENO_REF_FLAG} \
-            --features jemalloc \
-            --features nightly-features \
-            --locked \
-            --force \
-            "${CENO_PACKAGE}"
-
-          export RPC_1=${{ secrets.RPC_URL_1 }}
-
-          # Build client binary
-          cd bin/ceno-client-eth
-          cargo ceno build --release
-
-          cd ../..
-
-          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
-          mkdir -p output/guest
-          cp "$GUEST_ELF" output/guest/ceno-client-eth
-          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
-          {
-            echo "guest_elf=$GUEST_ELF"
-            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
-            echo
-            echo "[cargo-ceno]"
-            cargo ceno --version
-            echo
-            echo "[rustc]"
-            rustc -Vv
-            echo
-            echo "[cargo]"
-            cargo -Vv
-            echo
-            echo "[guest ceno deps]"
-            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
-          } > output/guest/ceno-client-eth.metadata.txt
-
-          # Create necessary directories
-          mkdir -p output
-          mkdir -p rpc-cache
-          S3_BUCKET="${{ inputs.s3_bucket }}"
-          S3_PREFIX="${{ inputs.s3_prefix }}"
-          AWS_REGION="${{ inputs.aws_region }}"
-          PROOF_UUID="${{ inputs['proof-uuid'] }}"
-          CHAIN_ID="${{ inputs.chain_id }}"
-          BLOCK_NUMBER="$block_number"
-
-          if [[ -n "$PROOF_UUID" ]]; then
-            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
-            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
-            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
-            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
-            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
-            set +e
-            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
-              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
-            input_download_status=$?
-            set -e
-            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
-              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
-              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
-              INPUT_SHA256=$(sha256sum "$LOCAL_INPUT_PATH" | awk '{print $1}')
-              echo "Frozen input identity: sha256=${INPUT_SHA256} size=$(stat -c %s "$LOCAL_INPUT_PATH") path=${LOCAL_INPUT_PATH}"
-              EXPECTED_INPUT_SHA256="${{ inputs.frozen_input_sha256 }}"
-              if [[ -n "$EXPECTED_INPUT_SHA256" && "$INPUT_SHA256" != "$EXPECTED_INPUT_SHA256" ]]; then
-                echo "Generated input SHA-256 mismatch: expected ${EXPECTED_INPUT_SHA256}, got ${INPUT_SHA256}"
-                exit 1
-              fi
-            else
-              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
-              if [[ -n "${{ inputs.frozen_input_sha256 }}" ]]; then
-                echo "Frozen input was required but could not be downloaded"
-                exit 1
-              fi
-              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
-            fi
-          else
-            echo "PROOF_UUID is empty; skipping S3 generated-input download"
-          fi
-
-          # LOG_NAME with Block number and Timestamp(UTC+8)
-          TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
-          LOG_NAME="gpu-mem-verify-mainnet${block_number}-${TIMESTAMP}"
-          LOG_FILE="${LOG_NAME}.log"
-          echo "LOG_NAME=${LOG_NAME}" >> $GITHUB_ENV
-          echo "LOG_FILE=${LOG_FILE}" >> $GITHUB_ENV
-
-          echo "Running GPU memory tracking benchmark for block $block_number..."
-          export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
-          ulimit -s 1048576
-          set +e
-
-          # Use `CENO_GPU_MEM_TRACKING=1` to check GPU memory estimation.
-          CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
-          CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
-          CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
-          CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
-          CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
-          RUST_MIN_STACK=536870912 \
-          CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
-          CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
-          CUDA_ARCH=89,120 \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
-            --release --bin ceno-reth-benchmark-bin -- \
-            --mode prove-stark \
-            --block-number $block_number \
-            --output-dir output \
-            --cache-dir rpc-cache \
-            --gpu-devices "$GPU_DEVICES" \
-            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
-          benchmark_status=$?
-          set -e
-          grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
-          echo "Generated proof output sizes:"
-          if find output -type f -print -quit | grep -q .; then
-            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
-          else
-            echo "No proof output files found in output/"
-          fi
-          if [ $benchmark_status -ne 0 ]; then
-            echo "GPU memory tracking benchmark failed with status $benchmark_status"
-            if [ "${{ inputs.ignore_failed }}" != "true" ]; then
-              exit $benchmark_status
-            fi
-            echo "Continuing despite failure because ignore_failed=true"
-          else
-            echo "GPU memory tracking benchmark completed successfully"
-          fi
-
-      - name: Upload guest program artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: guest-program-gpu-mem-${{ github.run_id }}-${{ github.run_attempt }}
-          path: output/guest/
-          if-no-files-found: warn
-
   benchmark:
     if: ${{ inputs.run_gpu_benchmark }}
     runs-on: [self-hosted, x64, linux, "${{ inputs.gpu_runner_label }}"]
-    outputs:
-      result_url: ${{ steps.result_link.outputs.url }}
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          toolchain: nightly-2025-11-20 # keep it same with ceno repo
+          toolchain: nightly-2025-11-20
           components: rust-src
           cache: false
-
-      - name: Resolve ceno source
-        run: |
-          python3 scripts/resolve_ceno_source.py \
-            --benchmark-root . \
-            --requested-ref "${{ inputs.ceno_version }}" >> "$GITHUB_ENV"
-
-      - name: Checkout ceno at requested version
-        if: ${{ env.CENO_USE_PINNED == 'false' }}
-        uses: actions/checkout@v4
-        with:
-          repository: scroll-tech/ceno
-          ref: ${{ env.CENO_REQUESTED_VERSION }}
-          path: ceno-src
-
-      - name: Patch local ceno dependencies
-        if: ${{ env.CENO_USE_PINNED == 'false' }}
-        run: |
-          python3 scripts/patch_ceno_pr_deps.py \
-            --benchmark-root . \
-            --ceno-root ./ceno-src \
-            --ceno-ref "${{ env.CENO_REQUESTED_VERSION }}"
 
       - name: Give Github Action access to ceno-gpu
         uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: |
-            ${{ secrets.SECRET_FOR_CENO_GPU }}
-      
-      - name: Run benchmark locally
-        id: run_benchmark
+          ssh-private-key: ${{ secrets.SECRET_FOR_CENO_GPU }}
+
+      - name: Validate diagnostic profile
         env:
-          GPU_DEVICES: ${{ inputs.gpu_devices }}
+          BLOCK: ${{ inputs.block_number }}
+          DEVICES: ${{ inputs.gpu_devices }}
+          MODE: ${{ inputs.chip_proving_mode }}
+          BUDGET: ${{ inputs.max_cell_per_shard }}
+          CACHE: ${{ inputs.gpu_cache_level }}
+          HEIGHT: ${{ inputs.gpu_jagged_reshape_log_height }}
+          MARGIN: ${{ inputs.gpu_large_task_booking_margin_mb }}
+          TRACKING: ${{ inputs.gpu_mem_tracking }}
         run: |
-          block_number="${{ inputs.block_number }}"
-          chip_proving_mode="${{ inputs.chip_proving_mode }}"
-          chip_proving_lanes="4"
-          if [[ "${chip_proving_mode}" =~ ^lanes-([1-8])$ ]]; then
-            chip_proving_lanes="${BASH_REMATCH[1]}"
-            chip_proving_mode="lanes"
-          fi
-          # Install Ceno CLI
-          echo "Installing Ceno CLI..."
-          if [ "${CENO_USE_PINNED}" = "true" ]; then
-            echo "Using pinned ceno_cli source from Cargo.toml"
-            CENO_GIT_URL="${CENO_PINNED_GIT}"
-            CENO_PACKAGE="${CENO_PINNED_PACKAGE}"
-            CENO_REF_FLAG="--${CENO_PINNED_REF_KIND} ${CENO_PINNED_REF_VALUE}"
-          else
-            CENO_VERSION="${CENO_REQUESTED_VERSION}"
-            CENO_GIT_URL="https://github.com/scroll-tech/ceno.git"
-            CENO_PACKAGE="cargo-ceno"
-            CENO_REF_FLAG="--rev ${CENO_VERSION}"
-            if git ls-remote --heads "${CENO_GIT_URL}" "${CENO_VERSION}" | grep -q "${CENO_VERSION}"; then
-              echo "Detected branch '${CENO_VERSION}', installing via --branch"
-              CENO_REF_FLAG="--branch ${CENO_VERSION}"
-            else
-              echo "Installing via --rev ${CENO_VERSION}"
-            fi
-          fi
-          cargo install --git "${CENO_GIT_URL}" \
-            ${CENO_REF_FLAG} \
-            --features jemalloc \
-            --features nightly-features \
-            --locked \
-            --force \
-            "${CENO_PACKAGE}"
+          test "$BLOCK" = 23817600
+          test "$DEVICES" = 0
+          test "$MODE" = lanes-4
+          test "$BUDGET" = 4500000000
+          test "$CACHE" = 1
+          test "$HEIGHT" = 23
+          test "$MARGIN" = 3048
+          test "$TRACKING" = 0
 
-          export RPC_1=${{ secrets.RPC_URL_1 }}
+      - name: Build and compare pinned opcode assignment variants
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RPC_1: ${{ secrets.RPC_URL_1 }}
+          A_CENO: b457c552392bc7af8cbfa511de891688c4c9b397
+          A_GPU: fb24f7694fe9d1f6f8ba8dd23b5ad1b8fb09dab0
+          B_CENO: 18f3e33f652a2ab9d5547a66af299021d6830a78
+          B_GPU: 35e50efaac3182237815aefb1b9d5a79fb8dc68a
+        run: |
+          import hashlib, json, os, pathlib, resource, shutil, sqlite3, subprocess, time
+          root = pathlib.Path.cwd()
+          out = root / 'opcode-results'
+          out.mkdir(exist_ok=True)
+          resource.setrlimit(resource.RLIMIT_STACK, (1073741824, resource.getrlimit(resource.RLIMIT_STACK)[1]))
+          env = os.environ.copy()
+          # Match the existing workflow defaults; profiling is enabled only for the traces.
+          for k in list(env):
+              if k.startswith('CENO_'):
+                  del env[k]
+          env.update(CENO_GPU_ENABLE_WITGEN='1', CENO_GPU_WITGEN='1', CENO_CHIP_PROVING_MODE='lanes', CENO_CHIP_PROVING_LANES='4', CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB='3048', CENO_GPU_MEM_TRACKING='0', CENO_MAX_CELL_PER_SHARD='4500000000', CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT='23', CENO_GPU_CACHE_LEVEL='1', RUST_MIN_STACK='536870912', RUSTFLAGS='-C target-feature=+avx2', CUDA_ARCH='89,120', RUST_LOG='info,openvm_stark_*=warn,openvm_cuda_common=warn', JEMALLOC_SYS_WITH_MALLOC_CONF='retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true')
+          env['CARGO_TARGET_DIR'] = str(root / 'target')
 
-          # Build client binary
-          cd bin/ceno-client-eth
-          cargo ceno build --release
+          def run(args, *, cwd=root, log=None, runenv=env):
+              if log:
+                  with pathlib.Path(log).open('w') as f:
+                      subprocess.run(args, cwd=cwd, env=runenv, stdout=f, stderr=subprocess.STDOUT, check=True)
+              else:
+                  subprocess.run(args, cwd=cwd, env=runenv, check=True)
 
-          cd ../..
+          def digest(p):
+              with p.open('rb') as f:
+                  result = hashlib.sha256()
+                  for chunk in iter(lambda: f.read(1024 * 1024), b''):
+                      result.update(chunk)
+                  return result.hexdigest()
 
-          GUEST_ELF="bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth"
-          mkdir -p output/guest
-          cp "$GUEST_ELF" output/guest/ceno-client-eth
-          sha256sum "$GUEST_ELF" > output/guest/ceno-client-eth.sha256
-          {
-            echo "guest_elf=$GUEST_ELF"
-            stat -c 'mtime=%y size=%s path=%n' "$GUEST_ELF"
-            echo
-            echo "[cargo-ceno]"
-            cargo ceno --version
-            echo
-            echo "[rustc]"
-            rustc -Vv
-            echo
-            echo "[cargo]"
-            cargo -Vv
-            echo
-            echo "[guest ceno deps]"
-            grep -A2 -E 'name = "ceno_(rt|crypto|keccak|sha2|serde)"' bin/ceno-client-eth/Cargo.lock || true
-          } > output/guest/ceno-client-eth.metadata.txt
+          run(['nsys', '--version'])
+          active = subprocess.check_output(['nvidia-smi','--query-compute-apps=pid','--format=csv,noheader'],text=True).strip()
+          assert not active, 'GPU has another compute workload before diagnostic batch'
+          run(['nvidia-smi', '-q'], log=out/'hardware.txt')
+          run(['rustc', '-Vv'], log=out/'rustc.txt')
+          run(['df','-h'], log=out/'disk.txt')
+          # Prove that CUDA API/activity capture works before any expensive build or proof.
+          probe = "import ctypes; c=ctypes.CDLL('libcuda.so.1'); assert c.cuInit(0)==0; d=ctypes.c_int(); assert c.cuDeviceGet(ctypes.byref(d),0)==0; ctx=ctypes.c_void_p(); assert c.cuCtxCreate_v2(ctypes.byref(ctx),0,d)==0; p=ctypes.c_uint64(); assert c.cuMemAlloc_v2(ctypes.byref(p),4096)==0; assert c.cuMemsetD8_v2(p,0,4096)==0; assert c.cuCtxSynchronize()==0; assert c.cuMemFree_v2(p)==0; assert c.cuCtxDestroy_v2(ctx)==0"
+          profile = ['nsys', 'profile', '--trace=cuda,nvtx,osrt', '--sample=none', '--cpuctxsw=none', '--force-overwrite=true']
+          run(profile+['--output='+str(out/'capture-probe'), 'python3', '-c', probe], log=out/'capture-probe.log')
+          run(['nsys','export','--type=sqlite','--force-overwrite=true','--output='+str(out/'capture-probe.sqlite'),str(out/'capture-probe.nsys-rep')],log=out/'capture-probe-export.log')
+          with sqlite3.connect(out/'capture-probe.sqlite') as db:
+              assert db.execute('select count(*) from CUPTI_ACTIVITY_KIND_MEMSET').fetchone()[0] > 0
 
-          # Create necessary directories
-          mkdir -p output
-          mkdir -p rpc-cache
-          S3_BUCKET="${{ inputs.s3_bucket }}"
-          S3_PREFIX="${{ inputs.s3_prefix }}"
-          AWS_REGION="${{ inputs.aws_region }}"
-          PROOF_UUID="${{ inputs['proof-uuid'] }}"
-          CHAIN_ID="${{ inputs.chain_id }}"
-          BLOCK_NUMBER="$block_number"
+          # Reuse the current, already-verified guest. No guest rebuild can change A/B work.
+          run(['gh','run','download','35194553362','--repo','scroll-tech/ceno-reth-benchmark','--name','guest-program-benchmark-35194553362-1','--dir',str(out/'guest')])
+          guest = out/'guest/ceno-client-eth'
+          assert digest(guest) == 'aa5dab3effd163111177d99966b3862a1127581d08fccc46b6c476315c8c0f46'
+          input_file = root/'rpc-cache/input/1/23817600.bin'
+          input_file.parent.mkdir(parents=True,exist_ok=True)
+          run(['curl','-fL','--connect-timeout','10','--max-time','120','--retry','3','--output',str(input_file),'https://prover-stat-data.s3.us-west-2.amazonaws.com/proofs/testing/idc-us-2-9/23817600.bin'])
+          assert digest(input_file) == '23b97818f3e2787dfe62956c999de15f5fa49af31215ee7ba61b2d598648686e'
 
-          if [[ -n "$PROOF_UUID" ]]; then
-            HTTPS_INPUT_URL="https://${S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${S3_PREFIX}/${PROOF_UUID}/${BLOCK_NUMBER}.bin"
-            LOCAL_INPUT_PATH="rpc-cache/input/${CHAIN_ID}/${BLOCK_NUMBER}.bin"
-            TMP_INPUT_PATH="${LOCAL_INPUT_PATH}.tmp"
-            mkdir -p "$(dirname "$LOCAL_INPUT_PATH")"
-            echo "Looking for generated input at ${HTTPS_INPUT_URL}"
-            set +e
-            curl -fL --connect-timeout 10 --max-time 120 --retry 3 --retry-delay 2 \
-              -o "$TMP_INPUT_PATH" "$HTTPS_INPUT_URL"
-            input_download_status=$?
-            set -e
-            if [[ $input_download_status -eq 0 && -s "$TMP_INPUT_PATH" ]]; then
-              mv "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
-              echo "Downloaded generated input to ${LOCAL_INPUT_PATH}"
-              INPUT_SHA256=$(sha256sum "$LOCAL_INPUT_PATH" | awk '{print $1}')
-              echo "Frozen input identity: sha256=${INPUT_SHA256} size=$(stat -c %s "$LOCAL_INPUT_PATH") path=${LOCAL_INPUT_PATH}"
-              EXPECTED_INPUT_SHA256="${{ inputs.frozen_input_sha256 }}"
-              if [[ -n "$EXPECTED_INPUT_SHA256" && "$INPUT_SHA256" != "$EXPECTED_INPUT_SHA256" ]]; then
-                echo "Generated input SHA-256 mismatch: expected ${EXPECTED_INPUT_SHA256}, got ${INPUT_SHA256}"
-                exit 1
-              fi
-            else
-              rm -f "$TMP_INPUT_PATH" "$LOCAL_INPUT_PATH"
-              if [[ -n "${{ inputs.frozen_input_sha256 }}" ]]; then
-                echo "Frozen input was required but could not be downloaded"
-                exit 1
-              fi
-              echo "No ready-to-use generated input found via HTTPS (status=${input_download_status}); benchmark will use RPC/cache generation"
-            fi
-          else
-            echo "PROOF_UUID is empty; skipping S3 generated-input download"
-          fi
+          identities = {'workflow':os.environ['GITHUB_SHA'],'guest_sha256':digest(guest),'input_sha256':digest(input_file),'variants':{}}
+          binaries = {}
+          for variant, benchrev in [('A','723cec9e46163528bc4ba9b7a2561e65b3c08865'),('B','30344121b92b028b3aace5c30d5b640cdc047d77')]:
+              work = root/('opcode-'+variant)
+              run(['git','worktree','add','--detach',str(work),benchrev])
+              patches=[]
+              ceno = root/('ceno-'+variant)
+              gpu = root/('gpu-'+variant)
+              for name,url,path in [('CENO','https://github.com/scroll-tech/ceno.git',ceno),('GPU','git@github.com:scroll-tech/ceno-gpu.git',gpu)]:
+                  revision=os.environ[variant+'_'+name]
+                  run(['git','clone','--no-checkout',url,str(path)])
+                  run(['git','checkout','--detach',revision],cwd=path)
+                  assert subprocess.check_output(['git','rev-parse','HEAD'],cwd=path,text=True).strip()==revision
+                  if name=='GPU':
+                      run(['git','submodule','update','--init','--recursive'],cwd=path)
+              for name in ['ceno_emul','ceno_host','ceno_zkvm','gkr_iop','ceno_recursion_v2']:
+                  patches += ['--config',f'patch."https://github.com/scroll-tech/ceno.git".{name}.path="{ceno/name}"']
+              patches += ['--config',f'patch."https://github.com/scroll-tech/ceno.git".ceno_cli.path="{ceno}/ceno_cli"','--config','patch."https://github.com/scroll-tech/ceno.git".ceno_cli.package="cargo-ceno"']
+              patches += ['--config',f'patch."https://github.com/scroll-tech/ceno-gpu-mock.git".ceno_gpu.path="{gpu}/cuda_hal"','--config','patch."https://github.com/scroll-tech/ceno-gpu-mock.git".ceno_gpu.package="cuda_hal"']
+              guest_dest=work/'bin/ceno-client-eth/target/riscv32im-ceno-zkvm-elf/release/ceno-client-eth'
+              guest_dest.parent.mkdir(parents=True,exist_ok=True)
+              shutil.copy2(guest,guest_dest)
+              # Freeze the graph after the explicit source substitutions; build it locked.
+              with (out/(variant+'-metadata.json')).open('w') as stdout, (out/(variant+'-resolve.log')).open('w') as stderr:
+                  subprocess.run(['cargo','metadata','--format-version','1']+patches,cwd=work,env=env,stdout=stdout,stderr=stderr,check=True)
+              metadata=json.loads((out/(variant+'-metadata.json')).read_text())
+              resolved={p['name']:p['manifest_path'] for p in metadata['packages'] if p['name'] in ['ceno_emul','ceno_zkvm','cuda_hal']}
+              assert resolved['ceno_emul']==str(ceno/'ceno_emul/Cargo.toml')
+              assert resolved['ceno_zkvm']==str(ceno/'ceno_zkvm/Cargo.toml')
+              assert resolved['cuda_hal']==str(gpu/'cuda_hal/Cargo.toml')
+              assert len({p['version'] for p in metadata['packages'] if p['name']=='metrics'})==1
+              run(['cargo','build','--locked','--release','--features','jemalloc,gpu,aot,parallel','--bin','ceno-reth-benchmark-bin','--config','net.git-fetch-with-cli=true']+patches,cwd=work,log=out/(variant+'-build.log'))
+              binary=root/('opcode-prover-'+variant)
+              shutil.copy2(pathlib.Path(env['CARGO_TARGET_DIR'])/'release/ceno-reth-benchmark-bin',binary)
+              binaries[variant]=(binary,work)
+              shutil.copy2(work/'Cargo.lock',out/(variant+'-Cargo.lock'))
+              identities['variants'][variant]={'benchmark':benchrev,'ceno':os.environ[variant+'_CENO'],'gpu':os.environ[variant+'_GPU'],'binary_sha256':digest(binary),'lock_sha256':digest(work/'Cargo.lock')}
+              (out/'identities.json').write_text(json.dumps(identities,indent=2))
 
-          # LOG_NAME with Block number and Timestamp(UTC+8)
-          TIMESTAMP=$(date -u -d '+8 hours' +'%Y%m%d-%H%M%S')
-          LOG_NAME="mainnet${block_number}-${TIMESTAMP}"
-          LOG_FILE="${LOG_NAME}.log"
-          echo "LOG_NAME=${LOG_NAME}" >> $GITHUB_ENV
-          echo "LOG_FILE=${LOG_FILE}" >> $GITHUB_ENV
+          for label,variant in [('warmup-A','A'),('warmup-B','B'),('pair1-A','A'),('pair1-B','B'),('pair2-B','B'),('pair2-A','A'),('pair3-A','A'),('pair3-B','B'),('trace-A','A'),('trace-B','B')]:
+              print('Starting '+label,flush=True)
+              active = subprocess.check_output(['nvidia-smi','--query-compute-apps=pid','--format=csv,noheader'],text=True).strip()
+              assert not active, 'GPU has another compute workload before '+label
+              run(['nvidia-smi','--query-gpu=name,uuid,memory.free,memory.total,temperature.gpu,clocks.sm,clocks.mem','--format=csv'],log=out/(label+'-hardware.txt'))
+              binary,work=binaries[variant]
+              runenv=env.copy();runenv['WORKSPACE_ROOT']=str(work);runenv['OUTPUT_PATH']=str(out/(label+'-metrics.json'))
+              args=[str(binary),'--mode','prove-stark','--block-number','23817600','--output-dir',str(out/(label+'-proofs')),'--cache-dir',str(root/'rpc-cache'),'--gpu-devices','0','--chain-id','1']
+              if label.startswith('trace-'):
+                  runenv['CENO_GPU_ASSIGN_PROFILE']='1'
+                  args=profile+['--output='+str(out/label)]+args
+              started=time.time()
+              run(args,cwd=work,log=out/(label+'.log'),runenv=runenv)
+              log=(out/(label+'.log')).read_text()
+              assert 'CUDA Backend Enabled' in log
+              assert 'canonical base verification succeeded' in log
+              assert (out/(label+'-proofs/23817600_root_proof.bin')).stat().st_size>0
+              if label.startswith('trace-'):
+                  run(['nsys','export','--type=sqlite','--force-overwrite=true','--output='+str(out/(label+'.sqlite')),str(out/(label+'.nsys-rep'))],log=out/(label+'-export.log'))
+                  with sqlite3.connect(out/(label+'.sqlite')) as db:
+                      assert db.execute('select count(*) from CUPTI_ACTIVITY_KIND_KERNEL').fetchone()[0]>0
+                      assert db.execute("select count(*) from NVTX_EVENTS where text like 'ceno.witness.submit%'").fetchone()[0]>0
+              (out/(label+'.done')).write_text(json.dumps({'label':label,'wall_s':time.time()-started,'verified':True}))
+              print('Completed '+label,flush=True)
 
-          echo "Generating e2e proof for block $block_number..."
-          export JEMALLOC_SYS_WITH_MALLOC_CONF="retain:true,background_thread:true,metadata_thp:always,thp:always,dirty_decay_ms:10000,muzzy_decay_ms:10000,abort_conf:true"
-          ulimit -s 1048576
-          set +e
-          CENO_GPU_MEM_TRACKING=${{ inputs.gpu_mem_tracking }} \
-          CENO_CHIP_PROVING_MODE="${chip_proving_mode}" \
-          CENO_CHIP_PROVING_LANES="${chip_proving_lanes}" \
-          CENO_GPU_LARGE_TASK_BOOKING_MARGIN_MB=${{ inputs.gpu_large_task_booking_margin_mb }} \
-          RUST_MIN_STACK=536870912 \
-          CENO_MAX_CELL_PER_SHARD=${{ inputs.max_cell_per_shard }} \
-          CENO_GPU_JAGGED_RESHAPE_LOG_HEIGHT=${{ inputs.gpu_jagged_reshape_log_height }} \
-          CENO_GPU_CACHE_LEVEL=${{ inputs.gpu_cache_level }} RUSTFLAGS="-C target-feature=+avx2" \
-          CUDA_ARCH=89,120 \
-          RUST_LOG=info,openvm_stark_*=warn,openvm_cuda_common=warn \
-          cargo run --features "jemalloc,gpu,aot,parallel" --config net.git-fetch-with-cli=true \
-            --release --bin ceno-reth-benchmark-bin -- \
-            --mode prove-stark \
-            --block-number $block_number \
-            --output-dir output \
-            --cache-dir rpc-cache \
-            --gpu-devices "$GPU_DEVICES" \
-            --chain-id "$CHAIN_ID" > "$LOG_FILE" 2>&1
-          benchmark_status=$?
-          set -e
-          grep -v '\[ceno-gpu\]' "$LOG_FILE" # filter out ceno-gpu logs
-          echo "Generated proof output sizes:"
-          if find output -type f -print -quit | grep -q .; then
-            find output -type f -printf "%p %s\n" | sort | awk '{size=$NF; path=$0; sub(/[[:space:]][0-9]+$/, "", path); printf "%s %d bytes %.2f MiB\n", path, size, size / 1048576}'
-          else
-            echo "No proof output files found in output/"
-          fi
-          if [ $benchmark_status -ne 0 ]; then
-            echo "Benchmark run failed with status $benchmark_status"
-            if [ "${{ inputs.ignore_failed }}" != "true" ]; then
-              exit $benchmark_status
-            fi
-            echo "Continuing despite failure because ignore_failed=true"
-          else
-            test -s output/app_proof.bitcode
-            test -s "output/${block_number}_root_proof.bin"
-            echo "e2e proof generated successfully"
-          fi
-
-      - name: Upload guest program artifact
+      - name: Upload comparison evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: guest-program-benchmark-${{ github.run_id }}-${{ github.run_attempt }}
-          path: output/guest/
-          if-no-files-found: warn
-
-      - name: Upload benchmark debug artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-debug-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            output/app_proof.bitcode
-            output/*_root_proof.bin
-            ${{ env.LOG_FILE }}
-          if-no-files-found: warn
-
-      - name: Profile trace from log file
-        run: |
-          echo "Profiling log file: ${{ env.LOG_FILE }}"
-          python3 ci/trace_profiler.py "${{ env.LOG_FILE }}"
-
-      - name: Prepare Result Directory
-        run: |
-          # Create a temp directory outside the workspace to survive checkout
-          TEMP_DIR="/tmp/benchmark_results"
-          rm -rf "$TEMP_DIR"
-          mkdir -p "$TEMP_DIR"
-          
-          # Copy files to temp directory
-          cp "${{ env.LOG_NAME }}_breakdown_chip.md" "$TEMP_DIR/"
-          cp "${{ env.LOG_NAME }}_breakdown_module.md" "$TEMP_DIR/"
-          cp "${{ env.LOG_NAME }}_summary.md" "$TEMP_DIR/"
-          
-          echo "TEMP_DIR=$TEMP_DIR" >> $GITHUB_ENV
-
-      ### Update gh-pages
-      - uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-
-      - name: Set up git
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-
-      - name: Commit to gh-pages branch
-        run: |
-          GH_PAGES_PATH="benchmarks-dispatch/${{ github.head_ref || github.ref }}"
-          echo "GH_PAGES_PATH=${GH_PAGES_PATH}" >> $GITHUB_ENV
-          mkdir -p "${GH_PAGES_PATH}"
-          
-          # Copy files from temp directory back to workspace
-          cp -r ${{ env.TEMP_DIR }}/* "${GH_PAGES_PATH}/"
-          
-          git add "${GH_PAGES_PATH}/"
-          git commit --allow-empty -m "Add benchmark results for ${{ env.LOG_NAME }} at ${GH_PAGES_PATH}"
-          
-          # Push with retry logic
-          MAX_RETRIES=10
-          RETRY_DELAY=5
-          ATTEMPT=0
-          SUCCESS=false
-          while [ $ATTEMPT -lt $MAX_RETRIES ]; do
-              echo "Attempt $((ATTEMPT + 1)) to push of $MAX_RETRIES..."
-              git fetch origin gh-pages
-              git merge origin/gh-pages --no-edit
-              if git push origin gh-pages; then
-                  SUCCESS=true
-                  break
-              else
-                  echo "Push failed. Retrying in $RETRY_DELAY seconds..."
-                  sleep $RETRY_DELAY
-                  ATTEMPT=$((ATTEMPT + 1))
-              fi
-          done
-          
-          if [ "$SUCCESS" = false ]; then
-              echo "Push failed after $MAX_RETRIES attempts"
-              exit 1
-          fi
-
-      - name: Update summary with results
-        run: |
-          RESULT_URL="https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
-          echo "### Results" >> $GITHUB_STEP_SUMMARY
-          echo "[${{ env.LOG_NAME }}](${RESULT_URL})" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          cat "${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md" >> $GITHUB_STEP_SUMMARY
-
-      - name: Record result link
-        id: result_link
-        run: |
-          echo "url=https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md" >> "$GITHUB_OUTPUT"
-
-      - name: Cleanup Temp Directory
-        if: always()
-        run: |
-          if [ -d "/tmp/benchmark_results" ]; then
-            echo "Cleaning up /tmp/benchmark_results..."
-            rm -rf "/tmp/benchmark_results"
-          fi
-
-      - name: Path to result
-        run: |
-          echo "https://github.com/${{ github.repository }}/blob/gh-pages/${{ env.GH_PAGES_PATH }}/${{ env.LOG_NAME }}_summary.md"
-
-  report-to-source-pr:
-    if: ${{ always() && inputs.source_repository != '' && inputs.source_pr_number != '' }}
-    needs:
-      - benchmark
-    runs-on: ubuntu-latest
-    steps:
-      - name: Comment benchmark result on source PR
-        uses: actions/github-script@v7
-        env:
-          SOURCE_REPOSITORY: ${{ inputs.source_repository }}
-          SOURCE_PR_NUMBER: ${{ inputs.source_pr_number }}
-          CENO_VERSION: ${{ inputs.ceno_version != '' && inputs.ceno_version || 'pinned Cargo.toml version' }}
-          BENCHMARK_RESULT: ${{ needs.benchmark.result }}
-          BENCHMARK_RESULT_URL: ${{ needs.benchmark.outputs.result_url }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          github-token: ${{ secrets.CENO_PR_COMMENT_TOKEN }}
-          script: |
-            const [owner, repo] = process.env.SOURCE_REPOSITORY.split("/");
-            const prNumber = Number(process.env.SOURCE_PR_NUMBER);
-            const benchmarkResult = process.env.BENCHMARK_RESULT || "skipped";
-            const memResult = process.env.MEM_RESULT || "skipped";
-            const lines = [
-              "Benchmark result from `scroll-tech/ceno-reth-benchmark`.",
-              "",
-              `- ceno version: \`${process.env.CENO_VERSION}\``,
-              `- benchmark job: \`${benchmarkResult}\``,
-              `- workflow run: ${process.env.RUN_URL}`,
-            ];
-            if (process.env.BENCHMARK_RESULT_URL) {
-              lines.push(`- summary: ${process.env.BENCHMARK_RESULT_URL}`);
-            }
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: prNumber,
-              body: lines.join("\n"),
-            });
-#          fi
-#
-#          # Verify input file exists
-#          if [ ! -f "input.json" ]; then
-#            echo "Error: input.json file not found!"
-#            exit 1
-#          fi
-#
-#          echo "Input file ready: $(ls -lh input.json)"
-#
-#      - name: Prepare benchmark
-#        id: prepare
-#        run: |
-#          # Build JSON payload using jq for proper JSON construction
-#          json_payload=$(jq -n \
-#            --arg openvm_commit "${{ inputs.openvm_version }}" \
-#            '{openvm_commit: $openvm_commit}')
-#
-#          if [ "${{ inputs.rerun_keygen }}" = "true" ]; then
-#            json_payload=$(echo "$json_payload" | jq '. + {rekeygen: true}')
-#          fi
-#
-#          if [ "${{ inputs.recompile_reth }}" = "true" ]; then
-#            json_payload=$(echo "$json_payload" | jq '. + {recompile: true}')
-#          fi
-#
-#          echo "Final JSON payload: $json_payload"
-#
-#          response=$(curl -X POST \
-#            -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#            -H "Content-Type: application/json" \
-#            -d "$json_payload" \
-#            https://api.staging.app.axiom.xyz/v1/internal/benchmark_jobs)
-#          echo "Response: $response"
-#          benchmark_id=$(echo "$response" | jq -r '.id')
-#          echo "benchmark_id=$benchmark_id" >> $GITHUB_OUTPUT
-#
-#      - name: Wait for benchmark preparation
-#        run: |
-#          benchmark_id="${{ steps.prepare.outputs.benchmark_id }}"
-#          echo "Waiting for benchmark $benchmark_id to be ready..."
-#
-#          max_iterations=80 # 40min
-#          iteration=0
-#
-#          while [ $iteration -lt $max_iterations ]; do
-#            response=$(curl -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#              https://api.staging.app.axiom.xyz/v1/internal/benchmark_jobs/$benchmark_id)
-#            echo "Response: $response"
-#
-#            status=$(echo "$response" | jq -r '.status')
-#            echo "Status: $status (iteration $((iteration + 1))/$max_iterations)"
-#
-#            if [ "$status" = "ready" ]; then
-#              echo "Benchmark is ready!"
-#              break
-#            fi
-#
-#            if [ "$status" = "failed" ]; then
-#              echo "Benchmark failed!"
-#              exit 1
-#            fi
-#
-#            iteration=$((iteration + 1))
-#
-#            if [ $iteration -lt $max_iterations ]; then
-#              echo "Waiting 30 seconds before next check..."
-#              sleep 30
-#            fi
-#          done
-#
-#          if [ $iteration -eq $max_iterations ]; then
-#            echo "Timeout: Benchmark preparation did not complete within 10 minutes (20 iterations)"
-#            exit 1
-#          fi
-#
-#      - name: prove
-#        id: prove
-#        run: |
-#          benchmark_id="${{ steps.prepare.outputs.benchmark_id }}"
-#          echo "Getting program_uuid for benchmark $benchmark_id..."
-#
-#          sleep 180  # wait 3 min to make sure the prove service is ready
-#
-#          response=$(curl -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#            https://api.staging.app.axiom.xyz/v1/internal/benchmark_jobs/$benchmark_id)
-#          echo "Response: $response"
-#
-#          program_uuid=$(echo "$response" | jq -r '.program_uuid')
-#          echo "Program UUID: $program_uuid"
-#
-#          echo "Submitting proof with JSON data..."
-#          response=$(curl -X POST \
-#            -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#            -H "Content-Type: application/json" \
-#            -d @input.json \
-#            "https://api.staging.app.axiom.xyz/v1/proofs?program_id=$program_uuid")
-#          echo "Response: $response"
-#          proof_id=$(echo "$response" | jq -r '.id')
-#          echo "proof_id=$proof_id" >> $GITHUB_OUTPUT
-#
-#      - name: Wait for proof
-#        run: |
-#          proof_id="${{ steps.prove.outputs.proof_id }}"
-#          echo "Waiting for proof $proof_id to complete..."
-#
-#          max_iterations=20 # 10min
-#          iteration=0
-#
-#          while [ $iteration -lt $max_iterations ]; do
-#            response=$(curl -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#              https://api.staging.app.axiom.xyz/v1/proofs/$proof_id)
-#            echo "Response: $response"
-#
-#            status=$(echo "$response" | jq -r '.state')
-#            echo "Status: $status (iteration $((iteration + 1))/$max_iterations)"
-#
-#            if [ "$status" = "Succeeded" ] || [ "$status" = "Failed" ]; then
-#              echo "Proof completed with status: $status"
-#              break
-#            fi
-#
-#            iteration=$((iteration + 1))
-#
-#            if [ $iteration -lt $max_iterations ]; then
-#              echo "Waiting 30 seconds before next check..."
-#              sleep 30
-#            fi
-#          done
-#
-#          if [ $iteration -eq $max_iterations ]; then
-#            echo "Timeout: Proof did not complete within 10 minutes (20 iterations)"
-#            echo "WORKFLOW_FAILED=true" >> $GITHUB_ENV
-#          fi
-#
-#      - name: Cleanup
-#        if: ${{ inputs.cleanup == true }}
-#        run: |
-#          benchmark_id="${{ steps.prepare.outputs.benchmark_id }}"
-#          echo "Deleting benchmark $benchmark_id..."
-#          response=$(curl -X DELETE \
-#            -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#            "https://api.staging.app.axiom.xyz/v1/internal/benchmark_jobs/$benchmark_id")
-#          echo "Response: $response"
-#
-#      - name: Download and display metrics
-#        run: |
-#          if [ "$WORKFLOW_FAILED" = "true" ]; then
-#            echo "skipping metrics download"
-#          else
-#            proof_id="${{ steps.prove.outputs.proof_id }}"
-#            echo "Downloading metrics for proof $proof_id..."
-#
-#            max_iterations=10 # 5 minutes total
-#            iteration=0
-#
-#            while [ $iteration -lt $max_iterations ]; do
-#              echo "Attempting to download metrics (attempt $((iteration + 1))/$max_iterations)..."
-#
-#              response_code=$(curl -w "%{http_code}" -s -H "Axiom-API-Key: ${{ secrets.PROVING_SERVICE_API_KEY }}" \
-#                "https://api.staging.app.axiom.xyz/v1/internal/benchmark_metrics/$proof_id" \
-#                -o metrics.md)
-#
-#              echo "HTTP response code: $response_code"
-#
-#              if [ "$response_code" = "200" ]; then
-#                echo "Metrics downloaded successfully!"
-#                break
-#              elif [ "$response_code" = "404" ]; then
-#                echo "Metrics not ready yet (404), waiting 30 seconds before retry..."
-#                rm -f metrics.md  # Clean up partial file
-#                iteration=$((iteration + 1))
-#
-#                if [ $iteration -lt $max_iterations ]; then
-#                  sleep 30
-#                fi
-#              else
-#                echo "Unexpected response code: $response_code"
-#                rm -f metrics.md  # Clean up partial file
-#                echo "METRICS_FAILED=true" >> $GITHUB_ENV
-#                break
-#              fi
-#            done
-#
-#            if [ $iteration -eq $max_iterations ]; then
-#              echo "Timeout: Metrics were not available after 5 minutes"
-#              echo "METRICS_FAILED=true" >> $GITHUB_ENV
-#            elif [ "$response_code" = "200" ]; then
-#              echo "Metrics downloaded to metrics.md"
-#              echo "=== BENCHMARK METRICS ==="
-#              cat metrics.md
-#              echo "========================="
-#            fi
-#          fi
-#
-#      - name: Upload metrics as artifact
-#        if: env.WORKFLOW_FAILED != 'true' && env.METRICS_FAILED != 'true'
-#        uses: actions/upload-artifact@v4
-#        with:
-#          name: benchmark-metrics-${{ inputs.openvm_version }}
-#          path: metrics.md
-#          retention-days: 30
-#
-#      - name: Check workflow status
-#        run: |
-#          if [ "$WORKFLOW_FAILED" = "true" ]; then
-#            echo "Workflow failed due to timeout or proof failure"
-#            exit 1
-#          else
-#            echo "Workflow completed successfully"
-#          fi
-#
+          name: opcode-assignment-${{ github.run_id }}-${{ github.run_attempt }}
+          path: opcode-results/
+          if-no-files-found: error
+          retention-days: 14
