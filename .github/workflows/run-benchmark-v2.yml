@@ -282,7 +282,8 @@ jobs:
           binaries = {}
           for variant, benchrev in [('A','723cec9e46163528bc4ba9b7a2561e65b3c08865'),('B','30344121b92b028b3aace5c30d5b640cdc047d77')]:
               work = root/('opcode-'+variant)
-              run(['git','worktree','add','--detach',str(work),benchrev])
+              run(['git','clone','--shared','--no-checkout',str(root),str(work)])
+              run(['git','checkout','--detach',benchrev],cwd=work)
               patches=[]
               ceno = root/('ceno-'+variant)
               gpu = root/('gpu-'+variant)
