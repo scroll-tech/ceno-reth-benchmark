@@ -199,7 +199,7 @@ jobs:
           test "$TRACKING" = 0
 
       - name: Build and compare pinned opcode assignment variants
-        shell: python
+        shell: python3 {0}
         env:
           GH_TOKEN: ${{ github.token }}
           RPC_1: ${{ secrets.RPC_URL_1 }}
