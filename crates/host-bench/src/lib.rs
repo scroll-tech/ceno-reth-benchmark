@@ -1525,6 +1525,7 @@ pub async fn run_ceno_reth_benchmark(args: HostArgs) -> eyre::Result<()> {
                             eyre::bail!("ceno streaming recursion proving requires the gpu feature")
                         })?;
                         let proofs = streaming_output.base_proofs;
+                        metrics::gauge!("num_shards").set(proofs.len() as f64);
                         println!(
                             "ceno prove-stark app create_proof time: {:?}",
                             streaming_output.timings.base_proving

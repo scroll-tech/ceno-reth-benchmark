@@ -1,5 +1,8 @@
 [bans]
 multiple-versions = "deny"
+deny = [
+    { name = "metrics", deny-multiple-versions = true, reason = "Separate metrics versions have separate global recorders, losing Ceno's cycle counts" },
+]
 
 skip = [
     { name = "alloy-eip7928" },
