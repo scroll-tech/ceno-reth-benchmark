@@ -239,10 +239,10 @@ jobs:
           tools = root / 'opcode-tools'
           tools.mkdir(exist_ok=True)
           package = tools / 'nsys.deb'
-          run(['curl','-fL','--max-time','120','--output',str(package),'https://developer.download.nvidia.com/devtools/repos/ubuntu2204/amd64/NsightSystems-linux-cli-public-2024.6.1.90-3490548.deb'])
-          assert digest(package) == '4b94bfd1cc0a0e3268777116d5043556f4ff2a7c0231f33722b8d5bd19c1414d'
+          run(['curl','-fL','--max-time','120','--output',str(package),'https://developer.download.nvidia.com/devtools/repos/ubuntu2204/amd64/NsightSystems-linux-cli-public-2025.1.1.131-3554042.deb'])
+          assert digest(package) == '744f066dc5771939674937c0702688d5c615d9e14981aa1ee69d9eaf400a29fa'
           run(['dpkg-deb','-x',str(package),str(tools/'nsys')])
-          env['PATH'] = str(tools/'nsys/opt/nvidia/nsight-systems-cli/2024.6.1/target-linux-x64') + ':' + env['PATH']
+          env['PATH'] = str(tools/'nsys/opt/nvidia/nsight-systems-cli/2025.1.1/target-linux-x64') + ':' + env['PATH']
           run(['nsys', '--version'],log=out/'nsys-version.txt')
           active = subprocess.check_output(['nvidia-smi','--query-compute-apps=pid','--format=csv,noheader'],text=True).strip()
           assert not active, 'GPU has another compute workload before diagnostic batch'
@@ -250,12 +250,15 @@ jobs:
           run(['rustc', '-Vv'], log=out/'rustc.txt')
           run(['df','-h'], log=out/'disk.txt')
           # Prove that CUDA API/activity capture works before any expensive build or proof.
-          probe = "import ctypes; c=ctypes.CDLL('libcuda.so.1'); assert c.cuInit(0)==0; d=ctypes.c_int(); assert c.cuDeviceGet(ctypes.byref(d),0)==0; ctx=ctypes.c_void_p(); assert c.cuCtxCreate_v2(ctypes.byref(ctx),0,d)==0; p=ctypes.c_uint64(); assert c.cuMemAlloc_v2(ctypes.byref(p),4096)==0; assert c.cuMemsetD8_v2(p,0,4096)==0; assert c.cuCtxSynchronize()==0; assert c.cuMemFree_v2(p)==0; assert c.cuCtxDestroy_v2(ctx)==0"
+          probe_source = tools / 'capture-probe.cu'
+          probe_source.write_text('#include <cuda_runtime.h>\n__global__ void capture_probe(int* p) { *p = 42; }\nint main() { int* p; int value = 0; if (cudaMalloc((void**)&p, sizeof(int))) return 1; capture_probe<<<1,1>>>(p); if (cudaMemcpy(&value, p, sizeof(int), cudaMemcpyDeviceToHost)) return 2; if (cudaFree(p)) return 3; return value == 42 ? 0 : 4; }\n')
+          probe_binary = tools / 'capture-probe'
+          run(['nvcc','-gencode','arch=compute_89,code=sm_89','-gencode','arch=compute_120,code=sm_120',str(probe_source),'-o',str(probe_binary)],log=out/'capture-probe-build.log')
           profile = ['nsys', 'profile', '--trace=cuda,nvtx,osrt', '--sample=none', '--cpuctxsw=none', '--force-overwrite=true']
-          run(profile+['--output='+str(out/'capture-probe'), 'python3', '-c', probe], log=out/'capture-probe.log')
+          run(profile+['--output='+str(out/'capture-probe'), str(probe_binary)], log=out/'capture-probe.log')
           run(['nsys','export','--type=sqlite','--force-overwrite=true','--output='+str(out/'capture-probe.sqlite'),str(out/'capture-probe.nsys-rep')],log=out/'capture-probe-export.log')
           with sqlite3.connect(out/'capture-probe.sqlite') as db:
-              assert db.execute('select count(*) from CUPTI_ACTIVITY_KIND_MEMSET').fetchone()[0] > 0
+              assert db.execute('select count(*) from CUPTI_ACTIVITY_KIND_KERNEL').fetchone()[0] > 0
 
           # Reuse the current, already-verified guest. No guest rebuild can change A/B work.
           connection = http.client.HTTPSConnection('api.github.com',timeout=30)
@@ -299,7 +302,7 @@ jobs:
               shutil.copy2(guest,guest_dest)
               # Freeze the graph after the explicit source substitutions; build it locked.
               with (out/(variant+'-metadata.json')).open('w') as stdout, (out/(variant+'-resolve.log')).open('w') as stderr:
-                  subprocess.run(['cargo','metadata','--format-version','1']+patches,cwd=work,env=env,stdout=stdout,stderr=stderr,check=True)
+                  subprocess.run(['cargo','metadata','--format-version','1','--features','jemalloc,gpu,aot,parallel']+patches,cwd=work,env=env,stdout=stdout,stderr=stderr,check=True)
               metadata=json.loads((out/(variant+'-metadata.json')).read_text())
               resolved={p['name']:p['manifest_path'] for p in metadata['packages'] if p['name'] in ['ceno_emul','ceno_zkvm','cuda_hal']}
               assert resolved['ceno_emul']==str(ceno/'ceno_emul/Cargo.toml')
